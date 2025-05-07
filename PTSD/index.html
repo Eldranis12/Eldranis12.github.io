@@ -122,12 +122,6 @@
 
       document.body.appendChild(script);
 
-	window.addEventListener('focus', () => {
-        if (typeof unityInstance !== 'undefined') {
-            // Custom event to Unity
-            unityInstance.SendMessage('GameManager', 'OnBrowserFocus');
-        }
-    });
     </script>
   </body>
 </html>
