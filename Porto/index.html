@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dev Portfolio | Unreal, Unity, Roblox</title>
+    <style>
+        /* CSS STYLES */
+        :root {
+            --bg-color: #0f0f0f;
+            --card-bg: #1e1e1e;
+            --accent-color: #007bff;
+            --text-color: #e0e0e0;
+            --code-bg: #2d2d2d;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        header {
+            text-align: center;
+            padding: 4rem 1rem;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+        }
+
+        .filter-container {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .filter-btn {
+            background: var(--card-bg);
+            color: white;
+            border: 1px solid #444;
+            padding: 10px 22px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 15px rgba(0, 123, 255, 0.3);
+        }
+
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+            padding: 0 40px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .project-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #333;
+            transition: transform 0.3s ease;
+        }
+
+        .project-card:hover {
+            transform: translateY(-8px);
+        }
+
+        .media-box img, .media-box .video-container {
+            width: 100%;
+            display: block;
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border: none;
+        }
+
+        .project-info {
+            padding: 20px;
+        }
+
+        .project-info h3 { margin: 0 0 10px 0; color: #fff; }
+
+        .btn-code {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 8px 16px;
+            background: transparent;
+            color: var(--accent-color);
+            border: 1px solid var(--accent-color);
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .btn-code:hover {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        /* MODAL STYLES */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: var(--code-bg);
+            margin: 5% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 8px;
+            position: relative;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 20px; top: 10px;
+            color: #aaa;
+            font-size: 28px;
+            cursor: pointer;
+        }
+
+        pre {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 4px;
+            color: #dcdcaa;
+            overflow-x: auto;
+            font-family: 'Consolas', monospace;
+        }
+
+        footer { text-align: center; padding: 3rem; color: #666; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Bill's Developer Portfolio</h1>
+        <p>Unreal Engine • Unity • Roblox • C#</p>
+    </header>
+
+    <div class="filter-container">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="unreal">Unreal</button>
+        <button class="filter-btn" data-filter="unity">Unity</button>
+        <button class="filter-btn" data-filter="roblox">Roblox</button>
+    </div>
+
+    <main class="portfolio-grid">
+        
+        <div class="project-card unity">
+            <div class="media-box">
+                <div class="video-container">
+                    <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" allowfullscreen></iframe>
+                </div>
+            </div>
+            <div class="project-info">
+                <h3>C# Character Controller</h3>
+                <p>Advanced physics-based movement script for Unity.</p>
+                <button class="btn-code" onclick="openModal('unityCode')">View Source Code</button>
+            </div>
+        </div>
+
+        <div class="project-card unreal">
+            <div class="media-box">
+                <img src="https://via.placeholder.com/600x337/222/fff?text=Unreal+Engine+Render" alt="Unreal Project">
+            </div>
+            <div class="project-info">
+                <h3>UE5 Environment Design</h3>
+                <p>Lighting and landscape design using Nanite and Lumen.</p>
+                <button class="btn-code" onclick="openModal('unrealCode')">View Logic (BP)</button>
+            </div>
+        </div>
+
+        <div class="project-card roblox">
+            <div class="media-box">
+                <img src="https://via.placeholder.com/600x337/333/fff?text=Roblox+Gameplay" alt="Roblox Project">
+            </div>
+            <div class="project-info">
+                <h3>DataStore Manager</h3>
+                <p>Robust Luau script for player data persistence.</p>
+                <button class="btn-code" onclick="openModal('robloxCode')">View Luau Script</button>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="codeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle">Source Code</h2>
+            <pre id="codeDisplay"></pre>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Bill | Created with Passion</p>
+    </footer>
+
+    <script>
+        // Project Source Data
+        const codeSnippets = {
+            unityCode: {
+                title: "Unity C# Movement Controller",
+                code: `public class PlayerController : MonoBehaviour {\n    public float speed = 5.0f;\n    void Update() {\n        float move = Input.GetAxis("Horizontal");\n        transform.Translate(Vector3.right * move * speed * Time.deltaTime);\n    }\n}`
+            },
+            unrealCode: {
+                title: "Unreal Blueprints / Logic",
+                code: `// Unreal Engine C++ Snippet\nvoid AMyCharacter::BeginPlay() {\n    Super::BeginPlay();\n    UE_LOG(LogTemp, Warning, TEXT("Character Spawned!"));\n}`
+            },
+            robloxCode: {
+                title: "Roblox Luau DataStore",
+                code: `local DataStoreService = game:GetService("DataStoreService")\nlocal myDataStore = DataStoreService:GetDataStore("PlayerStats")\n\ngame.Players.PlayerAdded:Connect(function(player)\n    local data = myDataStore:GetAsync(player.UserId)\n    print("Loaded data for: " .. player.Name)\nend)`
+            }
+        };
+
+        // Filter Logic
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        const projectCards = document.querySelectorAll('.project-card');
+
+        filterButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                const filter = button.getAttribute('data-filter');
+
+                projectCards.forEach(card => {
+                    if (filter === 'all' || card.classList.contains(filter)) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // Modal Logic
+        const modal = document.getElementById("codeModal");
+        const codeDisplay = document.getElementById("codeDisplay");
+        const modalTitle = document.getElementById("modalTitle");
+
+        function openModal(snippetKey) {
+            modalTitle.innerText = codeSnippets[snippetKey].title;
+            codeDisplay.innerText = codeSnippets[snippetKey].code;
+            modal.style.display = "block";
+            document.body.style.overflow = "hidden"; // Prevent scrolling
+        }
+
+        function closeModal() {
+            modal.style.display = "none";
+            document.body.style.overflow = "auto";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) closeModal();
+        }
+    </script>
+</body>
+</html>
