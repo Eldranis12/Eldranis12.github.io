@@ -77,7 +77,25 @@
             flex-direction: column;
         }
 
-        /* --- CAROUSEL FIX --- */
+        /* --- VIDEO STYLING --- */
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        /* --- CAROUSEL SYSTEM --- */
         .carousel-container {
             position: relative;
             width: 100%;
@@ -98,7 +116,6 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            /* Important: disable dragging so it doesn't interfere with clicks */
             user-select: none;
             -webkit-user-drag: none;
         }
@@ -112,15 +129,11 @@
             border: none;
             padding: 15px 12px;
             cursor: pointer;
-            z-index: 50; /* Higher than images */
+            z-index: 50;
             font-size: 20px;
-            transition: background 0.2s;
         }
 
-        .carousel-prev:hover, .carousel-next:hover {
-            background: var(--accent-color);
-        }
-
+        .carousel-prev:hover, .carousel-next:hover { background: var(--accent-color); }
         .carousel-prev { left: 0; border-radius: 0 4px 4px 0; }
         .carousel-next { right: 0; border-radius: 4px 0 0 4px; }
 
@@ -141,18 +154,9 @@
             transition: 0.3s;
         }
 
-        .btn-link:hover {
-            background: var(--accent-color);
-            color: white;
-        }
+        .btn-link:hover { background: var(--accent-color); color: white; }
 
-        /* --- FOOTER --- */
-        footer {
-            text-align: center;
-            padding: 4rem;
-            border-top: 1px solid #333;
-            color: #666;
-        }
+        footer { text-align: center; padding: 4rem; border-top: 1px solid #333; color: #666; }
     </style>
 </head>
 <body>
@@ -172,10 +176,8 @@
     <main class="portfolio-grid">
         
         <div class="project-card unreal">
-            <div class="media-box">
-                <div class="video-container">
-                    <iframe src="https://www.youtube.com/embed/vUi7RZjDZWQ" allowfullscreen></iframe>
-                </div>
+            <div class="video-container">
+                <iframe src="https://www.youtube.com/embed/vUi7RZjDZWQ" allowfullscreen></iframe>
             </div>
             <div class="project-info">
                 <h3>Clevo X-Dream Farm</h3>
@@ -184,13 +186,10 @@
         </div>
 
         <div class="project-card unity">
-            <div class="media-box">
-                <img src="https://via.placeholder.com/600x337/222/fff?text=Unreal+Engine+Render" alt="Unreal Project">
-            </div>
+            <img src="https://via.placeholder.com/600x337/222/fff?text=Unity+Project" alt="Unity Project" style="width:100%; height:220px; object-fit:cover;">
             <div class="project-info">
                 <h3>UE5 Environment Design</h3>
                 <p>Lighting and landscape design using Nanite and Lumen.</p>
-                <button class="btn-code" onclick="openModal('unrealCode')">View Logic (BP)</button>
             </div>
         </div>
 
@@ -212,36 +211,33 @@
 
     </main>
 
-    <div id="codeModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal()">&times;</span>
-            <h2 id="modalTitle">Source Code</h2>
-            <pre id="codeDisplay"></pre>
-        </div>
-    </div>
-
     <footer>
         <p>&copy; 2026 Bill | Created with Passion</p>
     </footer>
 
     <script>
-        // Project Source Data
-        const codeSnippets = {
-            unityCode: {
-                title: "Unity C# Movement Controller",
-                code: `public class PlayerController : MonoBehaviour {\n    public float speed = 5.0f;\n    void Update() {\n        float move = Input.GetAxis("Horizontal");\n        transform.Translate(Vector3.right * move * speed * Time.deltaTime);\n    }\n}`
-            },
-            unrealCode: {
-                title: "Unreal Blueprints / Logic",
-                code: `// Unreal Engine C++ Snippet\nvoid AMyCharacter::BeginPlay() {\n    Super::BeginPlay();\n    UE_LOG(LogTemp, Warning, TEXT("Character Spawned!"));\n}`
-            },
-            robloxCode: {
-                title: "Roblox Luau DataStore",
-                code: `local DataStoreService = game:GetService("DataStoreService")\nlocal myDataStore = DataStoreService:GetDataStore("PlayerStats")\n\ngame.Players.PlayerAdded:Connect(function(player)\n    local data = myDataStore:GetAsync(player.UserId)\n    print("Loaded data for: " .. player.Name)\nend)`
-            }
-        };
+        // --- 1. CAROUSEL LOGIC (This is what you were missing!) ---
+        const carouselStates = {};
 
-        // Filter Logic
+        function moveSlide(carouselId, direction) {
+            const container = document.getElementById(carouselId);
+            const slide = container.querySelector('.carousel-slide');
+            const totalImages = slide.querySelectorAll('img').length;
+
+            if (carouselStates[carouselId] === undefined) {
+                carouselStates[carouselId] = 0;
+            }
+
+            carouselStates[carouselId] += direction;
+
+            if (carouselStates[carouselId] >= totalImages) carouselStates[carouselId] = 0;
+            if (carouselStates[carouselId] < 0) carouselStates[carouselId] = totalImages - 1;
+
+            const offset = -carouselStates[carouselId] * 100;
+            slide.style.transform = `translateX(${offset}%)`;
+        }
+
+        // --- 2. FILTER LOGIC ---
         const filterButtons = document.querySelectorAll('.filter-btn');
         const projectCards = document.querySelectorAll('.project-card');
 
@@ -254,34 +250,13 @@
 
                 projectCards.forEach(card => {
                     if (filter === 'all' || card.classList.contains(filter)) {
-                        card.style.display = 'block';
+                        card.style.display = 'flex'; // Changed to flex to maintain card structure
                     } else {
                         card.style.display = 'none';
                     }
                 });
             });
         });
-
-        // Modal Logic
-        const modal = document.getElementById("codeModal");
-        const codeDisplay = document.getElementById("codeDisplay");
-        const modalTitle = document.getElementById("modalTitle");
-
-        function openModal(snippetKey) {
-            modalTitle.innerText = codeSnippets[snippetKey].title;
-            codeDisplay.innerText = codeSnippets[snippetKey].code;
-            modal.style.display = "block";
-            document.body.style.overflow = "hidden"; // Prevent scrolling
-        }
-
-        function closeModal() {
-            modal.style.display = "none";
-            document.body.style.overflow = "auto";
-        }
-
-        window.onclick = function(event) {
-            if (event.target == modal) closeModal();
-        }
     </script>
 </body>
 </html>
