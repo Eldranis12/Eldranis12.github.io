@@ -208,6 +208,22 @@
                 <a href="https://www.roblox.com/games/139086244973542/" target="_blank" class="btn-link">Play Game</a>
             </div>
         </div>
+		
+		<div class="project-card unity">
+            <div class="carousel-container" id="sprite-carousel">
+                <div class="carousel-slide">
+                    <img src="Sprite-Thumb1.png" alt="Sprite Screen 1">
+                    <img src="Sprite-Thumb2.png" alt="Sprite Screen 2">
+                    <img src="Sprite-Thumb3.png" alt="Sprite Screen 3">
+                </div>
+                <button class="carousel-prev" onclick="moveSlide('sprite-carousel', -1)">&#10094;</button>
+                <button class="carousel-next" onclick="moveSlide('sprite-carousel', 1)">&#10095;</button>
+            </div>
+            <div class="project-info">
+                <h3>Sprite Promo</h3>
+				<a href="https://eldranis12.github.io/BuildSprite/" target="_blank" class="btn-link">Play Game</a>
+			 </div>
+        </div>
 
     </main>
 
@@ -216,7 +232,7 @@
     </footer>
 
     <script>
-        // --- 1. CAROUSEL LOGIC (This is what you were missing!) ---
+        // --- 1. CAROUSEL LOGIC ---
         const carouselStates = {};
 
         function moveSlide(carouselId, direction) {
