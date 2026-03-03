@@ -40,7 +40,7 @@
             background: var(--bg-color);
             padding: 20px 0;
             z-index: 100;
-            /* Support for mobile horizontal scroll */
+            /* Added for mobile scroll */
             overflow-x: auto;
             white-space: nowrap;
             -webkit-overflow-scrolling: touch;
@@ -66,7 +66,7 @@
         /* --- PORTFOLIO GRID --- */
         .portfolio-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); /* Adjusted for small screens */
             gap: 30px;
             padding: 0 40px 60px;
             max-width: 1200px;
@@ -86,7 +86,7 @@
         .carousel-container {
             position: relative;
             width: 100%;
-            aspect-ratio: 16 / 9; /* Maintains consistent shape */
+            aspect-ratio: 16 / 9; /* Replaced fixed 450px height for responsiveness */
             overflow: hidden;
             background: #000;
             display: flex;
@@ -100,13 +100,14 @@
             transition: transform 0.5s ease-in-out;
         }
 
+        /* Unified slide items */
         .carousel-slide img, 
         .carousel-slide iframe {
             min-width: 100%;
             width: 100%;
             height: 100%;
-            object-fit: cover; 
-            background-color: #1a1a1a;
+            object-fit: contain; /* Support for portrait images without cropping */
+            background-color: #000;
             border: none;
         }
 
@@ -117,7 +118,7 @@
             background: rgba(0, 0, 0, 0.7);
             color: white;
             border: none;
-            padding: 20px 12px; /* Increased hit area for mobile */
+            padding: 15px 12px;
             cursor: pointer;
             font-size: 20px;
             z-index: 60;
@@ -148,28 +149,12 @@
 
         footer { text-align: center; padding: 4rem; border-top: 1px solid #333; color: #666; }
 
-        /* --- MOBILE RESPONSIVENESS --- */
+        /* --- NEW MOBILE MEDIA QUERY --- */
         @media (max-width: 768px) {
-            header { padding: 3rem 1rem; }
             header h1 { font-size: 2.2rem; }
-
-            .portfolio-grid {
-                padding: 0 15px 40px;
-                grid-template-columns: 1fr; /* Single column on mobile */
-            }
-
-            .filter-container {
-                padding: 15px 10px;
-                margin-bottom: 20px;
-                text-align: left; /* Better for horizontal scrolling */
-            }
-
-            .filter-btn {
-                padding: 8px 16px;
-                font-size: 14px;
-            }
-
-            .project-info h3 { font-size: 1.25rem; }
+            .portfolio-grid { padding: 0 15px 40px; grid-template-columns: 1fr; }
+            .carousel-container { aspect-ratio: 4 / 5; max-height: 500px; }
+            .filter-container { text-align: left; padding: 15px 10px; }
         }
     </style>
 </head>
@@ -381,6 +366,7 @@
         function moveSlide(carouselId, direction) {
             const container = document.getElementById(carouselId);
             const slideWrapper = container.querySelector('.carousel-slide');
+            
             const totalItems = slideWrapper.children.length;
 
             if (carouselStates[carouselId] === undefined) {
