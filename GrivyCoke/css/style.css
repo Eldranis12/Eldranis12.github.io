@@ -23,6 +23,14 @@ html, body {
   touch-action: manipulation;
 }
 
+/* cegah menu "download/share image" saat tombol ditahan lama di HP */
+img {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+
 #viewport {
   width: 100%;
   height: 100%;
@@ -50,6 +58,15 @@ html, body {
   background: url('../assets/img/bg-red.jpg') top center / 100% 100% no-repeat;
 }
 .hidden { display: none !important; }
+
+/* konten layar diskalakan proporsional bila layar lebih pendek dari
+   rasio desain; background .screen tetap full-bleed */
+.fit {
+  position: relative;
+  width: 1080px;
+  height: 100%;
+  margin: 0 auto;
+}
 
 /* ---------------- decorations ---------------- */
 .deco {

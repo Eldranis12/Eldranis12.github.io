@@ -9,14 +9,32 @@ import { notifyGameStart, notifyGameEnd } from './kiosk.js';
 
 const $ = sel => document.querySelector(sel);
 
-// ---------- skala stage 1080x2340 ke viewport ----------
+// ---------- skala stage ke viewport ----------
+// Lebar desain tetap 1080; tinggi mengikuti layar supaya tidak ada
+// letterbox hitam. Elemen bawah (swoosh, copyright, botol) sudah
+// di-anchor ke bottom sehingga aman untuk tinggi berapa pun.
 function fitStage() {
-  const s = Math.min(innerWidth / 1080, innerHeight / 2340);
   const stage = $('#stage');
+  let s = innerWidth / 1080;
+  let H = Math.round(innerHeight / s);
+  if (H < 1900) {
+    // layar terlalu lebar (desktop/landscape): fit tinggi, bar di samping
+    s = innerHeight / 2340;
+    H = 2340;
+  }
+  stage.style.width = '1080px';
+  stage.style.height = H + 'px';
   if ('zoom' in stage.style) {
     stage.style.zoom = s;            // zoom ikut layout -> tidak ada overflow
   } else {
     stage.style.transform = `scale(${s})`;
+  }
+
+  // layar lebih pendek dari desain 2340 -> kecilkan konten proporsional
+  const k = Math.min(1, H / 2340);
+  for (const fit of document.querySelectorAll('.fit')) {
+    fit.style.zoom = k;
+    fit.style.height = Math.round(H / k) + 'px';
   }
 }
 addEventListener('resize', fitStage);
@@ -129,15 +147,16 @@ function draw() {
   }
 
   // balok terkunci
+  // animasi clear: fase 1 (30% awal) baris sudah berubah warna balok terakhir,
+  // fase 2 balok hilang dari kiri ke kanan
   const clearing = new Set(clearAnim ? clearAnim.rows : []);
+  const prog = clearAnim ? Math.max(0, (0.7 - clearAnim.t) / 0.7) : 0;
   for (let y = 0; y < CONFIG.rows; y++) {
     for (let x = 0; x < CONFIG.cols; x++) {
       const cellColor = game.grid[y][x];
       if (!cellColor) continue;
       if (clearing.has(y)) {
-        // animasi hilang kiri->kanan
-        const prog = 1 - clearAnim.t; // 0..1
-        const cut = prog * (CONFIG.cols + 2) - x;
+        const cut = prog * (CONFIG.cols + 3) - x;
         const a = Math.max(0, Math.min(1, 1 - cut));
         if (a <= 0) continue;
         ctx.globalAlpha = a;
@@ -149,23 +168,37 @@ function draw() {
     }
   }
 
-  // overlay baris penuh (stroke merah/putih sesuai balok terakhir)
+  // overlay stroke: satu kotak per kelompok baris berurutan (multi-baris =
+  // satu kotak lebih tinggi, sesuai spec sheet .ai).
+  // PNG row-red/white 1817x377 punya margin glow besar; kotak solidnya di
+  // bbox (94,95)-(1720,280) -> skala supaya kotak solid pas menutup baris.
   if (clearAnim) {
     const img = clearAnim.color === 'red' ? IMG.rowRed : IMG.rowWhite;
-    ctx.globalAlpha = Math.min(1, clearAnim.t * 2);
-    for (const y of clearAnim.rows) {
-      ctx.drawImage(img, -6, y * CELL - 6, canvas.width + 12, CELL + 12);
+    const fadeIn = Math.min(1, (1 - clearAnim.t) * 5);
+    const fadeOut = Math.min(1, clearAnim.t * 5);
+    ctx.globalAlpha = Math.min(fadeIn, fadeOut);
+    for (const [top, count] of clearAnim.groups) {
+      const tx = -4, tw = canvas.width + 8;          // target kotak solid
+      const ty = top * CELL - 4, th = count * CELL + 8;
+      const sx = tw / (1720 - 94), sy = th / (280 - 95);
+      ctx.drawImage(img, tx - 94 * sx, ty - 95 * sy, 1817 * sx, 377 * sy);
     }
     ctx.globalAlpha = 1;
   }
 
-  // gelembung
+  // gelembung sabun: terbang dari kiri ke kanan
   for (const b of bubbles) {
+    if (b.delay > 0) continue;
+    const a = Math.max(0, Math.min(1, b.t));
     ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r * b.t, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(255,255,255,${0.9 * b.t})`;
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,255,255,${0.85 * a})`;
     ctx.lineWidth = 3;
     ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${0.12 * a})`;
+    ctx.fill();
   }
 
   const p = game.piece;
@@ -235,7 +268,9 @@ function drawDots(p, gy) {
 }
 
 // ---------- efek ----------
-function addTrail(distance) {
+function addTrail(distance, alpha = 0.9) {
+  // gradasi di atas posisi balok SAAT INI (dipanggil setelah balok pindah,
+  // supaya efek selalu menempel di balok, tidak tertinggal)
   const p = game.piece;
   let minX = 99, maxX = -1, topY = 99;
   p.matrix.forEach((row, y) => row.forEach((v, x) => {
@@ -247,19 +282,25 @@ function addTrail(distance) {
     y: topY * CELL,
     h: Math.min(distance, 6) * CELL,
     color: p.color,
-    t: 0.9,
+    t: alpha,
   });
 }
 
-function spawnBubbles(rows) {
-  for (const y of rows) {
-    const n = 10 + Math.floor(Math.random() * 6);
+function spawnBubbles(groups) {
+  // seperti balon sabun ditiup dari kiri: muncul di kiri, terbang ke kanan,
+  // ukuran & jumlah acak, penempatan tidak sejajar
+  for (const [top, count] of groups) {
+    const n = 8 + Math.floor(Math.random() * 10) * count;
     for (let i = 0; i < n; i++) {
       bubbles.push({
-        x: Math.random() * canvas.width,
-        y: y * CELL + CELL / 2 + (Math.random() * 40 - 20),
-        r: 6 + Math.random() * 22,
+        x: -20 + Math.random() * 120,
+        y: top * CELL + Math.random() * count * CELL,
+        r: 5 + Math.random() * 20,
+        vx: 350 + Math.random() * 500,          // px/detik ke kanan
+        vy: -60 + Math.random() * 90,           // sedikit naik-turun
+        delay: Math.random() * 0.25,            // muncul bergantian
         t: 1,
+        life: 0.7 + Math.random() * 0.7,
       });
     }
   }
@@ -275,8 +316,22 @@ function placePiece() {
     game.score += res.points + res.comboPoints;
     popup(res.word, res.points);
     if (res.comboWord) popup(res.comboWord, res.comboPoints, true);
-    spawnBubbles(res.rows);
-    clearAnim = { rows: res.rows, color: res.lastColor, t: 1 };
+
+    // baris penuh berubah warna mengikuti balok terakhir yang melengkapinya
+    for (const y of res.rows)
+      game.grid[y] = Array(CONFIG.cols).fill(res.lastColor);
+
+    // kelompokkan baris berurutan -> satu kotak efek per kelompok
+    const sorted = [...res.rows].sort((a, b) => a - b);
+    const groups = [];
+    for (const y of sorted) {
+      const g = groups[groups.length - 1];
+      if (g && y === g[0] + g[1]) g[1]++;
+      else groups.push([y, 1]);
+    }
+
+    spawnBubbles(groups);
+    clearAnim = { rows: res.rows, groups, color: res.lastColor, t: 1 };
     pendingSpawn = true; // spawn setelah animasi
   } else {
     game.spawn();
@@ -306,7 +361,13 @@ function tick(ts, id) {
 
   // update efek
   trails = trails.filter(t => (t.t -= dt / 400) > 0);
-  bubbles = bubbles.filter(b => (b.t -= dt / 500) > 0);
+  bubbles = bubbles.filter(b => {
+    if (b.delay > 0) { b.delay -= dt / 1000; return true; }
+    b.x += b.vx * dt / 1000;
+    b.y += b.vy * dt / 1000;
+    b.t -= dt / (b.life * 1000);
+    return b.t > 0 && b.x < canvas.width + 40;
+  });
 
   if (clearAnim) {
     clearAnim.t -= dt / CONFIG.clearAnimMs;
@@ -333,6 +394,8 @@ function tick(ts, id) {
       dropTimer = 0;
       if (game.softStep()) {
         lockTimer = -1;
+        // turun cepat: efek gradasi mengikuti balok tiap langkah
+        if (softDropping) addTrail(2.5, 0.45);
       } else if (lockTimer < 0) {
         lockTimer = 0;
       }
@@ -388,13 +451,9 @@ $('#ctl-rotate').addEventListener('pointerdown', e => { e.preventDefault(); tryR
 $('#ctl-drop').addEventListener('pointerdown', e => { e.preventDefault(); doHardDrop(); });
 
 const dnBtn = $('#ctl-down');
-dnBtn.addEventListener('pointerdown', e => { e.preventDefault(); softDropping = true; addSoftTrail(); });
+dnBtn.addEventListener('pointerdown', e => { e.preventDefault(); softDropping = true; });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
   dnBtn.addEventListener(ev, () => { softDropping = false; });
-
-function addSoftTrail() {
-  if (running && !over && !clearAnim) addTrail(3);
-}
 
 addEventListener('keydown', e => {
   if (e.repeat && (e.key === ' ' || e.key === 'ArrowUp')) return;
@@ -409,6 +468,9 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => {
   if (e.key === 'ArrowDown') softDropping = false;
 });
+
+// cegah menu context "download image" saat tombol ditahan lama di HP
+addEventListener('contextmenu', e => e.preventDefault());
 
 // ---------- alur game ----------
 async function startGame() {
@@ -488,6 +550,5 @@ function endGame() {
 }
 
 $('#btn-start').addEventListener('click', startGame);
-$('#btn-replay').addEventListener('click', startGame);
 
 window.__endGame = endGame; // hook debug/QA

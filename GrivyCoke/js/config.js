@@ -36,8 +36,8 @@ export const CONFIG = {
   comboBonus: { 2: 50, 5: 250 },
   perfectClearBonus: 1500,
 
-  // animasi
-  clearAnimMs: 420,
+  // animasi line clear: fase 1 baris berubah warna, fase 2 hilang kiri->kanan
+  clearAnimMs: 650,
 
   // multiplayer (email Mahda 2026-07: maks 4 pemain per sesi;
   // TY page multiplayer menampilkan poin semua pemain di sesi itu)
