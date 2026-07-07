@@ -35,6 +35,8 @@ Tambahan untuk pengujian/konfigurasi:
 
 - `duration` — lama permainan dalam detik (default `180` sesuai spec sheet FA; brief menyebut 2 menit → pakai `duration=120` bila itu yang final)
 - `wait` — lama jendela tunggu multiplayer dalam detik (default 0 = langsung mulai)
+- `others` — simulasi hasil pemain lain untuk demo TY page multiplayer,
+  contoh `?others=Nadia:450,Bima:300` (dihapus saat server multiplayer jadi)
 - `kiosk_start_url`, `kiosk_end_url` — endpoint kiosk vendor (sementara, sampai detail API resmi tersedia)
 
 ## Aturan main (sesuai spec sheet FA_Tetris Gamification)
@@ -44,6 +46,16 @@ Tambahan untuk pengujian/konfigurasi:
 - Skor: 1 baris **Mantap! +100**, 2 baris **Keren! +200**, 3 baris **Gokil! +300**,
   4 baris **Sempurna! +400**, Combo x2 **+50**, Combo x5 **+250**, Perfect Clear **+1500**
 - Waktu habis atau balok mencapai atas → halaman Your Score
+
+## Keputusan dari klien (email Mahda, Jul 2026)
+
+- Maks **4 pemain** per sesi; 1 pemain yang masuk = single player
+- Satu-satunya beda multiplayer: pemain saling berkompetisi, dan **TY page
+  menampilkan poin semua pemain di sesi itu** (implementasi: daftar peringkat
+  di layar Your Score, baris pemain sendiri di-highlight putih; desain final
+  menyusul dari Happy Cahyadi)
+- Leaderboard kiosk = Top 5 mingguan; pemain hanya melihat skornya sendiri
+  di HP setelah main
 
 ## Belum dikerjakan (menunggu keputusan/integrasi)
 

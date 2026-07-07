@@ -451,12 +451,43 @@ function endGame() {
   over = true;
   running = false;
   draw();
-  notifyGameEnd(PLAYER.whatsAppSessionId, [{ nickname: PLAYER.nickname, score: game.score }]);
+
+  // hasil semua pemain di sesi ini (pemain lain dari server multiplayer;
+  // sementara disimulasikan via ?others=Nama:skor,... untuk demo)
+  const results = [
+    { nickname: PLAYER.nickname, score: game.score, me: true },
+    ...CONFIG.mockOthers,
+  ]
+    .slice(0, CONFIG.maxPlayers)
+    .sort((a, b) => b.score - a.score);
+
+  notifyGameEnd(PLAYER.whatsAppSessionId, results.map(({ nickname, score }) => ({ nickname, score })));
+
   setTimeout(() => {
     $('#final-score').textContent = game.score;
+
+    // TY page multiplayer: tampilkan poin semua pemain (email Mahda)
+    const holder = $('#session-results');
+    const screen = $('#screen-result');
+    if (results.length > 1) {
+      holder.innerHTML = results.map((r, i) => `
+        <div class="result-row${r.me ? ' me' : ''}">
+          <span class="rank">${i + 1}</span>
+          <span class="name">${r.nickname.replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}</span>
+          <span class="score">${r.score}</span>
+        </div>`).join('');
+      holder.classList.remove('hidden');
+      screen.classList.add('multi');
+    } else {
+      holder.classList.add('hidden');
+      screen.classList.remove('multi');
+    }
+
     show('#screen-result');
   }, 900);
 }
 
 $('#btn-start').addEventListener('click', startGame);
 $('#btn-replay').addEventListener('click', startGame);
+
+window.__endGame = endGame; // hook debug/QA

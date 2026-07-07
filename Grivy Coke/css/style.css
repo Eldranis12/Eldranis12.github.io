@@ -333,6 +333,52 @@ html, body {
 }
 .btn-pill:active { transform: scale(0.96); }
 
+/* hasil sesi multiplayer di TY page (email Mahda: tampilkan poin
+   semua pemain yang main bersama; desain final menyusul dari Happy) */
+#session-results {
+  margin-top: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 700px;
+}
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  background: rgba(43, 5, 5, 0.45);
+  border: 3px solid #fff;
+  border-radius: 60px;
+  padding: 18px 44px;
+  font-size: 40px;
+  font-weight: 700;
+  color: #fff;
+}
+.result-row.me {
+  background: #fff;
+  color: var(--coke-red);
+}
+.result-row .rank {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+  width: 70px;
+  text-align: left;
+}
+.result-row .name {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.result-row .score {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+}
+/* mode multiplayer: sembunyikan botol supaya daftar hasil tidak tertutup */
+#screen-result.multi .bottle { display: none; }
+#screen-result.multi h2 { margin-top: 70px; }
+
 .bottle {
   position: absolute;
   bottom: 0;

@@ -39,8 +39,21 @@ export const CONFIG = {
   // animasi
   clearAnimMs: 420,
 
-  // multiplayer lobby (brief: window 10–12 detik)
-  waitWindowMs: parseInt(url.get('wait') || '0', 10) * 1000, // 0 = langsung mulai
+  // multiplayer (email Mahda 2026-07: maks 4 pemain per sesi;
+  // TY page multiplayer menampilkan poin semua pemain di sesi itu)
+  maxPlayers: 4,
+  waitWindowMs: parseInt(url.get('wait') || '0', 10) * 1000, // window tunggu, 0 = langsung mulai
+
+  // simulasi hasil pemain lain untuk demo/uji TY page multiplayer,
+  // contoh: ?others=Nadia:450,Bima:300 (dihapus saat server multiplayer jadi)
+  mockOthers: (url.get('others') || '')
+    .split(',')
+    .filter(Boolean)
+    .slice(0, 3)
+    .map(s => {
+      const [nickname, score] = s.split(':');
+      return { nickname: nickname || 'Player', score: parseInt(score, 10) || 0 };
+    }),
 
   // endpoint kiosk vendor (diisi saat detail API tersedia)
   kioskStartUrl: url.get('kiosk_start_url') || '',
