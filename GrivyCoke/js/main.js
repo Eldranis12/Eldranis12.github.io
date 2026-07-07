@@ -68,14 +68,12 @@ let game = null;
 let running = false;
 let over = false;
 let timeLeft = CONFIG.gameSeconds;
-let gravityMs = CONFIG.gravityStartMs;
 let dropTimer = 0;
 let lockTimer = -1;      // -1 = belum mendarat
 let lockResets = 0;
 let softDropping = false;
 let lastTs = 0;
 let elapsed = 0;
-let nextRamp = CONFIG.gravityRampEverySec;
 
 // animasi
 let clearAnim = null;     // { rows, color, t }
@@ -269,21 +267,26 @@ function drawDots(p, gy) {
 
 // ---------- efek ----------
 function addTrail(distance, alpha = 0.9) {
-  // gradasi di atas posisi balok SAAT INI (dipanggil setelah balok pindah,
-  // supaya efek selalu menempel di balok, tidak tertinggal)
+  // gradasi per kolom mengikuti siluet balok (sesuai contoh spec sheet .ai):
+  // tiap kolom balok dapat gradasi dari sel teratasnya ke atas
   const p = game.piece;
-  let minX = 99, maxX = -1, topY = 99;
+  const tops = {}; // kolom grid -> baris teratas yang terisi
   p.matrix.forEach((row, y) => row.forEach((v, x) => {
-    if (v) { minX = Math.min(minX, p.x + x); maxX = Math.max(maxX, p.x + x); topY = Math.min(topY, p.y + y); }
+    if (!v) return;
+    const gx = p.x + x, gy = p.y + y;
+    if (tops[gx] === undefined || gy < tops[gx]) tops[gx] = gy;
   }));
-  trails.push({
-    x: minX * CELL,
-    w: (maxX - minX + 1) * CELL,
-    y: topY * CELL,
-    h: Math.min(distance, 6) * CELL,
-    color: p.color,
-    t: alpha,
-  });
+  const h = Math.min(distance, 4) * CELL;
+  for (const [gx, topY] of Object.entries(tops)) {
+    trails.push({
+      x: gx * CELL,
+      w: CELL,
+      y: topY * CELL,
+      h,
+      color: p.color,
+      t: alpha,
+    });
+  }
 }
 
 function spawnBubbles(groups) {
@@ -351,12 +354,6 @@ function tick(ts, id) {
   elapsed += dt / 1000;
   timeLeft = CONFIG.gameSeconds - elapsed;
 
-  // makin lama makin cepat
-  if (elapsed >= nextRamp) {
-    nextRamp += CONFIG.gravityRampEverySec;
-    gravityMs = Math.max(CONFIG.gravityMinMs, gravityMs * CONFIG.gravityRampFactor);
-  }
-
   if (timeLeft <= 0) { updateHud(); endGame(); return; }
 
   // update efek
@@ -387,9 +384,9 @@ function tick(ts, id) {
       updateHud();
     }
   } else {
-    // gravitasi
+    // gravitasi (kecepatan konstan)
     dropTimer += dt;
-    const interval = softDropping ? CONFIG.softDropMs : gravityMs;
+    const interval = softDropping ? CONFIG.softDropMs : CONFIG.gravityMs;
     if (dropTimer >= interval) {
       dropTimer = 0;
       if (game.softStep()) {
@@ -402,7 +399,16 @@ function tick(ts, id) {
     }
     if (lockTimer >= 0) {
       lockTimer += dt;
-      if (lockTimer >= CONFIG.lockDelayMs) placePiece();
+      if (lockTimer >= CONFIG.lockDelayMs) {
+        // cek ulang: kalau balok sudah digeser keluar tepian dan masih bisa
+        // turun, jangan dikunci di udara (bug balok melayang)
+        const p = game.piece;
+        if (!game.collides(p.matrix, p.x, p.y + 1)) {
+          lockTimer = -1;
+        } else {
+          placePiece();
+        }
+      }
     }
   }
 
@@ -412,17 +418,23 @@ function tick(ts, id) {
 }
 
 // ---------- input ----------
-function tryMove(dx) {
-  if (!running || over || clearAnim) return;
-  if (game.move(dx) && lockTimer >= 0 && lockResets < CONFIG.maxLockResets) {
+function afterShift() {
+  // setelah bergeser/berputar: kalau balok bisa turun lagi (keluar dari
+  // tepian), batalkan lock supaya tidak terkunci melayang
+  const p = game.piece;
+  if (!game.collides(p.matrix, p.x, p.y + 1)) {
+    lockTimer = -1;
+  } else if (lockTimer >= 0 && lockResets < CONFIG.maxLockResets) {
     lockTimer = 0; lockResets++;
   }
 }
+function tryMove(dx) {
+  if (!running || over || clearAnim) return;
+  if (game.move(dx)) afterShift();
+}
 function tryRotate() {
   if (!running || over || clearAnim) return;
-  if (game.rotate() && lockTimer >= 0 && lockResets < CONFIG.maxLockResets) {
-    lockTimer = 0; lockResets++;
-  }
+  if (game.rotate()) afterShift();
 }
 function doHardDrop() {
   if (!running || over || clearAnim) return;
@@ -482,8 +494,6 @@ async function startGame() {
   running = true;
   over = false;
   timeLeft = CONFIG.gameSeconds;
-  gravityMs = CONFIG.gravityStartMs;
-  nextRamp = CONFIG.gravityRampEverySec;
   elapsed = 0;
   dropTimer = 0;
   lockTimer = -1;

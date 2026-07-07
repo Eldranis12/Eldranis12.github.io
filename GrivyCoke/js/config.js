@@ -21,11 +21,8 @@ export const CONFIG = {
   // atau lewat ?duration=120 kalau final 2 menit)
   gameSeconds: parseInt(url.get('duration') || '180', 10),
 
-  // kecepatan jatuh
-  gravityStartMs: 800,         // interval turun 1 baris di awal
-  gravityMinMs: 150,
-  gravityRampEverySec: 30,     // tiap 30 detik makin cepat
-  gravityRampFactor: 0.85,
+  // kecepatan jatuh (konstan, tidak makin cepat — permintaan klien)
+  gravityMs: 800,              // interval turun 1 baris
   softDropMs: 45,              // interval saat tombol turun ditahan
   lockDelayMs: 350,
   maxLockResets: 10,
