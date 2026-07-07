@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Coke Hangout — Tetris</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+
+    <!-- ============ SCREEN 1: CARA BERMAIN ============ -->
+    <section id="screen-howto" class="screen dark">
+      <img class="deco deco-tl" src="assets/img/deco-2.png" alt="">
+      <img class="deco deco-tr" src="assets/img/deco-1.png" alt="">
+      <div class="howto-content">
+        <h1>Cara bermain</h1>
+        <p class="howto-desc">Susun balok hingga membentuk satu baris penuh untuk mendapatkan poin. Jangan sampai balok mencapai bagian atas.</p>
+        <h2>Kontrol</h2>
+        <ul class="controls-list">
+          <li><img src="assets/img/btn-left.png" alt=""><span>Geser ke kiri</span></li>
+          <li><img src="assets/img/btn-right.png" alt=""><span>Geser ke kanan</span></li>
+          <li><img src="assets/img/btn-rotate.png" alt=""><span>Putar balok</span></li>
+          <li><img src="assets/img/btn-down.png" alt=""><span>Turun cepat</span></li>
+          <li><img src="assets/img/btn-drop.png" alt=""><span>Jatuhkan langsung</span></li>
+        </ul>
+        <button id="btn-start" class="btn-image"><img src="assets/img/btn-mulai.png" alt="Mulai"></button>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 2: GAME ============ -->
+    <section id="screen-game" class="screen red hidden">
+      <img class="game-logo" src="assets/img/logo.png" alt="Coca-Cola">
+
+      <div class="panel score-panel">
+        <div class="panel-label">SCORE</div>
+        <div id="hud-score" class="panel-value">0</div>
+      </div>
+
+      <div class="panel time-panel">
+        <svg class="clock-icon" viewBox="0 0 48 48" fill="none">
+          <circle cx="24" cy="24" r="20" stroke="white" stroke-width="4"/>
+          <path d="M24 13 V25 L32 30" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="panel-label">TIME</div>
+        <div id="hud-time" class="panel-value">3:00</div>
+      </div>
+
+      <div class="panel next-panel">
+        <div class="panel-label">NEXT</div>
+        <div id="next-queue"></div>
+      </div>
+
+      <div id="board-wrap">
+        <canvas id="board" width="600" height="1200"></canvas>
+        <div id="popup-layer"></div>
+        <div id="waiting-overlay" class="hidden">
+          <div class="waiting-text">Menunggu pemain lain<span class="dots"></span></div>
+        </div>
+      </div>
+
+      <div class="game-controls">
+        <button class="btn-ctl" id="ctl-left"><img src="assets/img/btn-left.png" alt="Kiri"></button>
+        <button class="btn-ctl" id="ctl-right"><img src="assets/img/btn-right.png" alt="Kanan"></button>
+        <button class="btn-ctl" id="ctl-rotate"><img src="assets/img/btn-rotate.png" alt="Putar"></button>
+        <button class="btn-ctl" id="ctl-down"><img src="assets/img/btn-down.png" alt="Turun"></button>
+        <button class="btn-ctl" id="ctl-drop"><img src="assets/img/btn-drop.png" alt="Jatuhkan"></button>
+      </div>
+
+      <img class="swoosh" src="assets/img/swoosh.png" alt="">
+      <img class="copyright" src="assets/img/copyright.png" alt="">
+    </section>
+
+    <!-- ============ SCREEN 3: YOUR SCORE ============ -->
+    <section id="screen-result" class="screen red hidden">
+      <img class="deco deco-tl" src="assets/img/deco-2.png" alt="">
+      <img class="deco deco-tr" src="assets/img/deco-1.png" alt="">
+      <div class="result-content">
+        <img class="line" src="assets/img/line-score.png" alt="">
+        <div class="your-score">YOUR SCORE</div>
+        <div id="final-score">0</div>
+        <img class="line" src="assets/img/line-score.png" alt="">
+        <h2>Raih Skor Tertinggi dan<br>Dapatkan Hadiah!</h2>
+        <p>Kumpulkan skor, dan jadilah juara mingguan<br>untuk mendapatkan hadiah menarik.</p>
+        <button id="btn-replay" class="btn-pill">Main Lagi</button>
+      </div>
+      <img class="bottle" src="assets/img/bottle.png" alt="">
+      <img class="swoosh" src="assets/img/swoosh.png" alt="">
+      <img class="copyright" src="assets/img/copyright.png" alt="">
+    </section>
+
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

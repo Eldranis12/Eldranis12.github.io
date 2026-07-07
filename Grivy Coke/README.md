@@ -1,0 +1,55 @@
+# Coke Hangout (Nongkrong) — Tetris Web App
+
+Game Tetris berbasis browser untuk Coca-Cola Campus Activation Phase 2 (Grivy).
+Dibuka dari link WhatsApp di HP — tanpa framework, tanpa build step, total asset ± 1,5 MB.
+
+## Menjalankan
+
+Serve folder ini sebagai static site, contoh:
+
+```
+python -m http.server 8123
+```
+
+lalu buka `http://localhost:8123`. (Preview Claude Code: konfigurasi `tetris` di `.claude/launch.json`.)
+
+## Struktur
+
+| Path | Isi |
+|---|---|
+| `index.html` | 3 layar: Cara Bermain, Game, Your Score |
+| `css/style.css` | Layout mengikuti artboard desain 1080x2340, di-scale ke viewport |
+| `js/config.js` | Konfigurasi game + pembacaan parameter URL dari Grivy |
+| `js/tetris.js` | Logika inti Tetris (papan 10x20, 7-bag, warna selang-seling merah/putih) |
+| `js/main.js` | Render canvas, efek, input, timer, alur layar |
+| `js/kiosk.js` | Stub API kiosk vendor (game start / game end) |
+| `assets/img/` | Asset dari `UI Coke ROM.zip` + hasil ekstrak `FA_Tetris Gamification.ai` |
+
+## Parameter URL
+
+```
+?whats_app_session_id=abc123&user_id=xyz&nickname=Grady&device_id=001
+```
+
+Tambahan untuk pengujian/konfigurasi:
+
+- `duration` — lama permainan dalam detik (default `180` sesuai spec sheet FA; brief menyebut 2 menit → pakai `duration=120` bila itu yang final)
+- `wait` — lama jendela tunggu multiplayer dalam detik (default 0 = langsung mulai)
+- `kiosk_start_url`, `kiosk_end_url` — endpoint kiosk vendor (sementara, sampai detail API resmi tersedia)
+
+## Aturan main (sesuai spec sheet FA_Tetris Gamification)
+
+- Balok jatuh warna selang-seling merah/putih, ada bayangan (ghost) + garis titik-titik
+- Efek gradasi saat turun cepat / jatuhkan langsung
+- Skor: 1 baris **Mantap! +100**, 2 baris **Keren! +200**, 3 baris **Gokil! +300**,
+  4 baris **Sempurna! +400**, Combo x2 **+50**, Combo x5 **+250**, Perfect Clear **+1500**
+- Waktu habis atau balok mencapai atas → halaman Your Score
+
+## Belum dikerjakan (menunggu keputusan/integrasi)
+
+- **Multiplayer sinkron antar pemain** — perlu server (rekomendasi: Node.js + Colyseus);
+  saat ini single-player, jendela tunggu hanya simulasi overlay
+- **API kiosk vendor** — payload di `js/kiosk.js` masih asumsi, sesuaikan saat skema resmi keluar
+- **Validasi skor server-side** — wajib sebelum produksi karena leaderboard berhadiah voucher
+- **Font brand (TCCC)** — sementara memakai Montserrat + Oswald dari Google Fonts
+- Tombol "Main Lagi" di layar skor tidak ada di desain (ditambahkan untuk pengujian)
