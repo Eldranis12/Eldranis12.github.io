@@ -69,9 +69,10 @@
         <button class="btn-ctl" id="ctl-drop"><img src="assets/img/btn-drop.png" alt="Jatuhkan"></button>
       </div>
 
+      </div>
+      <!-- swoosh & copyright di level screen supaya full dari tepi ke tepi -->
       <img class="swoosh" src="assets/img/swoosh.png" alt="">
       <img class="copyright" src="assets/img/copyright.png" alt="">
-      </div>
 
       <!-- waiting screen multiplayer (brief: botol coke sebagai loading) -->
       <div id="waiting-overlay" class="hidden">
@@ -83,9 +84,11 @@
 
     <!-- ============ SCREEN 3: YOUR SCORE ============ -->
     <section id="screen-result" class="screen red hidden">
-      <div class="fit">
+      <!-- deco di level screen (bukan .fit) supaya posisinya sama persis
+           dengan halaman tutorial di semua ukuran layar -->
       <img class="deco deco-tl" src="assets/img/deco-2.png" alt="">
       <img class="deco deco-tr" src="assets/img/deco-1.png" alt="">
+      <div class="fit">
       <div class="result-content">
         <img class="line" src="assets/img/line-score.png" alt="">
         <div class="your-score">YOUR SCORE</div>
@@ -96,10 +99,10 @@
         <p>Kumpulkan skor, dan jadilah juara mingguan<br>untuk mendapatkan hadiah menarik.</p>
       </div>
       <img class="bottle" src="assets/img/bottle.png" alt="">
-      <img class="swoosh" src="assets/img/swoosh.png" alt="">
-      <img class="copyright" src="assets/img/copyright.png" alt="">
       <canvas id="confetti" width="1080" height="2340"></canvas>
       </div>
+      <img class="swoosh" src="assets/img/swoosh.png" alt="">
+      <img class="copyright" src="assets/img/copyright.png" alt="">
     </section>
 
   </div>
