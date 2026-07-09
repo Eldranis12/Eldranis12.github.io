@@ -496,6 +496,59 @@ addEventListener('keyup', e => {
 // cegah menu context "download image" saat tombol ditahan lama di HP
 addEventListener('contextmenu', e => e.preventDefault());
 
+// ---------- confetti (TY page, brief 07 Jul) ----------
+let confettiId = 0;
+function startConfetti(durationMs = 4500) {
+  const cv = $('#confetti');
+  const c = cv.getContext('2d');
+  const id = ++confettiId;
+  const colors = ['#e4051f', '#ffffff', '#b00013', '#ffd7d7'];
+  const parts = [];
+  for (let i = 0; i < 160; i++) {
+    parts.push({
+      x: Math.random() * cv.width,
+      y: -60 - Math.random() * cv.height * 0.7,
+      w: 14 + Math.random() * 18,
+      h: 8 + Math.random() * 12,
+      vy: 380 + Math.random() * 420,          // px/detik jatuh
+      vx: -90 + Math.random() * 180,          // goyang samping
+      rot: Math.random() * Math.PI * 2,
+      vr: -6 + Math.random() * 12,            // putaran
+      color: colors[i % colors.length],
+      sway: 2 + Math.random() * 4,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+  const t0 = performance.now();
+  let last = t0;
+  function frame(ts) {
+    if (id !== confettiId) return;
+    const dt = Math.min(50, ts - last) / 1000;
+    last = ts;
+    const age = ts - t0;
+    c.clearRect(0, 0, cv.width, cv.height);
+    const fade = age > durationMs ? Math.max(0, 1 - (age - durationMs) / 800) : 1;
+    for (const p of parts) {
+      p.y += p.vy * dt;
+      p.x += (p.vx + Math.sin(age / 300 + p.phase) * p.sway * 30) * dt;
+      p.rot += p.vr * dt;
+      if (age < durationMs && p.y > cv.height + 40) { // daur ulang selama durasi
+        p.y = -40; p.x = Math.random() * cv.width;
+      }
+      c.save();
+      c.translate(p.x, p.y);
+      c.rotate(p.rot);
+      c.globalAlpha = fade;
+      c.fillStyle = p.color;
+      c.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      c.restore();
+    }
+    if (fade > 0) requestAnimationFrame(frame);
+    else c.clearRect(0, 0, cv.width, cv.height);
+  }
+  requestAnimationFrame(frame);
+}
+
 // ---------- alur game ----------
 async function startGame() {
   await imagesReady;
@@ -568,6 +621,8 @@ function endGame() {
     }
 
     show('#screen-result');
+    playSfx('success');   // Big Band Celebration bersamaan confetti
+    startConfetti();
   }, 900);
 }
 

@@ -7,6 +7,7 @@
 //   landNormal  — mendarat normal         (saat mendarat normal.wav)
 //   landFast    — mendarat turun cepat    (saat mendarat cepat.wav)
 //   landHard    — mendarat jatuh langsung (saat mendarat sangat cepat.wav)
+//   success     — game selesai + confetti (Big Band Celebration.wav)
 // ============================================================
 
 const FILES = {
@@ -17,6 +18,7 @@ const FILES = {
   landNormal: 'assets/audio/land-normal.wav',
   landFast: 'assets/audio/land-fast.wav',
   landHard: 'assets/audio/land-hard.wav',
+  success: 'assets/audio/success.wav',
 };
 
 const AC = window.AudioContext || window.webkitAudioContext;
