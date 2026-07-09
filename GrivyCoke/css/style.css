@@ -428,11 +428,13 @@ img {
 /* feedback 07 Jul: botol tidak terhalang tulisan & tidak ngambang —
    lebih besar, menempel dasar, bagian bawah boleh terpotong */
 .bottle {
+  /* rasio PNG 305x972 -> tinggi = width*3.19; teks berakhir ~1070px,
+     puncak botol harus di bawahnya (desain): 2340+110-420*3.19 = 1110 */
   position: absolute;
   bottom: -110px;
   left: 50%;
   transform: translateX(-50%);
-  width: 500px;
+  width: 395px;
   z-index: 1;
   pointer-events: none;
 }
