@@ -47,6 +47,24 @@ Tambahan untuk pengujian/konfigurasi:
   4 baris **Sempurna! +400**, Combo x2 **+50**, Combo x5 **+250**, Perfect Clear **+1500**
 - Waktu habis atau balok mencapai atas → halaman Your Score
 
+## Brief UI 07 Jul 2026 (PDF) — sudah diterapkan
+
+- Sound effects dari folder `Audio/` → `assets/audio/` (start, move, rotate,
+  clear, mendarat normal/cepat/sangat cepat) via `js/audio.js`
+- +1 poin untuk setiap balok yang mendarat
+- Bubble line clear pakai asset `Bubble Red/White.png`, jumlah diperbanyak,
+  warna ikut balok terakhir, terbang kiri → kanan
+- Kata popup: fill putih + stroke merah (sesuai KV)
+- Deco atas nempel tepi layar (kompensasi padding transparan PNG)
+- Deskripsi cara main maks 3 baris; box NEXT setinggi score+time;
+  tombol kontrol lebih besar & rapat; botol TY lebih besar, boleh terpotong
+- Waiting screen multiplayer: "Siap Bertanding?" + botol sebagai loading
+  (aktif dengan `?wait=<detik>`)
+
+**Belum (menunggu asset/desain):** font resmi dari GDrive (taruh file font di
+`assets/fonts/` lalu daftarkan @font-face), confetti TY multiplayer, desain
+scoreboard TY final, asset tombol "Saya siap".
+
 ## Keputusan dari klien (email Mahda, Jul 2026)
 
 - Maks **4 pemain** per sesi; 1 pemain yang masuk = single player

@@ -6,6 +6,7 @@
 import { CONFIG, PLAYER } from './config.js';
 import { Tetris, SHAPES } from './tetris.js';
 import { notifyGameStart, notifyGameEnd } from './kiosk.js';
+import { playSfx } from './audio.js';
 
 const $ = sel => document.querySelector(sel);
 
@@ -57,6 +58,8 @@ const imagesReady = loadImages({
   trailWhite: 'assets/img/trail-white.png',
   rowRed: 'assets/img/row-red.png',
   rowWhite: 'assets/img/row-white.png',
+  bubbleRed: 'assets/img/bubble-red.png',
+  bubbleWhite: 'assets/img/bubble-white.png',
 });
 
 // ---------- state ----------
@@ -184,19 +187,13 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 
-  // gelembung sabun: terbang dari kiri ke kanan
+  // gelembung (asset Bubble Red/White dari GDrive): terbang kiri -> kanan
   for (const b of bubbles) {
     if (b.delay > 0) continue;
-    const a = Math.max(0, Math.min(1, b.t));
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(255,255,255,${0.85 * a})`;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255,255,255,${0.12 * a})`;
-    ctx.fill();
+    const img = b.color === 'red' ? IMG.bubbleRed : IMG.bubbleWhite;
+    ctx.globalAlpha = Math.max(0, Math.min(1, b.t));
+    ctx.drawImage(img, b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
+    ctx.globalAlpha = 1;
   }
 
   const p = game.piece;
@@ -289,19 +286,21 @@ function addTrail(distance, alpha = 0.9) {
   }
 }
 
-function spawnBubbles(groups) {
+function spawnBubbles(groups, color) {
   // seperti balon sabun ditiup dari kiri: muncul di kiri, terbang ke kanan,
-  // ukuran & jumlah acak, penempatan tidak sejajar
+  // ukuran & jumlah acak; warna mengikuti balok terakhir.
+  // Feedback 07 Jul: bubble diperbanyak + pakai asset bubble dari GDrive.
   for (const [top, count] of groups) {
-    const n = 8 + Math.floor(Math.random() * 10) * count;
+    const n = (18 + Math.floor(Math.random() * 14)) * count;
     for (let i = 0; i < n; i++) {
       bubbles.push({
-        x: -20 + Math.random() * 120,
-        y: top * CELL + Math.random() * count * CELL,
-        r: 5 + Math.random() * 20,
+        x: -20 + Math.random() * 140,
+        y: (top - 0.5) * CELL + Math.random() * (count + 1) * CELL,
+        r: 6 + Math.random() * 22,
         vx: 350 + Math.random() * 500,          // px/detik ke kanan
         vy: -60 + Math.random() * 90,           // sedikit naik-turun
-        delay: Math.random() * 0.25,            // muncul bergantian
+        delay: Math.random() * 0.35,            // muncul bergantian
+        color,
         t: 1,
         life: 0.7 + Math.random() * 0.7,
       });
@@ -310,10 +309,13 @@ function spawnBubbles(groups) {
 }
 
 // ---------- penempatan balok ----------
-function placePiece() {
+function placePiece(landMode = 'normal') {
   const res = game.lock();
   lockTimer = -1;
   lockResets = 0;
+
+  // Feedback 07 Jul: setiap balok yang turun bernilai 1 poin
+  game.score += 1;
 
   if (res.rows.length > 0) {
     game.score += res.points + res.comboPoints;
@@ -333,10 +335,14 @@ function placePiece() {
       else groups.push([y, 1]);
     }
 
-    spawnBubbles(groups);
+    spawnBubbles(groups, res.lastColor);
     clearAnim = { rows: res.rows, groups, color: res.lastColor, t: 1 };
     pendingSpawn = true; // spawn setelah animasi
+    playSfx('clear');
   } else {
+    // suara mendarat normal saat balok terkunci oleh gravitasi;
+    // varian cepat/sangat cepat dibunyikan saat tombol ditekan (tanpa delay)
+    if (landMode === 'normal') playSfx('landNormal');
     game.spawn();
     renderNext();
   }
@@ -406,7 +412,7 @@ function tick(ts, id) {
         if (!game.collides(p.matrix, p.x, p.y + 1)) {
           lockTimer = -1;
         } else {
-          placePiece();
+          placePiece(softDropping ? 'fast' : 'normal');
         }
       }
     }
@@ -430,17 +436,23 @@ function afterShift() {
 }
 function tryMove(dx) {
   if (!running || over || clearAnim) return;
-  if (game.move(dx)) afterShift();
+  if (game.move(dx)) { playSfx('move'); afterShift(); }
 }
 function tryRotate() {
   if (!running || over || clearAnim) return;
-  if (game.rotate()) afterShift();
+  if (game.rotate()) { playSfx('rotate'); afterShift(); }
 }
 function doHardDrop() {
   if (!running || over || clearAnim) return;
+  playSfx('landHard'); // langsung saat tombol ditekan, tanpa delay
   const dist = game.hardDrop();
   if (dist > 0) addTrail(dist);
-  placePiece();
+  placePiece('hard');
+}
+function startSoftDrop() {
+  if (softDropping) return;
+  softDropping = true;
+  if (running && !over) playSfx('landFast'); // langsung saat tombol ditekan
 }
 
 function bindHold(el, onPress, repeatMs) {
@@ -463,7 +475,7 @@ $('#ctl-rotate').addEventListener('pointerdown', e => { e.preventDefault(); tryR
 $('#ctl-drop').addEventListener('pointerdown', e => { e.preventDefault(); doHardDrop(); });
 
 const dnBtn = $('#ctl-down');
-dnBtn.addEventListener('pointerdown', e => { e.preventDefault(); softDropping = true; });
+dnBtn.addEventListener('pointerdown', e => { e.preventDefault(); startSoftDrop(); });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
   dnBtn.addEventListener(ev, () => { softDropping = false; });
 
@@ -473,7 +485,7 @@ addEventListener('keydown', e => {
     case 'ArrowLeft': tryMove(-1); break;
     case 'ArrowRight': tryMove(1); break;
     case 'ArrowUp': case 'x': tryRotate(); break;
-    case 'ArrowDown': softDropping = true; break;
+    case 'ArrowDown': startSoftDrop(); break;
     case ' ': e.preventDefault(); doHardDrop(); break;
   }
 });
@@ -559,6 +571,6 @@ function endGame() {
   }, 900);
 }
 
-$('#btn-start').addEventListener('click', startGame);
+$('#btn-start').addEventListener('click', () => { playSfx('start'); startGame(); });
 
 window.__endGame = endGame; // hook debug/QA
