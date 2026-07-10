@@ -4,6 +4,26 @@
    to fit the real viewport in js/main.js.
    ================================================================ */
 
+/* Font resmi TCCC Unity (feedback: angka/HUD pakai Cond, sisanya Head) */
+@font-face {
+  font-family: 'TCCC Unity Cond';
+  src: url('../assets/fonts/TCCCUnityCond-Medium.ttf') format('truetype');
+  font-weight: 400 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'TCCC Unity Head';
+  src: url('../assets/fonts/TCCCUnityHead-Medium.ttf') format('truetype');
+  font-weight: 400 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'TCCC Unity Head';
+  src: url('../assets/fonts/TCCCUnityHead-Bold.ttf') format('truetype');
+  font-weight: 700 900;
+  font-display: swap;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
@@ -16,7 +36,7 @@ html, body {
   height: 100%;
   overflow: hidden;
   background: #000;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'TCCC Unity Head', 'Montserrat', sans-serif;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -157,13 +177,13 @@ img {
   justify-content: center;
 }
 .panel-label {
-  font-family: 'Oswald', sans-serif;
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
   font-weight: 600;
   font-size: 40px;
   letter-spacing: 2px;
 }
 .panel-value {
-  font-family: 'Oswald', sans-serif;
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
   font-weight: 600;
   font-size: 56px;
   line-height: 1.1;
@@ -229,7 +249,8 @@ img {
   animation: popup 1.1s ease-out forwards;
 }
 .popup .pts { font-size: 56px; }
-.popup.combo { font-size: 48px; color: #ffb3b3; }
+/* feedback: teks combo style sama dengan popup utama (putih + stroke merah) */
+.popup.combo { font-size: 48px; }
 .popup.combo .pts { font-size: 42px; }
 @keyframes popup {
   0%   { opacity: 0; transform: scale(.6); }
@@ -338,14 +359,14 @@ img {
 }
 .result-content .line { width: 430px; height: 5px; }
 .your-score {
-  font-family: 'Oswald', sans-serif;
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
   font-weight: 600;
   font-size: 96px;
   letter-spacing: 4px;
   margin-top: 45px;
 }
 #final-score {
-  font-family: 'Oswald', sans-serif;
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
   font-weight: 600;
   font-size: 150px;
   line-height: 1.05;
@@ -371,7 +392,7 @@ img {
   border: 4px solid #fff;
   border-radius: 70px;
   color: #fff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'TCCC Unity Head', 'Montserrat', sans-serif;
   font-size: 42px;
   font-weight: 700;
   cursor: pointer;
@@ -405,7 +426,7 @@ img {
   color: var(--coke-red);
 }
 .result-row .rank {
-  font-family: 'Oswald', sans-serif;
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
   font-weight: 600;
   width: 70px;
   text-align: left;
@@ -418,7 +439,7 @@ img {
   white-space: nowrap;
 }
 .result-row .score {
-  font-family: 'Oswald', sans-serif;
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
   font-weight: 600;
 }
 /* mode multiplayer: sembunyikan botol supaya daftar hasil tidak tertutup */
@@ -440,7 +461,8 @@ img {
 }
 #screen-result .swoosh { z-index: 0; }
 #screen-result .copyright { z-index: 2; }
-#confetti {
+#confetti,
+#confetti-img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -448,3 +470,4 @@ img {
   z-index: 4;
   pointer-events: none;
 }
+#confetti-img { object-fit: cover; }

@@ -61,9 +61,19 @@ Tambahan untuk pengujian/konfigurasi:
 - Waiting screen multiplayer: "Siap Bertanding?" + botol sebagai loading
   (aktif dengan `?wait=<detik>`)
 
-**Belum (menunggu asset/desain):** font resmi dari GDrive (taruh file font di
-`assets/fonts/` lalu daftarkan @font-face), confetti TY multiplayer, desain
-scoreboard TY final, asset tombol "Saya siap".
+## Feedback lanjutan (PDF "Untitled presentation") — sudah diterapkan
+
+- Font resmi TCCC Unity terpasang (`assets/fonts/`): HUD/angka pakai
+  **TCCC Unity Cond**, teks lain **TCCC Unity Head** (Google Fonts dihapus)
+- Confetti pakai asset resmi `Confetti 30.mov` → dikonversi ke
+  `assets/video/confetti.avif` (animated AVIF transparan, 163KB, 20fps);
+  fallback confetti canvas untuk browser tanpa dukungan AVIF animasi
+- Bug fix: balok yang melengkapi baris kini ikut memudar bersama baris
+  (sebelumnya digambar ulang sebagai balok aktif selama animasi clear)
+- Teks Combo sekarang putih + stroke merah, sama dengan popup utama
+
+**Belum (menunggu asset/desain):** desain scoreboard TY final,
+asset tombol "Saya siap".
 
 ## Keputusan dari klien (email Mahda, Jul 2026)
 

@@ -196,8 +196,11 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 
+  // saat animasi clear berjalan, balok terakhir sudah menyatu ke grid —
+  // jangan digambar lagi sebagai balok aktif (feedback: "balok yang
+  // melengkapi baris tidak ikut hilang")
   const p = game.piece;
-  if (p && !over) {
+  if (p && !over && !clearAnim) {
     const gy = game.ghostY();
 
     // bayangan balok (silhouette)
@@ -496,9 +499,32 @@ addEventListener('keyup', e => {
 // cegah menu context "download image" saat tombol ditahan lama di HP
 addEventListener('contextmenu', e => e.preventDefault());
 
-// ---------- confetti (TY page, brief 07 Jul) ----------
-let confettiId = 0;
+// ---------- confetti (TY page) ----------
+// Asset resmi "Confetti 30.mov" (qtrle+alpha) dikonversi ke animated AVIF
+// transparan; kalau browser tidak mendukung, jatuh ke confetti canvas.
+const CONFETTI_SRC = 'assets/video/confetti.avif';
+let confettiAvifOk = false;
+{
+  const probe = new Image();
+  probe.src = CONFETTI_SRC;
+  if (probe.decode) probe.decode().then(() => { confettiAvifOk = true; }).catch(() => {});
+}
+let confettiHideTimer = null;
+
 function startConfetti(durationMs = 4500) {
+  if (confettiAvifOk) {
+    const img = $('#confetti-img');
+    img.src = CONFETTI_SRC + '?t=' + Date.now(); // mulai animasi dari awal
+    img.classList.remove('hidden');
+    clearTimeout(confettiHideTimer);
+    confettiHideTimer = setTimeout(() => img.classList.add('hidden'), 9300);
+    return;
+  }
+  startConfettiCanvas(durationMs);
+}
+
+let confettiId = 0;
+function startConfettiCanvas(durationMs = 4500) {
   const cv = $('#confetti');
   const c = cv.getContext('2d');
   const id = ++confettiId;
