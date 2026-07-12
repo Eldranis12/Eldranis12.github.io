@@ -470,4 +470,6 @@ img {
   z-index: 4;
   pointer-events: none;
 }
-#confetti-img { object-fit: cover; }
+#confetti-img {
+  object-fit: cover;
+}

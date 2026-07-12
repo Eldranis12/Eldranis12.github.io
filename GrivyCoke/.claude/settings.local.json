@@ -4,7 +4,17 @@
       "Read(//c/Users/IMAJI_DEV_04/Downloads/Telegram Desktop/**)",
       "Bash(python -c ' *)",
       "Bash(PYTHONIOENCODING=utf-8 python -c ' *)",
-      "Read(//c/Users/IMAJI_~1/AppData/Local/Temp/claude/C--Users-IMAJI-DEV-04-Documents-Unity-Project-Grivy-Coke/60932dc1-0dc9-4dab-bf11-a7b4a8ccbb31/scratchpad/ui/UI Coke ROM/**)"
+      "Read(//c/Users/IMAJI_~1/AppData/Local/Temp/claude/C--Users-IMAJI-DEV-04-Documents-Unity-Project-Grivy-Coke/60932dc1-0dc9-4dab-bf11-a7b4a8ccbb31/scratchpad/ui/UI Coke ROM/**)",
+      "Read(//private/var/folders/v0/1c0x1b893vg_9b9y5j4z05d00000gn/T/**)",
+      "Bash(pandoc -t markdown \"Coca_Cola_Campus_Activation_—_Phase_2_Game_Dev_Brief_Tetris.docx\")",
+      "Bash(ffprobe -hide_banner /Users/farizsungkar/Documents/Eldranis12.github.io/GrivyCoke/assets/video/confetti.avif)",
+      "Bash(avifdec --info /Users/farizsungkar/Documents/Eldranis12.github.io/GrivyCoke/assets/video/confetti.avif)",
+      "Read(//Users/farizsungkar/Documents/Eldranis12.github.io/**)",
+      "Read(//Users/farizsungkar/Downloads/**)",
+      "Bash(ffprobe -hide_banner \"/Users/farizsungkar/Downloads/Confetti 30.mov\")",
+      "Bash(ffprobe -hide_banner -v error -select_streams v:0 -show_entries stream=codec_name,pix_fmt,width,height,r_frame_rate,duration \"/Users/farizsungkar/Downloads/Confetti 30.mov\")",
+      "Bash(rm -f /private/tmp/claude-501/-Users-farizsungkar-Documents-Eldranis12-github-io-GrivyCoke/0b5db86e-3f7c-4bd3-8601-c919036bce84/scratchpad/frames/*.png)",
+      "Bash(ffmpeg -hide_banner -loglevel error -i '/Users/farizsungkar/Downloads/Confetti 30.mov' -vf fps=20,scale=720:-2 -pix_fmt rgba /private/tmp/claude-501/-Users-farizsungkar-Documents-Eldranis12-github-io-GrivyCoke/0b5db86e-3f7c-4bd3-8601-c919036bce84/scratchpad/frames/f%04d.png)"
     ]
   }
 }
