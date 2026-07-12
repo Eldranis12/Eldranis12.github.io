@@ -20,7 +20,7 @@ export const CONFIG = {
   // waktu — spec sheet FA: 3 menit (brief menyebut 2 menit; ubah di sini
   // atau lewat ?duration=120 kalau final 2 menit)
   // SEMENTARA 30 detik untuk testing — kembalikan ke '180' sebelum rilis!
-  gameSeconds: parseInt(url.get('duration') || '30', 10),
+  gameSeconds: parseInt(url.get('duration') || '180', 10),
 
   // kecepatan jatuh (konstan, tidak makin cepat — permintaan klien)
   gravityMs: 800,              // interval turun 1 baris
