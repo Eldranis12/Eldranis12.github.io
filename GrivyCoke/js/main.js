@@ -599,147 +599,21 @@ addEventListener('keyup', e => {
 addEventListener('contextmenu', e => e.preventDefault());
 
 // ---------- confetti (TY page) ----------
-// feedback 13 Jul: asset resmi baru "Confetti 30" (PNG sequence 279 frame
-// dengan alpha asli) dari klien. Asset lama (confetti.avif) ternyata tidak
-// benar-benar transparan -- toolchain lokal (ffmpeg + libaom) tidak bisa
-// menulis kanal alpha ke AVIF/WebP animasi, jadi videonya tampil sebagai
-// kotak hitam solid di atas background merah.
-//
-// Solusi: encode satu video H.264 (dukungan luas + ringan) berisi warna
-// confetti di separuh atas dan mask abu-abu (alpha) di separuh bawah,
-// lalu gabungkan jadi kanal alpha asli lewat canvas tiap frame video.
-// Kalau video gagal dimuat (browser sangat lama), jatuh ke confetti canvas.
-const CONFETTI_SRC = 'assets/video/confetti-alpha.mp4';
-const confettiVideo = document.createElement('video');
-confettiVideo.src = CONFETTI_SRC;
-confettiVideo.muted = true;
-confettiVideo.playsInline = true;
-confettiVideo.preload = 'auto';
-// harus tetap "hidup" di DOM (bukan display:none) supaya decode frame &
-// requestVideoFrameCallback tetap jalan di semua browser -- disembunyikan
-// lewat ukuran 0 + posisi absolute, bukan display:none.
-confettiVideo.style.cssText = 'position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;';
-document.body.appendChild(confettiVideo);
+// Asset resmi "Confetti 30" (PNG sequence 279 frame + alpha asli) di-encode
+// jadi animated AVIF transparan via avifenc (bukan ffmpeg/libaom yang
+// membuang alpha). Downscale frame lewat premultiplied alpha supaya warna
+// tepi partikel tidak tercampur hitam (terlihat gelap/kusam).
+// Pipeline: ffmpeg fps=20,premultiply,scale=720,unpremultiply -> avifenc
+// --fps 20 --repetition-count 0 -q 50 --qalpha 62.
+const CONFETTI_SRC = 'assets/video/confetti.avif';
+let confettiHideTimer = null;
 
-let confettiVideoOk = false;
-confettiVideo.addEventListener('loadedmetadata', () => { confettiVideoOk = confettiVideo.videoWidth > 0; });
-confettiVideo.addEventListener('error', () => { confettiVideoOk = false; });
-
-// kanvas offscreen sekecil resolusi video (bukan resolusi stage 1080x2340)
-// supaya olah pixel per frame (getImageData/putImageData) murah & mulus
-const confettiColorCv = document.createElement('canvas');
-const confettiColorCtx = confettiColorCv.getContext('2d', { willReadFrequently: true });
-const confettiMaskCv = document.createElement('canvas');
-const confettiMaskCtx = confettiMaskCv.getContext('2d', { willReadFrequently: true });
-let confettiPlaying = false;
-
-function composeConfettiFrame() {
-  const w = confettiVideo.videoWidth, halfH = confettiVideo.videoHeight / 2;
-  if (confettiColorCv.width !== w || confettiColorCv.height !== halfH) {
-    confettiColorCv.width = confettiMaskCv.width = w;
-    confettiColorCv.height = confettiMaskCv.height = halfH;
-  }
-  confettiColorCtx.drawImage(confettiVideo, 0, 0, w, halfH, 0, 0, w, halfH);
-  confettiMaskCtx.drawImage(confettiVideo, 0, halfH, w, halfH, 0, 0, w, halfH);
-  const color = confettiColorCtx.getImageData(0, 0, w, halfH);
-  const mask = confettiMaskCtx.getImageData(0, 0, w, halfH);
-  const cd = color.data, md = mask.data;
-  for (let i = 0; i < cd.length; i += 4) cd[i + 3] = md[i]; // mask (abu2) -> alpha
-  confettiColorCtx.putImageData(color, 0, 0);
-
-  // gambar ke canvas utama meniru object-fit: cover
-  const cv = $('#confetti');
-  const cctx = cv.getContext('2d');
-  const scale = Math.max(cv.width / w, cv.height / halfH);
-  const dw = w * scale, dh = halfH * scale;
-  cctx.clearRect(0, 0, cv.width, cv.height);
-  cctx.drawImage(confettiColorCv, (cv.width - dw) / 2, (cv.height - dh) / 2, dw, dh);
-}
-
-// requestVideoFrameCallback & requestAnimationFrame sama-sama tidak selalu
-// konsisten menyala di semua browser/WebView (kiosk device, tab di-render
-// off-screen, dll) -- pakai setInterval yang menempel ke jam nyata supaya
-// gambar tetap update sesuai fps video (~30fps), independen dari throttle
-// rendering loop.
-let confettiIntervalId = null;
-
-function confettiFrameStep() {
-  if (!confettiPlaying) return;
-  composeConfettiFrame();
-}
-
-confettiVideo.addEventListener('ended', () => {
-  confettiPlaying = false;
-  clearInterval(confettiIntervalId);
-  $('#confetti').getContext('2d').clearRect(0, 0, 1080, 2340);
-});
-
-function startConfetti(durationMs = 4500) {
-  if (confettiVideoOk) {
-    confettiVideo.currentTime = 0;
-    confettiPlaying = true;
-    confettiVideo.play().then(() => {
-      clearInterval(confettiIntervalId);
-      confettiIntervalId = setInterval(confettiFrameStep, 1000 / 30);
-    }).catch(() => { confettiPlaying = false; startConfettiCanvas(durationMs); });
-    return;
-  }
-  startConfettiCanvas(durationMs);
-}
-
-let confettiId = 0;
-function startConfettiCanvas(durationMs = 4500) {
-  const cv = $('#confetti');
-  const c = cv.getContext('2d');
-  const id = ++confettiId;
-  const colors = ['#e4051f', '#ffffff', '#b00013', '#ffd7d7'];
-  const parts = [];
-  // feedback 13 Jul: kurangi jumlah partikel (160 -> 110) supaya tidak
-  // "kebanyakan" di fallback canvas; tetap mulus krn gerak berbasis dt,
-  // bukan berbasis jumlah frame
-  for (let i = 0; i < 110; i++) {
-    parts.push({
-      x: Math.random() * cv.width,
-      y: -60 - Math.random() * cv.height * 0.7,
-      w: 14 + Math.random() * 18,
-      h: 8 + Math.random() * 12,
-      vy: 380 + Math.random() * 420,          // px/detik jatuh
-      vx: -90 + Math.random() * 180,          // goyang samping
-      rot: Math.random() * Math.PI * 2,
-      vr: -6 + Math.random() * 12,            // putaran
-      color: colors[i % colors.length],
-      sway: 2 + Math.random() * 4,
-      phase: Math.random() * Math.PI * 2,
-    });
-  }
-  const t0 = performance.now();
-  let last = t0;
-  function frame(ts) {
-    if (id !== confettiId) return;
-    const dt = Math.min(50, ts - last) / 1000;
-    last = ts;
-    const age = ts - t0;
-    c.clearRect(0, 0, cv.width, cv.height);
-    const fade = age > durationMs ? Math.max(0, 1 - (age - durationMs) / 800) : 1;
-    for (const p of parts) {
-      p.y += p.vy * dt;
-      p.x += (p.vx + Math.sin(age / 300 + p.phase) * p.sway * 30) * dt;
-      p.rot += p.vr * dt;
-      if (age < durationMs && p.y > cv.height + 40) { // daur ulang selama durasi
-        p.y = -40; p.x = Math.random() * cv.width;
-      }
-      c.save();
-      c.translate(p.x, p.y);
-      c.rotate(p.rot);
-      c.globalAlpha = fade;
-      c.fillStyle = p.color;
-      c.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-      c.restore();
-    }
-    if (fade > 0) requestAnimationFrame(frame);
-    else c.clearRect(0, 0, cv.width, cv.height);
-  }
-  requestAnimationFrame(frame);
+function startConfetti() {
+  const img = $('#confetti-img');
+  img.src = CONFETTI_SRC + '?t=' + Date.now(); // mulai animasi dari awal
+  img.classList.remove('hidden');
+  clearTimeout(confettiHideTimer);
+  confettiHideTimer = setTimeout(() => img.classList.add('hidden'), 9300); // durasi avif 9.3s
 }
 
 // ---------- alur game ----------
@@ -835,4 +709,4 @@ function endGame(reason = 'timeup') {
 $('#btn-start').addEventListener('click', () => { playSfx('start'); startGame(); });
 
 window.__endGame = endGame; // hook debug/QA
-window.__confetti = { video: confettiVideo, isPlaying: () => confettiPlaying, ok: () => confettiVideoOk }; // hook debug/QA
+window.__confetti = { start: startConfetti, img: () => $('#confetti-img') }; // hook debug/QA

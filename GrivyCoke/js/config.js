@@ -19,7 +19,6 @@ export const CONFIG = {
 
   // waktu — spec sheet FA: 3 menit (brief menyebut 2 menit; ubah di sini
   // atau lewat ?duration=120 kalau final 2 menit)
-  // SEMENTARA 30 detik untuk testing — kembalikan ke '180' sebelum rilis!
   gameSeconds: parseInt(url.get('duration') || '180', 10),
 
   // kecepatan jatuh (konstan, tidak makin cepat — permintaan klien)
@@ -40,7 +39,13 @@ export const CONFIG = {
   // multiplayer (email Mahda 2026-07: maks 4 pemain per sesi;
   // TY page multiplayer menampilkan poin semua pemain di sesi itu)
   maxPlayers: 4,
-  waitWindowMs: parseInt(url.get('wait') || '0', 10) * 1000, // window tunggu, 0 = langsung mulai
+  // jendela join bergulir (email Grivy 2026-07-14): tiap pemain join,
+  // buka lagi joinWindowSeconds untuk pemain berikutnya, sampai maxPlayers.
+  // Harus configurable — Grivy belum yakin 15 detik cukup. Default akan
+  // dipakai backend sesi; ?join_window= untuk override saat testing.
+  // (?wait= lama tetap didukung sebagai alias sampai backend sesi jadi.)
+  joinWindowSeconds: parseInt(url.get('join_window') || '15', 10),
+  waitWindowMs: parseInt(url.get('wait') || url.get('join_window') || '0', 10) * 1000, // window tunggu overlay, 0 = langsung mulai
 
   // simulasi hasil pemain lain untuk demo/uji TY page multiplayer,
   // contoh: ?others=Nadia:450,Bima:300 (dihapus saat server multiplayer jadi)
