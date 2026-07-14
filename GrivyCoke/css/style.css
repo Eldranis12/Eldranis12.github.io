@@ -188,6 +188,12 @@ img {
   font-size: 56px;
   line-height: 1.1;
 }
+/* feedback 13 Jul: time berkedip di 10 detik terakhir */
+.panel-value.blink { animation: time-blink 1s steps(1, end) infinite; }
+@keyframes time-blink {
+  0%, 49%  { opacity: 1; color: #fff; }
+  50%, 100% { opacity: 1; color: #ffd7d7; }
+}
 .score-panel { left: 42px;  top: 452px; width: 150px; height: 155px; }
 .time-panel  { left: 42px;  top: 645px; width: 150px; height: 230px; gap: 2px; }
 .clock-icon  { width: 52px; height: 52px; margin-bottom: 6px; }
@@ -196,16 +202,28 @@ img {
 .next-panel  {
   right: 42px; top: 452px; width: 150px; height: 423px;
   justify-content: flex-start;
-  padding-top: 26px;
+  padding: 26px 0 20px;
 }
+/* feedback 13 Jul: slot ukuran tetap + space-evenly supaya 3 balok next
+   mengisi penuh tinggi box (sebelumnya ada ruang kosong di bawah karena
+   tinggi tiap balok berbeda-beda) */
 #next-queue {
-  margin-top: 30px;
+  margin-top: 10px;
+  flex: 1;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 38px;
+  justify-content: space-evenly;
   align-items: center;
 }
-#next-queue canvas { display: block; }
+.next-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 110px;
+}
+.next-slot canvas { display: block; }
 
 /* panel papan memakai asset FA_BG GAME (border + grid sudah di gambar);
    cell asli 160px, grid mulai 154px dari tepi -> skala 60/160 = 0.375 */
@@ -236,7 +254,9 @@ img {
   justify-content: flex-start;
   padding-top: 130px;
 }
-/* feedback 07 Jul: kata popup fill putih dengan stroke merah (sesuai KV) */
+/* feedback 07 Jul: kata popup fill putih dengan stroke merah (sesuai KV)
+   feedback 13 Jul: drop shadow (raw file efek menyusul dari desain,
+   didekati dengan filter supaya tidak menunggu asset) */
 .popup {
   color: #fff;
   font-weight: 800;
@@ -245,13 +265,34 @@ img {
   line-height: 1.25;
   -webkit-text-stroke: 6px #b00013;
   paint-order: stroke fill;
-  text-shadow: 0 6px 18px rgba(80, 0, 0, .45);
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .5));
   animation: popup 1.1s ease-out forwards;
 }
 .popup .pts { font-size: 56px; }
 /* feedback: teks combo style sama dengan popup utama (putih + stroke merah) */
 .popup.combo { font-size: 48px; }
 .popup.combo .pts { font-size: 42px; }
+
+/* feedback 13 Jul: teks waktu habis, tampil 2 detik sebelum pindah ke TY */
+.time-up-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 60px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 66px;
+  line-height: 1.25;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .5));
+  animation: time-up-in .35s ease-out forwards;
+}
+@keyframes time-up-in {
+  0%   { opacity: 0; transform: scale(.7); }
+  100% { opacity: 1; transform: scale(1); }
+}
 @keyframes popup {
   0%   { opacity: 0; transform: scale(.6); }
   15%  { opacity: 1; transform: scale(1.08); }
@@ -461,8 +502,7 @@ img {
 }
 #screen-result .swoosh { z-index: 0; }
 #screen-result .copyright { z-index: 2; }
-#confetti,
-#confetti-img {
+#confetti {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -470,4 +510,3 @@ img {
   z-index: 4;
   pointer-events: none;
 }
-#confetti-img { object-fit: cover; }

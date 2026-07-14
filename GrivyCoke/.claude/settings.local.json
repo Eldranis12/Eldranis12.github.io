@@ -4,7 +4,10 @@
       "Read(//c/Users/IMAJI_DEV_04/Downloads/Telegram Desktop/**)",
       "Bash(python -c ' *)",
       "Bash(PYTHONIOENCODING=utf-8 python -c ' *)",
-      "Read(//c/Users/IMAJI_~1/AppData/Local/Temp/claude/C--Users-IMAJI-DEV-04-Documents-Unity-Project-Grivy-Coke/60932dc1-0dc9-4dab-bf11-a7b4a8ccbb31/scratchpad/ui/UI Coke ROM/**)"
+      "Read(//c/Users/IMAJI_~1/AppData/Local/Temp/claude/C--Users-IMAJI-DEV-04-Documents-Unity-Project-Grivy-Coke/60932dc1-0dc9-4dab-bf11-a7b4a8ccbb31/scratchpad/ui/UI Coke ROM/**)",
+      "Bash(ls -la \"/c/Users/IMAJI_DEV_04/Downloads/Telegram Desktop/\" 2>&1 | grep -i confetti)",
+      "Bash(unzip -l \"Confetti 30-20260713T104530Z-2-001.zip\")",
+      "Bash(ffmpeg -version)"
     ]
   }
 }

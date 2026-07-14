@@ -14,13 +14,21 @@ const $ = sel => document.querySelector(sel);
 // Lebar desain tetap 1080; tinggi mengikuti layar supaya tidak ada
 // letterbox hitam. Elemen bawah (swoosh, copyright, botol) sudah
 // di-anchor ke bottom sehingga aman untuk tinggi berapa pun.
+// Pakai visualViewport kalau ada: window.innerHeight bisa salah/telat
+// update di beberapa browser Android (toolbar dinamis, gesture nav) dan
+// bikin stage ke-render lebih besar dari layar (feedback S24FE).
+function viewportSize() {
+  const vv = window.visualViewport;
+  return vv ? { w: vv.width, h: vv.height } : { w: innerWidth, h: innerHeight };
+}
 function fitStage() {
   const stage = $('#stage');
-  let s = innerWidth / 1080;
-  let H = Math.round(innerHeight / s);
+  const { w: vw, h: vh } = viewportSize();
+  let s = vw / 1080;
+  let H = Math.round(vh / s);
   if (H < 1900) {
     // layar terlalu lebar (desktop/landscape): fit tinggi, bar di samping
-    s = innerHeight / 2340;
+    s = vh / 2340;
     H = 2340;
   }
   stage.style.width = '1080px';
@@ -39,6 +47,11 @@ function fitStage() {
   }
 }
 addEventListener('resize', fitStage);
+addEventListener('orientationchange', () => setTimeout(fitStage, 60));
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', fitStage);
+  visualViewport.addEventListener('scroll', fitStage);
+}
 fitStage();
 
 // ---------- preload gambar ----------
@@ -76,6 +89,7 @@ let lockTimer = -1;      // -1 = belum mendarat
 let lockResets = 0;
 let softDropping = false;
 let lastTs = 0;
+let lastTickSecond = -1; // detik terakhir yang sudah bunyi "tick" (10 detik terakhir)
 let elapsed = 0;
 
 // animasi
@@ -97,7 +111,17 @@ function fmtTime(s) {
 }
 function updateHud() {
   $('#hud-score').textContent = game.score;
-  $('#hud-time').textContent = fmtTime(Math.max(0, timeLeft));
+  const t = Math.max(0, timeLeft);
+  $('#hud-time').textContent = fmtTime(t);
+
+  // feedback 13 Jul: 10 detik terakhir -> angka time berkedip + tick sound
+  const secLeft = Math.ceil(t);
+  const lastTen = running && !over && t > 0 && secLeft <= 10;
+  $('#hud-time').classList.toggle('blink', lastTen);
+  if (lastTen && secLeft !== lastTickSecond) {
+    lastTickSecond = secLeft;
+    playSfx('tick');
+  }
 }
 
 // ---------- NEXT queue (mini canvas per balok) ----------
@@ -121,15 +145,44 @@ function renderNext() {
     m.forEach((row, y) => row.forEach((v, x) => {
       if (v) g.drawImage(img, (x - minX) * mini, (y - minY) * mini, mini, mini);
     }));
-    holder.appendChild(c);
+    // slot ukuran tetap: balok apapun bentuknya dipusatkan, supaya 3 slot
+    // rapi mengisi tinggi box NEXT (feedback 13 Jul: ada ruang kosong)
+    const slot = document.createElement('div');
+    slot.className = 'next-slot';
+    slot.appendChild(c);
+    holder.appendChild(slot);
   }
 }
 
+// feedback 13 Jul: sound per kata (file menyusul, lihat js/audio.js)
+const WORD_SFX = {
+  'Mantap!': 'mantap',
+  'Keren!': 'keren',
+  'Gokil!': 'gokil',
+  'Sempurna!': 'sempurna',
+  'Perfect!': 'perfect',
+};
+
 // ---------- popup kata (Mantap! +100 dst) ----------
-function popup(word, pts, isCombo = false) {
+// feedback 13 Jul: dipindah dekat baris yang barusan dihapus (bukan
+// selalu di tengah atas), dan tidak boleh melewati tepi kiri board
+// (mepet ke offset grid asli, lihat #board di style.css).
+const BOARD_LEFT = 58, BOARD_TOP = 58, BOARD_H = 1325;
+const POPUP_W = CONFIG.cols * CELL - 40; // sisakan margin kanan dalam board
+
+function popup(word, pts, isCombo = false, rowTop = null, rowCount = 1) {
   const el = document.createElement('div');
   el.className = 'popup' + (isCombo ? ' combo' : '');
   el.innerHTML = `${word}<br><span class="pts">+${pts}</span>`;
+  if (rowTop != null) {
+    const rowMidY = BOARD_TOP + (rowTop + rowCount / 2) * CELL;
+    const textH = isCombo ? 90 : 150;
+    el.style.position = 'absolute';
+    el.style.left = BOARD_LEFT + 'px';
+    el.style.top = Math.max(10, Math.min(BOARD_H - textH - 10, rowMidY - textH / 2)) + 'px';
+    el.style.width = POPUP_W + 'px';
+    el.style.textAlign = 'left';
+  }
   $('#popup-layer').appendChild(el);
   setTimeout(() => el.remove(), 1200);
 }
@@ -322,15 +375,17 @@ function placePiece(landMode = 'normal') {
 
   if (res.rows.length > 0) {
     game.score += res.points + res.comboPoints;
-    popup(res.word, res.points);
-    if (res.comboWord) popup(res.comboWord, res.comboPoints, true);
+    const sorted = [...res.rows].sort((a, b) => a - b);
+    const rowTop = sorted[0], rowCount = sorted.length;
+    popup(res.word, res.points, false, rowTop, rowCount);
+    if (res.comboWord) popup(res.comboWord, res.comboPoints, true, rowTop, rowCount);
+    playSfx(WORD_SFX[res.word]);
 
     // baris penuh berubah warna mengikuti balok terakhir yang melengkapinya
     for (const y of res.rows)
       game.grid[y] = Array(CONFIG.cols).fill(res.lastColor);
 
     // kelompokkan baris berurutan -> satu kotak efek per kelompok
-    const sorted = [...res.rows].sort((a, b) => a - b);
     const groups = [];
     for (const y of sorted) {
       const g = groups[groups.length - 1];
@@ -350,7 +405,7 @@ function placePiece(landMode = 'normal') {
     renderNext();
   }
   updateHud();
-  if (game.topOut) endGame();
+  if (game.topOut) endGame('topout');
 }
 
 // ---------- loop ----------
@@ -363,7 +418,7 @@ function tick(ts, id) {
   elapsed += dt / 1000;
   timeLeft = CONFIG.gameSeconds - elapsed;
 
-  if (timeLeft <= 0) { updateHud(); endGame(); return; }
+  if (timeLeft <= 0) { updateHud(); endGame('timeup'); return; }
 
   // update efek
   trails = trails.filter(t => (t.t -= dt / 400) > 0);
@@ -382,13 +437,14 @@ function tick(ts, id) {
       if (perfect) {
         game.score += CONFIG.perfectClearBonus;
         popup('Perfect!', CONFIG.perfectClearBonus);
+        playSfx('perfect');
       }
       clearAnim = null;
       if (pendingSpawn) {
         pendingSpawn = false;
         game.spawn();
         renderNext();
-        if (game.topOut) { updateHud(); endGame(); return; }
+        if (game.topOut) { updateHud(); endGame('topout'); return; }
       }
       updateHud();
     }
@@ -500,24 +556,89 @@ addEventListener('keyup', e => {
 addEventListener('contextmenu', e => e.preventDefault());
 
 // ---------- confetti (TY page) ----------
-// Asset resmi "Confetti 30.mov" (qtrle+alpha) dikonversi ke animated AVIF
-// transparan; kalau browser tidak mendukung, jatuh ke confetti canvas.
-const CONFETTI_SRC = 'assets/video/confetti.avif';
-let confettiAvifOk = false;
-{
-  const probe = new Image();
-  probe.src = CONFETTI_SRC;
-  if (probe.decode) probe.decode().then(() => { confettiAvifOk = true; }).catch(() => {});
+// feedback 13 Jul: asset resmi baru "Confetti 30" (PNG sequence 279 frame
+// dengan alpha asli) dari klien. Asset lama (confetti.avif) ternyata tidak
+// benar-benar transparan -- toolchain lokal (ffmpeg + libaom) tidak bisa
+// menulis kanal alpha ke AVIF/WebP animasi, jadi videonya tampil sebagai
+// kotak hitam solid di atas background merah.
+//
+// Solusi: encode satu video H.264 (dukungan luas + ringan) berisi warna
+// confetti di separuh atas dan mask abu-abu (alpha) di separuh bawah,
+// lalu gabungkan jadi kanal alpha asli lewat canvas tiap frame video.
+// Kalau video gagal dimuat (browser sangat lama), jatuh ke confetti canvas.
+const CONFETTI_SRC = 'assets/video/confetti-alpha.mp4';
+const confettiVideo = document.createElement('video');
+confettiVideo.src = CONFETTI_SRC;
+confettiVideo.muted = true;
+confettiVideo.playsInline = true;
+confettiVideo.preload = 'auto';
+// harus tetap "hidup" di DOM (bukan display:none) supaya decode frame &
+// requestVideoFrameCallback tetap jalan di semua browser -- disembunyikan
+// lewat ukuran 0 + posisi absolute, bukan display:none.
+confettiVideo.style.cssText = 'position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;';
+document.body.appendChild(confettiVideo);
+
+let confettiVideoOk = false;
+confettiVideo.addEventListener('loadedmetadata', () => { confettiVideoOk = confettiVideo.videoWidth > 0; });
+confettiVideo.addEventListener('error', () => { confettiVideoOk = false; });
+
+// kanvas offscreen sekecil resolusi video (bukan resolusi stage 1080x2340)
+// supaya olah pixel per frame (getImageData/putImageData) murah & mulus
+const confettiColorCv = document.createElement('canvas');
+const confettiColorCtx = confettiColorCv.getContext('2d', { willReadFrequently: true });
+const confettiMaskCv = document.createElement('canvas');
+const confettiMaskCtx = confettiMaskCv.getContext('2d', { willReadFrequently: true });
+let confettiPlaying = false;
+
+function composeConfettiFrame() {
+  const w = confettiVideo.videoWidth, halfH = confettiVideo.videoHeight / 2;
+  if (confettiColorCv.width !== w || confettiColorCv.height !== halfH) {
+    confettiColorCv.width = confettiMaskCv.width = w;
+    confettiColorCv.height = confettiMaskCv.height = halfH;
+  }
+  confettiColorCtx.drawImage(confettiVideo, 0, 0, w, halfH, 0, 0, w, halfH);
+  confettiMaskCtx.drawImage(confettiVideo, 0, halfH, w, halfH, 0, 0, w, halfH);
+  const color = confettiColorCtx.getImageData(0, 0, w, halfH);
+  const mask = confettiMaskCtx.getImageData(0, 0, w, halfH);
+  const cd = color.data, md = mask.data;
+  for (let i = 0; i < cd.length; i += 4) cd[i + 3] = md[i]; // mask (abu2) -> alpha
+  confettiColorCtx.putImageData(color, 0, 0);
+
+  // gambar ke canvas utama meniru object-fit: cover
+  const cv = $('#confetti');
+  const cctx = cv.getContext('2d');
+  const scale = Math.max(cv.width / w, cv.height / halfH);
+  const dw = w * scale, dh = halfH * scale;
+  cctx.clearRect(0, 0, cv.width, cv.height);
+  cctx.drawImage(confettiColorCv, (cv.width - dw) / 2, (cv.height - dh) / 2, dw, dh);
 }
-let confettiHideTimer = null;
+
+// requestVideoFrameCallback & requestAnimationFrame sama-sama tidak selalu
+// konsisten menyala di semua browser/WebView (kiosk device, tab di-render
+// off-screen, dll) -- pakai setInterval yang menempel ke jam nyata supaya
+// gambar tetap update sesuai fps video (~30fps), independen dari throttle
+// rendering loop.
+let confettiIntervalId = null;
+
+function confettiFrameStep() {
+  if (!confettiPlaying) return;
+  composeConfettiFrame();
+}
+
+confettiVideo.addEventListener('ended', () => {
+  confettiPlaying = false;
+  clearInterval(confettiIntervalId);
+  $('#confetti').getContext('2d').clearRect(0, 0, 1080, 2340);
+});
 
 function startConfetti(durationMs = 4500) {
-  if (confettiAvifOk) {
-    const img = $('#confetti-img');
-    img.src = CONFETTI_SRC + '?t=' + Date.now(); // mulai animasi dari awal
-    img.classList.remove('hidden');
-    clearTimeout(confettiHideTimer);
-    confettiHideTimer = setTimeout(() => img.classList.add('hidden'), 9300);
+  if (confettiVideoOk) {
+    confettiVideo.currentTime = 0;
+    confettiPlaying = true;
+    confettiVideo.play().then(() => {
+      clearInterval(confettiIntervalId);
+      confettiIntervalId = setInterval(confettiFrameStep, 1000 / 30);
+    }).catch(() => { confettiPlaying = false; startConfettiCanvas(durationMs); });
     return;
   }
   startConfettiCanvas(durationMs);
@@ -530,7 +651,10 @@ function startConfettiCanvas(durationMs = 4500) {
   const id = ++confettiId;
   const colors = ['#e4051f', '#ffffff', '#b00013', '#ffd7d7'];
   const parts = [];
-  for (let i = 0; i < 160; i++) {
+  // feedback 13 Jul: kurangi jumlah partikel (160 -> 110) supaya tidak
+  // "kebanyakan" di fallback canvas; tetap mulus krn gerak berbasis dt,
+  // bukan berbasis jumlah frame
+  for (let i = 0; i < 110; i++) {
     parts.push({
       x: Math.random() * cv.width,
       y: -60 - Math.random() * cv.height * 0.7,
@@ -588,8 +712,10 @@ async function startGame() {
   elapsed = 0;
   dropTimer = 0;
   lockTimer = -1;
+  lastTickSecond = -1;
   trails = []; bubbles = []; clearAnim = null; pendingSpawn = false;
   $('#popup-layer').innerHTML = '';
+  $('#hud-time').classList.remove('blink');
 
   show('#screen-game');
   renderNext();
@@ -609,7 +735,7 @@ async function startGame() {
   requestAnimationFrame(ts => tick(ts, id));
 }
 
-function endGame() {
+function endGame(reason = 'timeup') {
   if (over) return;
   over = true;
   running = false;
@@ -625,6 +751,17 @@ function endGame() {
     .sort((a, b) => b.score - a.score);
 
   notifyGameEnd(PLAYER.whatsAppSessionId, results.map(({ nickname, score }) => ({ nickname, score })));
+
+  // feedback 13 Jul: waktu habis -> tampilkan "Yah, Waktunya Habis!" di
+  // board dulu, delay 2 detik, baru pindah ke halaman Your Score
+  let delay = 900;
+  if (reason === 'timeup') {
+    const el = document.createElement('div');
+    el.className = 'time-up-text';
+    el.textContent = 'Yah, Waktunya Habis!';
+    $('#popup-layer').appendChild(el);
+    delay = 2000;
+  }
 
   setTimeout(() => {
     $('#final-score').textContent = game.score;
@@ -649,9 +786,10 @@ function endGame() {
     show('#screen-result');
     playSfx('success');   // Big Band Celebration bersamaan confetti
     startConfetti();
-  }, 900);
+  }, delay);
 }
 
 $('#btn-start').addEventListener('click', () => { playSfx('start'); startGame(); });
 
 window.__endGame = endGame; // hook debug/QA
+window.__confetti = { video: confettiVideo, isPlaying: () => confettiPlaying, ok: () => confettiVideoOk, colorCv: confettiColorCv, maskCv: confettiMaskCv, compose: composeConfettiFrame }; // hook debug/QA

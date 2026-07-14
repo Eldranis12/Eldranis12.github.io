@@ -8,6 +8,12 @@
 //   landFast    — mendarat turun cepat    (saat mendarat cepat.wav)
 //   landHard    — mendarat jatuh langsung (saat mendarat sangat cepat.wav)
 //   success     — game selesai + confetti (Big Band Celebration.wav)
+//
+// feedback 13 Jul: sound utk tiap kata popup (mantap/keren/gokil/sempurna/
+// perfect) + clock tick 10 detik terakhir — file "sound menyusul", belum
+// ada di assets/audio/. playSfx() no-op kalau file belum ada (fetch gagal
+// -> buffers[name] tetap undefined), jadi aman ditambah sekarang; tinggal
+// taruh file-nya di path di bawah begitu tersedia.
 // ============================================================
 
 const FILES = {
@@ -19,6 +25,12 @@ const FILES = {
   landFast: 'assets/audio/land-fast.wav',
   landHard: 'assets/audio/land-hard.wav',
   success: 'assets/audio/success.wav',
+  mantap: 'assets/audio/mantap.wav',
+  keren: 'assets/audio/keren.wav',
+  gokil: 'assets/audio/gokil.wav',
+  sempurna: 'assets/audio/sempurna.wav',
+  perfect: 'assets/audio/perfect.wav',
+  tick: 'assets/audio/tick.wav',
 };
 
 const AC = window.AudioContext || window.webkitAudioContext;
