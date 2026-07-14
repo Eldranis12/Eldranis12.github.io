@@ -164,27 +164,65 @@ const WORD_SFX = {
 };
 
 // ---------- popup kata (Mantap! +100 dst) ----------
-// feedback 13 Jul: dipindah dekat baris yang barusan dihapus (bukan
-// selalu di tengah atas), dan tidak boleh melewati tepi kiri board
-// (mepet ke offset grid asli, lihat #board di style.css).
-const BOARD_LEFT = 58, BOARD_TOP = 58, BOARD_H = 1325;
-const POPUP_W = CONFIG.cols * CELL - 40; // sisakan margin kanan dalam board
+// koordinat grid di dalam #board-wrap (canvas #board di offset 58,58,
+// tiap sel CELL px — lihat #board di style.css)
+const GRID_X = 58, GRID_Y = 58;
+const GRID_W = CONFIG.cols * CELL;   // 600
+const GRID_H = CONFIG.rows * CELL;   // 1200
 
-function popup(word, pts, isCombo = false, rowTop = null, rowCount = 1) {
-  const el = document.createElement('div');
-  el.className = 'popup' + (isCombo ? ' combo' : '');
-  el.innerHTML = `${word}<br><span class="pts">+${pts}</span>`;
-  if (rowTop != null) {
-    const rowMidY = BOARD_TOP + (rowTop + rowCount / 2) * CELL;
-    const textH = isCombo ? 90 : 150;
-    el.style.position = 'absolute';
-    el.style.left = BOARD_LEFT + 'px';
-    el.style.top = Math.max(10, Math.min(BOARD_H - textH - 10, rowMidY - textH / 2)) + 'px';
-    el.style.width = POPUP_W + 'px';
-    el.style.textAlign = 'left';
+// feedback 14 Jul: kata + combo disusun bertumpuk rapi dalam SATU grup
+// (tidak saling menimpa), muncul di dekat balok yang melengkapi baris
+// (horizontal mengikuti kolom balok terakhir), dan sedikit DI ATAS efek
+// line clear (tidak menimpa baris yang dihapus).
+function popupGroup(items, centerCol, rowTop, rowCount) {
+  const group = document.createElement('div');
+  group.className = 'popup-group';
+  group.style.left = '-9999px'; // sembunyikan sampai ukuran terukur
+  for (const it of items) {
+    const el = document.createElement('div');
+    el.className = 'popup' + (it.combo ? ' combo' : '');
+    el.innerHTML = `${it.word}<br><span class="pts">+${it.pts}</span>`;
+    group.appendChild(el);
   }
-  $('#popup-layer').appendChild(el);
-  setTimeout(() => el.remove(), 1200);
+  $('#popup-layer').appendChild(group);
+
+  const w = group.offsetWidth, h = group.offsetHeight, gap = 18;
+  const cellX = GRID_X + centerCol * CELL;
+  const topRowY = GRID_Y + rowTop * CELL;
+  const bottomRowY = GRID_Y + (rowTop + rowCount) * CELL;
+
+  // horizontal: pusatkan di balok, jaga tetap di dalam papan
+  let left = cellX - w / 2;
+  left = Math.max(GRID_X + 4, Math.min(GRID_X + GRID_W - w - 4, left));
+
+  // vertikal: utamakan di atas baris; kalau tak muat, taruh di bawahnya
+  let top = topRowY - gap - h;
+  if (top < GRID_Y + 4) top = Math.min(bottomRowY + gap, GRID_Y + GRID_H - h - 4);
+
+  group.style.left = left + 'px';
+  group.style.top = top + 'px';
+  setTimeout(() => group.remove(), 1200);
+}
+
+// popup di tengah papan (Perfect! — baris sudah hilang saat ini dipanggil)
+function popupCenter(word, pts) {
+  const group = document.createElement('div');
+  group.className = 'popup-group center';
+  const el = document.createElement('div');
+  el.className = 'popup';
+  el.innerHTML = `${word}<br><span class="pts">+${pts}</span>`;
+  group.appendChild(el);
+  $('#popup-layer').appendChild(group);
+  setTimeout(() => group.remove(), 1200);
+}
+
+// kolom tengah balok (dipakai untuk menempatkan popup di dekat balok terakhir)
+function pieceCenterCol(p) {
+  let minC = 99, maxC = -1;
+  p.matrix.forEach((row, y) => row.forEach((v, x) => {
+    if (v) { const gx = p.x + x; if (gx < minC) minC = gx; if (gx > maxC) maxC = gx; }
+  }));
+  return (minC + maxC + 1) / 2;
 }
 
 // ---------- render papan ----------
@@ -377,8 +415,13 @@ function placePiece(landMode = 'normal') {
     game.score += res.points + res.comboPoints;
     const sorted = [...res.rows].sort((a, b) => a - b);
     const rowTop = sorted[0], rowCount = sorted.length;
-    popup(res.word, res.points, false, rowTop, rowCount);
-    if (res.comboWord) popup(res.comboWord, res.comboPoints, true, rowTop, rowCount);
+
+    // kata utama + combo disusun bertumpuk rapi, dekat balok terakhir yang
+    // melengkapi baris, sedikit di atas efek line clear (feedback 14 Jul)
+    const centerCol = pieceCenterCol(game.piece);
+    const items = [{ word: res.word, pts: res.points }];
+    if (res.comboWord) items.push({ word: res.comboWord, pts: res.comboPoints, combo: true });
+    popupGroup(items, centerCol, rowTop, rowCount);
     playSfx(WORD_SFX[res.word]);
 
     // baris penuh berubah warna mengikuti balok terakhir yang melengkapinya
@@ -436,7 +479,7 @@ function tick(ts, id) {
       const perfect = game.clearRows(clearAnim.rows);
       if (perfect) {
         game.score += CONFIG.perfectClearBonus;
-        popup('Perfect!', CONFIG.perfectClearBonus);
+        popupCenter('Perfect!', CONFIG.perfectClearBonus);
         playSfx('perfect');
       }
       clearAnim = null;
@@ -792,4 +835,4 @@ function endGame(reason = 'timeup') {
 $('#btn-start').addEventListener('click', () => { playSfx('start'); startGame(); });
 
 window.__endGame = endGame; // hook debug/QA
-window.__confetti = { video: confettiVideo, isPlaying: () => confettiPlaying, ok: () => confettiVideoOk, colorCv: confettiColorCv, maskCv: confettiMaskCv, compose: composeConfettiFrame }; // hook debug/QA
+window.__confetti = { video: confettiVideo, isPlaying: () => confettiPlaying, ok: () => confettiVideoOk }; // hook debug/QA

@@ -248,11 +248,20 @@ img {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+/* feedback 14 Jul: kata + combo dibungkus satu grup, disusun bertumpuk
+   rapi (tidak saling menimpa); posisi diatur inline dari js/main.js */
+.popup-group {
+  position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  padding-top: 130px;
+  gap: 10px;
+}
+.popup-group.center {
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
 }
 /* feedback 07 Jul: kata popup fill putih dengan stroke merah (sesuai KV)
    feedback 13 Jul: drop shadow (raw file efek menyusul dari desain,
@@ -263,6 +272,7 @@ img {
   font-size: 64px;
   text-align: center;
   line-height: 1.25;
+  white-space: nowrap;
   -webkit-text-stroke: 6px #b00013;
   paint-order: stroke fill;
   filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .5));
