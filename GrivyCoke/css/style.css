@@ -529,6 +529,17 @@ img {
   font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
   font-weight: 600;
 }
+/* pemain yang belum selesai: baris diredupkan + skor "bermain…" (italic,
+   berkedip halus) supaya jelas skornya masih menyusul, bukan skor 0 */
+.result-row.pending { opacity: .7; }
+.result-row.pending .score {
+  font-family: inherit;
+  font-size: 28px;
+  font-style: italic;
+  font-weight: 600;
+  animation: pending-blink 1.2s ease-in-out infinite;
+}
+@keyframes pending-blink { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
 /* mode multiplayer: sembunyikan botol supaya daftar hasil tidak tertutup */
 #screen-result.multi .bottle { display: none; }
 #screen-result.multi h2 { margin-top: 70px; }

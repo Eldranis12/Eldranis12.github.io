@@ -690,6 +690,22 @@ async function startGame() {
   requestAnimationFrame(ts => tick(ts, id));
 }
 
+// render ranking TY page. Pemain yang belum selesai ditandai "bermain…"
+// (bukan skor 0) supaya jelas skornya akan menyusul.
+function renderResults(rows) {
+  const list = rows.slice(0, CONFIG.maxPlayers).sort((a, b) => {
+    const sa = a.submitted !== false, sb = b.submitted !== false;
+    if (sa !== sb) return sa ? -1 : 1;        // yang sudah selesai di atas
+    return (b.score || 0) - (a.score || 0);
+  });
+  $('#session-results').innerHTML = list.map((r, i) => `
+    <div class="result-row${r.me ? ' me' : ''}${r.submitted === false ? ' pending' : ''}">
+      <span class="rank">${i + 1}</span>
+      <span class="name">${esc(r.nickname)}</span>
+      <span class="score">${r.submitted === false ? 'bermain…' : r.score}</span>
+    </div>`).join('');
+}
+
 async function endGame(reason = 'timeup') {
   if (over) return;
   over = true;
@@ -712,36 +728,20 @@ async function endGame(reason = 'timeup') {
     minDelay = 2000;
   }
 
-  // ambil hasil sesi: multi -> tunggu skor pemain lain dari server (dibatasi
-  // timeout); single -> cukup skor sendiri. Jalan paralel dgn delay minimal.
-  const fallback = [{ nickname: PLAYER.nickname, score: game.score, me: true }];
-  const [results] = await Promise.all([
-    session ? session.getResults().catch(() => fallback) : Promise.resolve(fallback),
-    sleep(minDelay),
-  ]);
+  await sleep(minDelay);
   if (gen !== loopId) return; // sudah di-restart -> jangan tampilkan hasil lama
 
-  const rows = (results && results.length ? results : fallback)
-    .slice(0, CONFIG.maxPlayers)
-    .sort((a, b) => b.score - a.score);
-
-  notifyGameEnd(PLAYER.whatsAppSessionId, rows.map(({ nickname, score }) => ({ nickname, score })));
-
   $('#final-score').textContent = game.score;
-
-  // TY page multiplayer: tampilkan poin semua pemain di sesi (email Mahda).
-  // Multi kalau mode multi ATAU memang ada >1 pemain di hasil.
   const holder = $('#session-results');
   const screen = $('#screen-result');
-  if (gameMode === 'multi' || rows.length > 1) {
-    holder.innerHTML = rows.map((r, i) => `
-      <div class="result-row${r.me ? ' me' : ''}">
-        <span class="rank">${i + 1}</span>
-        <span class="name">${esc(r.nickname)}</span>
-        <span class="score">${r.score}</span>
-      </div>`).join('');
-    holder.classList.remove('hidden');
+  const isMulti = gameMode === 'multi' || (session && session.mode === 'multi');
+  const fallback = [{ nickname: PLAYER.nickname, score: game.score, me: true, submitted: true }];
+
+  // Tampilkan TY page LANGSUNG (tidak menunggu pemain lain -> tidak "nyangkut").
+  if (isMulti) {
     screen.classList.add('multi');
+    holder.classList.remove('hidden');
+    renderResults(fallback);         // render awal: skor sendiri
   } else {
     holder.classList.add('hidden');
     screen.classList.remove('multi');
@@ -750,6 +750,20 @@ async function endGame(reason = 'timeup') {
   show('#screen-result');
   playSfx('success');   // Big Band Celebration bersamaan confetti
   startConfetti();
+
+  // multiplayer: pantau skor pemain lain -> ranking update HIDUP sampai sesi
+  // selesai (semua submit / grace habis). Pemain yang selesai duluan otomatis
+  // melihat skor final semua orang tanpa refresh.
+  if (isMulti && session) {
+    const finalRows = await session.watchResults(rows => {
+      if (gen === loopId) renderResults(rows);
+    }).catch(() => fallback);
+    if (gen !== loopId) return;
+    renderResults(finalRows);
+    notifyGameEnd(PLAYER.whatsAppSessionId, finalRows.map(({ nickname, score }) => ({ nickname, score })));
+  } else {
+    notifyGameEnd(PLAYER.whatsAppSessionId, fallback.map(({ nickname, score }) => ({ nickname, score })));
+  }
 }
 
 $('#btn-start').addEventListener('click', () => { playSfx('start'); startGame(); });

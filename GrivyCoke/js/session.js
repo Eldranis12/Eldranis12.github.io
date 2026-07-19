@@ -16,6 +16,7 @@
 import { CONFIG, PLAYER } from './config.js';
 
 const POLL_MS = 1000;
+const RESULT_POLL_MS = 2000;   // polling ranking (update hidup) lebih santai
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function jget(url) {
@@ -76,22 +77,29 @@ class RemoteSession {
     return jpost(this.base + '/session/score', { ...this._q, score }).catch(() => {});
   }
 
-  // Polling ranking sampai server bilang ready (semua submit / grace habis),
-  // dibatasi timeoutMs supaya TY page tidak menggantung kalau ada HP tutup.
-  async getResults(timeoutMs = 30000) {
+  // Polling ranking dengan UPDATE HIDUP: onUpdate(rows, ready) dipanggil tiap
+  // poll sampai server bilang ready (semua submit / grace habis) atau timeout.
+  // Ini yang bikin skor pemain yang selesai belakangan muncul di TY page pemain
+  // yang selesai duluan (tanpa tampak "nyangkut").
+  async watchResults(onUpdate, timeoutMs) {
     const qs = `whats_app_session_id=${encodeURIComponent(this._q.whats_app_session_id)}` +
                `&user_id=${encodeURIComponent(this._q.user_id)}`;
-    const until = Date.now() + timeoutMs;
-    let last = null;
+    // default: tunggu sampai game pasti berakhir (durasi + grace) + buffer
+    const cap = timeoutMs ?? (CONFIG.gameSeconds * 1000 + 30000);
+    const until = Date.now() + cap;
+    let rows = [];
     for (;;) {
-      try {
-        last = await jget(`${this.base}/session/results?${qs}`);
-        if (last.ready || Date.now() > until) break;
-      } catch { if (Date.now() > until) break; }
-      await sleep(POLL_MS);
+      let data = null;
+      try { data = await jget(`${this.base}/session/results?${qs}`); } catch {}
+      if (data && data.results) {
+        rows = data.results.map(r => ({ nickname: r.nickname, score: r.score,
+          me: r.user_id === this._q.user_id, submitted: r.submitted }));
+        onUpdate(rows, !!data.ready);
+        if (data.ready) return rows;
+      }
+      if (Date.now() > until) return rows;
+      await sleep(RESULT_POLL_MS);
     }
-    const rows = (last && last.results) || [];
-    return rows.map(r => ({ nickname: r.nickname, score: r.score, me: r.user_id === this._q.user_id }));
   }
 }
 
@@ -126,10 +134,12 @@ class LocalSession {
 
   async submitScore(score) { this._score = score; }
 
-  async getResults() {
-    return [{ nickname: PLAYER.nickname, score: this._score, me: true },
-            ...this.others.map(o => ({ nickname: o.nickname, score: o.score, me: false }))]
+  async watchResults(onUpdate) {
+    const rows = [{ nickname: PLAYER.nickname, score: this._score, me: true, submitted: true },
+      ...this.others.map(o => ({ nickname: o.nickname, score: o.score, me: false, submitted: true }))]
       .sort((a, b) => b.score - a.score);
+    onUpdate(rows, true);   // lokal: langsung final
+    return rows;
   }
 }
 

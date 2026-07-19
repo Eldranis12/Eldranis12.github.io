@@ -75,6 +75,19 @@ async function run() {
     ok('maks 4 pemain: pemain ke-5 -> sesi solo (late)');
   }
 
+  // --- 3b. rolling window: pemain baru join -> window reset ---
+  {
+    const sid = 'sess-rolling';
+    const j1 = await post('/session/join', { whats_app_session_id: sid, user_id: 'r1', nickname: 'R1' });
+    assert.ok(j1.ms_left > 800, 'window awal ~penuh');
+    await sleep(600);                       // window terpakai sebagian
+    const mid = await get(`/session/state?whats_app_session_id=${sid}&user_id=r1`);
+    assert.ok(mid.ms_left < 500, 'window menyusut sebelum join ke-2');
+    const j2 = await post('/session/join', { whats_app_session_id: sid, user_id: 'r2', nickname: 'R2' });
+    assert.ok(j2.ms_left > 800, 'window reset penuh setelah pemain baru join');
+    ok('rolling window: pemain ke-2 join -> window reset ke penuh');
+  }
+
   // --- 4. re-join tidak menggandakan pemain ---
   {
     const sid = 'sess-rejoin';

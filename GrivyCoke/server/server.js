@@ -162,8 +162,11 @@ const server = http.createServer(async (req, res) => {
             submitted: false,
             joinedAt: Date.now(),
           });
+          // rolling window (permintaan klien): tiap pemain BARU join, buka lagi
+          // window penuh supaya teman yang menyusul sempat masuk.
+          s.deadline = Date.now() + WINDOW_MS;
         } else if (s.players.has(uid)) {
-          // re-join (reload HP): perbarui nickname, jangan gandakan
+          // re-join (reload HP): perbarui nickname; jangan gandakan / reset window
           s.players.get(uid).nickname = String(b.nickname || s.players.get(uid).nickname).slice(0, 40);
         }
         // slot penuh -> mulai sekarang (tidak menunggu sisa window)
