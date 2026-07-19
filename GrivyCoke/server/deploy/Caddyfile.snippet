@@ -1,0 +1,13 @@
+# Tambahkan blok ini ke Caddyfile yang sudah ada (pola sama seperti
+# photobooth.8infiniooh.com -> photobooth-admin:3210).
+#
+# Caddy & container coke-mp sama-sama di network infini-net, jadi Caddy
+# menjangkau via nama container:port. Setelah edit: reload Caddy
+# (mis. `podman exec caddy caddy reload --config /etc/caddy/Caddyfile`
+#  atau `podman-compose restart caddy` — samakan dgn cara reload yg biasa).
+
+coke-mp.8infiniooh.com {
+    # Samakan baris TLS dengan blok photobooth (Cloudflare Origin cert),
+    # mis:  tls /etc/caddy/cf-origin.pem /etc/caddy/cf-origin.key
+    reverse_proxy coke-mp:8787
+}

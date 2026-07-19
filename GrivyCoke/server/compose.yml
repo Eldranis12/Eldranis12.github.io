@@ -1,0 +1,30 @@
+# Server multiplayer Coke Hangout Tetris — untuk stack Podman + Caddy.
+# Deploy:  podman-compose up -d --build      (di folder server/)
+# Update:  git pull && podman-compose up -d --build
+# Log:     podman logs -f coke-mp
+#
+# Tidak mem-publish port ke host: Caddy ada di network infini-net yang sama,
+# jadi menjangkau container ini lewat nama -> coke-mp:8787 (pola photobooth).
+services:
+  coke-mp:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: coke-mp
+    container_name: coke-mp
+    restart: unless-stopped
+    environment:
+      PORT: "8787"
+      # WAJIB: origin tempat game di-host (GitHub Pages). Ganti kalau game
+      # nanti dilayani dari domain sendiri.
+      CORS_ORIGIN: "https://eldranis12.github.io"
+      JOIN_WINDOW_SECONDS: "15"
+      MAX_PLAYERS: "4"
+      GAME_SECONDS: "180"
+      RESULT_GRACE_SECONDS: "25"
+    networks:
+      - infini-net
+
+networks:
+  infini-net:
+    external: true

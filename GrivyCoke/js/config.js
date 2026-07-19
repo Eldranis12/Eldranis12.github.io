@@ -4,6 +4,12 @@
 
 const url = new URLSearchParams(location.search);
 
+// Base URL server multiplayer (Node.js, folder server/). Isi saat produksi,
+// mis. 'https://mp.coca-cola.co.id'. Kosong = mode lokal: game jalan single
+// player tanpa server (fallback aman), simulasi pemain lain lewat ?others=.
+// Override saat testing lewat ?mp_url=http://localhost:8787
+const MP_URL_DEFAULT = 'https://coke-mp.8infiniooh.com';
+
 export const PLAYER = {
   whatsAppSessionId: url.get('whats_app_session_id') || '',
   userId:            url.get('user_id') || '',
@@ -46,6 +52,10 @@ export const CONFIG = {
   // (?wait= lama tetap didukung sebagai alias sampai backend sesi jadi.)
   joinWindowSeconds: parseInt(url.get('join_window') || '15', 10),
   waitWindowMs: parseInt(url.get('wait') || url.get('join_window') || '0', 10) * 1000, // window tunggu overlay, 0 = langsung mulai
+
+  // server multiplayer (folder server/). Kosong = mode lokal (single player /
+  // simulasi ?others=). Diisi -> game join sesi, waiting room + ranking nyata.
+  multiplayerUrl: (url.get('mp_url') || MP_URL_DEFAULT).replace(/\/+$/, ''),
 
   // simulasi hasil pemain lain untuk demo/uji TY page multiplayer,
   // contoh: ?others=Nadia:450,Bima:300 (dihapus saat server multiplayer jadi)

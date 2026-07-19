@@ -7,8 +7,11 @@ import { CONFIG, PLAYER } from './config.js';
 import { Tetris, SHAPES } from './tetris.js';
 import { notifyGameStart, notifyGameEnd } from './kiosk.js';
 import { playSfx } from './audio.js';
+import { createSession } from './session.js';
 
 const $ = sel => document.querySelector(sel);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s).replace(/[<>&"]/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;' }[c]));
 
 // ---------- skala stage ke viewport ----------
 // Lebar desain tetap 1080; tinggi mengikuti layar supaya tidak ada
@@ -81,6 +84,8 @@ const canvas = $('#board');
 const ctx = canvas.getContext('2d');
 
 let game = null;
+let session = null;      // SessionService (remote/local) — lihat js/session.js
+let gameMode = 'single'; // 'single' | 'multi' (ditentukan setelah waiting room)
 let running = false;
 let over = false;
 let timeLeft = CONFIG.gameSeconds;
@@ -102,6 +107,23 @@ let pendingSpawn = false;
 function show(id) {
   for (const s of document.querySelectorAll('.screen')) s.classList.add('hidden');
   $(id).classList.remove('hidden');
+}
+
+// ---------- waiting room (lobby multiplayer) ----------
+// Render status join dari server: jumlah pemain, hitung mundur window,
+// daftar nickname yang sudah bergabung di sesi ini.
+function updateWaiting(st) {
+  const count = st.count ?? (st.players ? st.players.length : 1);
+  const max = st.max ?? CONFIG.maxPlayers;
+  const sec = Math.ceil((st.ms_left ?? 0) / 1000);
+  const cEl = $('#waiting-count'), tEl = $('#waiting-timer'), rEl = $('#waiting-roster');
+  if (cEl) cEl.textContent = `${count}/${max} pemain`;
+  if (tEl) tEl.textContent = sec > 0 ? `Mulai dalam ${sec} detik…` : 'Memulai…';
+  if (rEl && st.players) {
+    rEl.innerHTML = st.players.map(p =>
+      `<div class="wr-name${p.user_id === PLAYER.userId ? ' me' : ''}">${esc(p.nickname)}</div>`
+    ).join('');
+  }
 }
 
 // ---------- HUD ----------
@@ -639,71 +661,95 @@ async function startGame() {
   updateHud();
   draw();
 
-  // lobby multiplayer: tampilkan overlay tunggu kalau diaktifkan (?wait=10)
-  if (CONFIG.waitWindowMs > 0) {
+  // ---- waiting room + penentuan mode (dokumen Grivy Bagian 5) ----
+  // REMOTE: join sesi ke server, polling sampai window habis / slot penuh,
+  // lalu server memutuskan single vs multi. LOCAL: simulasi via ?wait=/?others=.
+  session = createSession();
+  gameMode = 'single';
+  const showLobby = session.remote || CONFIG.waitWindowMs > 0;
+  if (showLobby) {
     $('#waiting-overlay').classList.remove('hidden');
-    await new Promise(r => setTimeout(r, CONFIG.waitWindowMs));
-    if (id !== loopId) return; // sudah di-restart selama menunggu
-    $('#waiting-overlay').classList.add('hidden');
+    updateWaiting({ count: 1, max: CONFIG.maxPlayers,
+      players: [{ user_id: PLAYER.userId, nickname: PLAYER.nickname }],
+      ms_left: session.remote ? CONFIG.joinWindowSeconds * 1000 : CONFIG.waitWindowMs });
   }
+  try {
+    if (session.remote) await session.join();
+    const res = await session.waitForStart(updateWaiting);
+    gameMode = res.mode;
+  } catch (err) {
+    // server tak terjangkau -> jangan blokir pemain, jatuh ke single player
+    console.warn('[mp] gagal join/menunggu, fallback single player:', err);
+    gameMode = 'single';
+  }
+  if (id !== loopId) return; // sudah di-restart selama menunggu
+  $('#waiting-overlay').classList.add('hidden');
 
   notifyGameStart(PLAYER.whatsAppSessionId);
   lastTs = performance.now();
   requestAnimationFrame(ts => tick(ts, id));
 }
 
-function endGame(reason = 'timeup') {
+async function endGame(reason = 'timeup') {
   if (over) return;
   over = true;
   running = false;
+  const gen = loopId;   // token: batalkan kalau game di-restart selama await
   draw();
 
-  // hasil semua pemain di sesi ini (pemain lain dari server multiplayer;
-  // sementara disimulasikan via ?others=Nama:skor,... untuk demo)
-  const results = [
-    { nickname: PLAYER.nickname, score: game.score, me: true },
-    ...CONFIG.mockOthers,
-  ]
-    .slice(0, CONFIG.maxPlayers)
-    .sort((a, b) => b.score - a.score);
+  // kirim skor akhir ke server sesi (mengalir ke ranking). Single/local pun
+  // aman: LocalSession menyimpan skor, RemoteSession POST /session/score.
+  if (session) session.submitScore(game.score);
 
-  notifyGameEnd(PLAYER.whatsAppSessionId, results.map(({ nickname, score }) => ({ nickname, score })));
-
-  // feedback 13 Jul: waktu habis -> tampilkan "Yah, Waktunya Habis!" di
-  // board dulu, delay 2 detik, baru pindah ke halaman Your Score
-  let delay = 900;
+  // feedback 13 Jul: waktu habis -> tampilkan "Yah, Waktunya Habis!" di board
+  // dulu, delay 2 detik, baru pindah ke Your Score
+  let minDelay = 900;
   if (reason === 'timeup') {
     const el = document.createElement('div');
     el.className = 'time-up-text';
     el.textContent = 'Yah, Waktunya Habis!';
     $('#popup-layer').appendChild(el);
-    delay = 2000;
+    minDelay = 2000;
   }
 
-  setTimeout(() => {
-    $('#final-score').textContent = game.score;
+  // ambil hasil sesi: multi -> tunggu skor pemain lain dari server (dibatasi
+  // timeout); single -> cukup skor sendiri. Jalan paralel dgn delay minimal.
+  const fallback = [{ nickname: PLAYER.nickname, score: game.score, me: true }];
+  const [results] = await Promise.all([
+    session ? session.getResults().catch(() => fallback) : Promise.resolve(fallback),
+    sleep(minDelay),
+  ]);
+  if (gen !== loopId) return; // sudah di-restart -> jangan tampilkan hasil lama
 
-    // TY page multiplayer: tampilkan poin semua pemain (email Mahda)
-    const holder = $('#session-results');
-    const screen = $('#screen-result');
-    if (results.length > 1) {
-      holder.innerHTML = results.map((r, i) => `
-        <div class="result-row${r.me ? ' me' : ''}">
-          <span class="rank">${i + 1}</span>
-          <span class="name">${r.nickname.replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}</span>
-          <span class="score">${r.score}</span>
-        </div>`).join('');
-      holder.classList.remove('hidden');
-      screen.classList.add('multi');
-    } else {
-      holder.classList.add('hidden');
-      screen.classList.remove('multi');
-    }
+  const rows = (results && results.length ? results : fallback)
+    .slice(0, CONFIG.maxPlayers)
+    .sort((a, b) => b.score - a.score);
 
-    show('#screen-result');
-    playSfx('success');   // Big Band Celebration bersamaan confetti
-    startConfetti();
-  }, delay);
+  notifyGameEnd(PLAYER.whatsAppSessionId, rows.map(({ nickname, score }) => ({ nickname, score })));
+
+  $('#final-score').textContent = game.score;
+
+  // TY page multiplayer: tampilkan poin semua pemain di sesi (email Mahda).
+  // Multi kalau mode multi ATAU memang ada >1 pemain di hasil.
+  const holder = $('#session-results');
+  const screen = $('#screen-result');
+  if (gameMode === 'multi' || rows.length > 1) {
+    holder.innerHTML = rows.map((r, i) => `
+      <div class="result-row${r.me ? ' me' : ''}">
+        <span class="rank">${i + 1}</span>
+        <span class="name">${esc(r.nickname)}</span>
+        <span class="score">${r.score}</span>
+      </div>`).join('');
+    holder.classList.remove('hidden');
+    screen.classList.add('multi');
+  } else {
+    holder.classList.add('hidden');
+    screen.classList.remove('multi');
+  }
+
+  show('#screen-result');
+  playSfx('success');   // Big Band Celebration bersamaan confetti
+  startConfetti();
 }
 
 $('#btn-start').addEventListener('click', () => { playSfx('start'); startGame(); });

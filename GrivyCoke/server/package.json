@@ -1,0 +1,13 @@
+{
+  "name": "coke-hangout-mp-server",
+  "version": "1.0.0",
+  "description": "Server multiplayer (waiting room + kumpul skor) untuk Coke Hangout Tetris",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "engines": { "node": ">=18" },
+  "private": true
+}

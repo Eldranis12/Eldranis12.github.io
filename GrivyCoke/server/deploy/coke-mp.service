@@ -1,0 +1,26 @@
+# systemd unit — jaga server multiplayer tetap hidup + auto-restart.
+# Pasang: sudo cp coke-mp.service /etc/systemd/system/
+#         sudo systemctl daemon-reload
+#         sudo systemctl enable --now coke-mp
+# Cek:    systemctl status coke-mp   ·   journalctl -u coke-mp -f
+[Unit]
+Description=Coke Hangout Tetris - server multiplayer
+After=network.target
+
+[Service]
+Type=simple
+# ganti ke lokasi folder server/ di mesinmu
+WorkingDirectory=/opt/coke-hangout/server
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+Environment=PORT=8787
+# WAJIB: origin tempat game di-host (untuk CORS)
+Environment=CORS_ORIGIN=https://eldranis12.github.io
+Environment=JOIN_WINDOW_SECONDS=15
+Environment=MAX_PLAYERS=4
+Environment=GAME_SECONDS=180
+User=www-data
+
+[Install]
+WantedBy=multi-user.target

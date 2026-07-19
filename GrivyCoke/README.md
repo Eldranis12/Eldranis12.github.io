@@ -34,10 +34,46 @@ lalu buka `http://localhost:8123`. (Preview Claude Code: konfigurasi `tetris` di
 Tambahan untuk pengujian/konfigurasi:
 
 - `duration` — lama permainan dalam detik (default `180` sesuai spec sheet FA; brief menyebut 2 menit → pakai `duration=120` bila itu yang final)
-- `wait` — lama jendela tunggu multiplayer dalam detik (default 0 = langsung mulai)
-- `others` — simulasi hasil pemain lain untuk demo TY page multiplayer,
-  contoh `?others=Nadia:450,Bima:300` (dihapus saat server multiplayer jadi)
+- `mp_url` — base URL server multiplayer (mis. `?mp_url=http://localhost:8787`).
+  Kosong = mode lokal (single player / simulasi `?others=`). Produksi: isi
+  `MP_URL_DEFAULT` di `js/config.js`.
+- `join_window` — lama window tunggu multiplayer di server, dalam detik (default 15)
+- `wait` — (mode lokal) simulasi overlay tunggu tanpa server, dalam detik
+- `others` — (mode lokal) simulasi hasil pemain lain untuk demo TY page,
+  contoh `?others=Nadia:450,Bima:300`
 - `kiosk_start_url`, `kiosk_end_url` — endpoint kiosk vendor (sementara, sampai detail API resmi tersedia)
+
+## Mode Single / Multiplayer
+
+Sesuai dokumen *"Kebutuhan dari Grivy"* (12 Jul 2026). **Bukan real-time** —
+tiap pemain main di papan sendiri; server hanya mengelompokkan pemain +
+mengumpulkan skor akhir.
+
+- **Waiting room** — saat game dibuka, pemain join sesi (`whats_app_session_id`
+  sama, maks 4). Overlay menampilkan daftar pemain + hitung mundur window.
+- **Penentuan mode** (dokumen Bagian 5): mulai saat slot penuh **ATAU** window
+  habis; `>1 pemain → multiplayer`, `1 pemain → single player`.
+- **TY page** — multiplayer menampilkan ranking semua pemain (baris sendiri
+  di-highlight); single player hanya skor sendiri.
+- **Fallback aman** — kalau server tak terjangkau / tanpa parameter WA, game
+  jalan single player.
+
+Komponen:
+- Klien: [`js/session.js`](js/session.js) (abstraksi remote/local) +
+  wiring di [`js/main.js`](js/main.js).
+- Server: [`server/`](server/) — Node.js zero-dependency. Lihat
+  [server/README.md](server/README.md) untuk API & cara menjalankan.
+
+Untuk dev lokal: game pakai server statik no-cache
+[`server/dev-static.js`](server/dev-static.js) (dikonfigurasi di
+`.claude/launch.json`); jalankan server multiplayer terpisah di `server/`.
+
+**Hosting** — game statik tetap di **GitHub Pages** (`eldranis12.github.io/GrivyCoke/`,
+single player jalan penuh di sana). Server multiplayer **tidak bisa** di GitHub
+Pages (Pages hanya statik) → deploy ke host Node ber-HTTPS terpisah, bisa
+auto-deploy dari repo yang sama (blueprint [`render.yaml`](../render.yaml)). Lalu
+isi URL server di `MP_URL_DEFAULT` ([js/config.js](js/config.js)). Detail:
+[server/README.md](server/README.md).
 
 ## Aturan main (sesuai spec sheet FA_Tetris Gamification)
 
@@ -87,8 +123,10 @@ asset tombol "Saya siap".
 
 ## Belum dikerjakan (menunggu keputusan/integrasi)
 
-- **Multiplayer sinkron antar pemain** — perlu server (rekomendasi: Node.js + Colyseus);
-  saat ini single-player, jendela tunggu hanya simulasi overlay
+- ~~**Multiplayer sinkron antar pemain**~~ — **sudah dibangun** (`server/`, Node.js).
+  Catatan: model TIDAK real-time (papan tiap pemain independen; server hanya
+  waiting room + kumpul skor), jadi Colyseus tidak diperlukan. Yang tersisa:
+  deploy server ke domain HTTPS + isi `MP_URL_DEFAULT` di `js/config.js`.
 - **API kiosk vendor** — payload di `js/kiosk.js` masih asumsi, sesuaikan saat skema resmi keluar
 - **Validasi skor server-side** — wajib sebelum produksi karena leaderboard berhadiah voucher
 - **Font brand (TCCC)** — sementara memakai Montserrat + Oswald dari Google Fonts

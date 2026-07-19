@@ -355,6 +355,42 @@ img {
   75%  { content: '...'; }
 }
 
+/* status waiting room (server multiplayer): jumlah pemain, daftar nickname,
+   hitung mundur window join */
+.waiting-count {
+  color: #fff;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+.waiting-roster {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px;
+  max-width: 900px;
+  margin-top: -12px;
+}
+.wr-name {
+  color: #fff;
+  font-size: 38px;
+  font-weight: 600;
+  padding: 14px 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .12);
+  border: 2px solid rgba(255, 255, 255, .35);
+}
+.wr-name.me {                    /* pemain sendiri di-highlight */
+  background: #fff;
+  color: var(--dark, #1a1a1a);
+  border-color: #fff;
+}
+.waiting-timer {
+  color: rgba(255, 255, 255, .85);
+  font-size: 40px;
+  font-weight: 700;
+}
+
 /* feedback 07 Jul: tombol lebih besar, jarak antar tombol lebih rapat */
 .game-controls {
   position: absolute;
