@@ -1,0 +1,27 @@
+# Render Blueprint — deploy server multiplayer Coke Hangout Tetris.
+# Game statik tetap di GitHub Pages (eldranis12.github.io/GrivyCoke/);
+# file ini hanya untuk server Node di folder GrivyCoke/server/.
+#
+# Cara pakai: Render Dashboard -> New -> Blueprint -> connect repo
+# github.com/Eldranis12/Eldranis12.github.io. Render baca file ini otomatis.
+# Setelah deploy, salin URL HTTPS-nya ke MP_URL_DEFAULT di js/config.js.
+services:
+  - type: web
+    name: coke-hangout-mp
+    runtime: node
+    plan: free
+    rootDir: GrivyCoke/server
+    buildCommand: ""            # zero dependency, tak perlu npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: JOIN_WINDOW_SECONDS
+        value: "15"
+      - key: MAX_PLAYERS
+        value: "4"
+      - key: GAME_SECONDS
+        value: "180"
+      # WAJIB: origin game di GitHub Pages (untuk CORS). Ganti kalau
+      # domain final Grivy sudah ada, mis. https://ayo.coca-cola.co.id
+      - key: CORS_ORIGIN
+        value: "https://eldranis12.github.io"
