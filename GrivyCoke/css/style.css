@@ -540,9 +540,36 @@ img {
   animation: pending-blink 1.2s ease-in-out infinite;
 }
 @keyframes pending-blink { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
-/* mode multiplayer: sembunyikan botol supaya daftar hasil tidak tertutup */
-#screen-result.multi .bottle { display: none; }
-#screen-result.multi h2 { margin-top: 70px; }
+/* ---- TY page multiplayer: SCOREBOARD (desain Happy) ----
+   judul "SCOREBOARD" + panel gelap membungkus ranking; botol TETAP tampil
+   sama seperti single player (skor besar & garis disembunyikan). */
+#screen-result.multi #final-score,
+#screen-result.multi .line { display: none; }
+#screen-result.multi .your-score {          /* jadi judul SCOREBOARD */
+  font-size: 88px;
+  letter-spacing: 3px;
+  margin-top: 0;
+}
+#screen-result.multi #session-results {      /* satu panel gelap membungkus baris */
+  margin-top: 48px;
+  gap: 14px;
+  width: 790px;
+  padding: 30px 32px;
+  background: rgba(22, 3, 3, 0.72);
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-radius: 46px;
+}
+#screen-result.multi .result-row {           /* baris di dalam panel (bukan pill) */
+  background: rgba(255, 255, 255, 0.07);
+  border: none;
+  border-radius: 22px;
+  padding: 16px 30px;
+}
+#screen-result.multi .result-row.me {        /* baris sendiri di-highlight putih */
+  background: #fff;
+  color: var(--coke-red);
+}
+#screen-result.multi h2 { margin-top: 60px; }
 
 /* feedback 07 Jul: botol tidak terhalang tulisan & tidak ngambang —
    lebih besar, menempel dasar, bagian bawah boleh terpotong */

@@ -738,13 +738,16 @@ async function endGame(reason = 'timeup') {
   const fallback = [{ nickname: PLAYER.nickname, score: game.score, me: true, submitted: true }];
 
   // Tampilkan TY page LANGSUNG (tidak menunggu pemain lain -> tidak "nyangkut").
+  // Multi: judul "SCOREBOARD" + panel ranking (desain Happy). Single: "YOUR SCORE".
   if (isMulti) {
     screen.classList.add('multi');
+    $('.your-score').textContent = 'SCOREBOARD';
     holder.classList.remove('hidden');
     renderResults(fallback);         // render awal: skor sendiri
   } else {
-    holder.classList.add('hidden');
     screen.classList.remove('multi');
+    $('.your-score').textContent = 'YOUR SCORE';
+    holder.classList.add('hidden');
   }
 
   show('#screen-result');
