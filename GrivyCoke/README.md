@@ -31,6 +31,12 @@ lalu buka `http://localhost:8123`. (Preview Claude Code: konfigurasi `tetris` di
 ?whats_app_session_id=abc123&user_id=xyz&nickname=Grady&device_id=001
 ```
 
+- `device_id` — **kunci pengelompokan multiplayer** (kiosk). Pemain dengan
+  `device_id` sama yang join dalam window 15 dtk = satu sesi game.
+- `whats_app_session_id` — per-user (1:1, beda tiap pemain); **konteks saja**,
+  bukan kunci grup.
+- `user_id` — pembeda pemain di dalam sesi. `nickname` — tampil di ranking.
+
 Tambahan untuk pengujian/konfigurasi:
 
 - `duration` — lama permainan dalam detik (default `180` sesuai spec sheet FA; brief menyebut 2 menit → pakai `duration=120` bila itu yang final)
@@ -45,17 +51,20 @@ Tambahan untuk pengujian/konfigurasi:
 
 ## Mode Single / Multiplayer
 
-Sesuai dokumen *"Kebutuhan dari Grivy"* (12 Jul 2026). **Bukan real-time** —
-tiap pemain main di papan sendiri; server hanya mengelompokkan pemain +
-mengumpulkan skor akhir.
+**Bukan real-time** — tiap pemain main di papan sendiri; server hanya
+mengelompokkan pemain + mengumpulkan skor akhir.
 
-- **Waiting room** — saat game dibuka, pemain join sesi (`whats_app_session_id`
-  sama, maks 4). Overlay menampilkan daftar pemain + hitung mundur window.
-- **Penentuan mode** (dokumen Bagian 5): mulai saat slot penuh **ATAU** window
-  habis; `>1 pemain → multiplayer`, `1 pemain → single player`.
-- **TY page** — multiplayer menampilkan ranking semua pemain (baris sendiri
-  di-highlight); single player hanya skor sendiri.
-- **Fallback aman** — kalau server tak terjangkau / tanpa parameter WA, game
+- **Pengelompokan (klarifikasi Grivy Jul 2026)** — per **`device_id` (kiosk)**,
+  bukan `whats_app_session_id`. Grivy tak punya konsep game-session; game yang
+  mengelola. Pemain masuk kode di kiosk berurutan; yang join ke `device_id`
+  sama dalam window = satu sesi. Server yang **membuat `session_id`**.
+- **Waiting room** — window **bergulir**: reset 15 dtk tiap pemain baru join
+  (maks 4). Overlay menampilkan daftar pemain + hitung mundur.
+- **Penentuan mode** — mulai saat slot penuh **ATAU** window habis;
+  `>1 pemain → multiplayer`, `1 pemain → single player`.
+- **TY page** — multiplayer = panel **SCOREBOARD** ranking semua pemain (baris
+  sendiri di-highlight, botol tampil); single player = "YOUR SCORE" + skor.
+- **Fallback aman** — kalau server tak terjangkau / tanpa `user_id`, game
   jalan single player.
 
 Komponen:

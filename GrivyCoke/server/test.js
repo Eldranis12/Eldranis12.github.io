@@ -1,5 +1,6 @@
 // Integrasi test server multiplayer. Jalankan: node test.js
-// Pakai window pendek supaya cepat: JOIN_WINDOW_SECONDS=1 RESULT_GRACE_SECONDS=1
+// Model: grup per device_id (kiosk) + window bergulir; server yang membuat
+// session_id. Pakai window pendek supaya cepat.
 'use strict';
 const assert = require('assert');
 const { spawn } = require('child_process');
@@ -14,94 +15,110 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const post = (p, body) => fetch(BASE + p, { method: 'POST',
   headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
 const get = p => fetch(BASE + p).then(r => r.json());
+const join = (device_id, user_id, nickname) =>
+  post('/session/join', { device_id, user_id, nickname, whats_app_session_id: 'wa-' + user_id });
+const state = sid => get(`/session/state?session_id=${sid}`);
+const score = (sid, user_id, s) => post('/session/score', { session_id: sid, user_id, score: s });
+const results = sid => get(`/session/results?session_id=${sid}`);
 
 async function run() {
   let pass = 0;
   const ok = (name) => { console.log('  ✓', name); pass++; };
 
-  // --- 1. single player: 1 pemain, window habis -> mode single ---
+  // --- 1. single: 1 pemain di 1 kiosk -> mode single ---
   {
-    const sid = 'sess-single';
-    let st = await post('/session/join', { whats_app_session_id: sid, user_id: 'u1', nickname: 'Andi' });
-    assert.equal(st.phase, 'waiting');
-    assert.equal(st.count, 1);
-    await sleep(1200); // lewati window
-    st = await get(`/session/state?whats_app_session_id=${sid}&user_id=u1`);
+    const j = await join('k1', 'u1', 'Andi');
+    assert.ok(j.session_id, 'server mengembalikan session_id');
+    assert.equal(j.count, 1);
+    await sleep(1200);
+    const st = await state(j.session_id);
     assert.equal(st.phase, 'playing');
     assert.equal(st.final_mode, 'single');
-    ok('single player: 1 pemain -> mode single setelah window');
-
-    await post('/session/score', { whats_app_session_id: sid, user_id: 'u1', score: 500 });
+    await score(j.session_id, 'u1', 500);
     await sleep(50);
-    const rz = await get(`/session/results?whats_app_session_id=${sid}`);
+    const rz = await results(j.session_id);
     assert.equal(rz.ready, true);
     assert.equal(rz.results[0].score, 500);
-    ok('single player: skor terkumpul & results ready');
+    ok('single: 1 pemain 1 kiosk -> single + skor terkumpul');
   }
 
-  // --- 2. multiplayer: 2 pemain dalam window -> mode multi, ranking benar ---
+  // --- 2. multi: 2 pemain KIOSK SAMA (device_id sama) -> grup jadi 1 sesi ---
   {
-    const sid = 'sess-multi';
-    await post('/session/join', { whats_app_session_id: sid, user_id: 'a', nickname: 'Ana' });
-    const st = await post('/session/join', { whats_app_session_id: sid, user_id: 'b', nickname: 'Budi' });
-    assert.equal(st.count, 2);
-    assert.equal(st.mode, 'multi'); // provisional
+    const ja = await join('k2', 'a', 'Ana');
+    const jb = await join('k2', 'b', 'Budi');   // device sama -> sesi sama
+    assert.equal(ja.session_id, jb.session_id, 'device sama -> session_id sama');
+    assert.equal(jb.count, 2);
     await sleep(1200);
-    const s2 = await get(`/session/state?whats_app_session_id=${sid}&user_id=a`);
-    assert.equal(s2.final_mode, 'multi');
-    ok('multiplayer: 2 pemain -> mode multi');
-
-    await post('/session/score', { whats_app_session_id: sid, user_id: 'a', score: 300 });
-    let rz = await get(`/session/results?whats_app_session_id=${sid}`);
-    assert.equal(rz.ready, false); // masih tunggu Budi
-    await post('/session/score', { whats_app_session_id: sid, user_id: 'b', score: 900 });
+    const st = await state(ja.session_id);
+    assert.equal(st.final_mode, 'multi');
+    await score(ja.session_id, 'a', 300);
+    await score(ja.session_id, 'b', 900);
     await sleep(50);
-    rz = await get(`/session/results?whats_app_session_id=${sid}`);
+    const rz = await results(ja.session_id);
     assert.equal(rz.ready, true);
-    assert.deepEqual(rz.results.map(r => r.nickname), ['Budi', 'Ana']); // urut skor desc
-    ok('multiplayer: results ready saat semua submit + ranking desc benar');
+    assert.deepEqual(rz.results.map(r => r.nickname), ['Budi', 'Ana']);
+    ok('multi: 2 pemain kiosk sama -> 1 sesi, ranking desc benar');
   }
 
-  // --- 3. maks 4 pemain: pemain ke-5 telat -> sesi solo ---
+  // --- 3. device_id BEDA -> sesi terpisah (masing-masing single) ---
   {
-    const sid = 'sess-full';
-    for (const uid of ['p1', 'p2', 'p3', 'p4']) {
-      await post('/session/join', { whats_app_session_id: sid, user_id: uid, nickname: uid });
-    }
-    // slot penuh -> deadline dimajukan; join ke-5 telat
-    const st5 = await post('/session/join', { whats_app_session_id: sid, user_id: 'p5', nickname: 'Late' });
-    assert.equal(st5.late, true);
-    assert.equal(st5.final_mode, 'single');
-    ok('maks 4 pemain: pemain ke-5 -> sesi solo (late)');
+    const jx = await join('kX', 'x', 'X');
+    const jy = await join('kY', 'y', 'Y');       // kiosk beda
+    assert.notEqual(jx.session_id, jy.session_id, 'device beda -> session_id beda');
+    assert.equal(jx.count, 1);
+    assert.equal(jy.count, 1);
+    ok('kiosk beda -> sesi terpisah');
   }
 
-  // --- 3b. rolling window: pemain baru join -> window reset ---
+  // --- 4. rolling window: pemain baru (kiosk sama) -> window reset ---
   {
-    const sid = 'sess-rolling';
-    const j1 = await post('/session/join', { whats_app_session_id: sid, user_id: 'r1', nickname: 'R1' });
-    assert.ok(j1.ms_left > 800, 'window awal ~penuh');
-    await sleep(600);                       // window terpakai sebagian
-    const mid = await get(`/session/state?whats_app_session_id=${sid}&user_id=r1`);
+    const j1 = await join('k4', 'r1', 'R1');
+    assert.ok(j1.ms_left > 800);
+    await sleep(600);
+    const mid = await state(j1.session_id);
     assert.ok(mid.ms_left < 500, 'window menyusut sebelum join ke-2');
-    const j2 = await post('/session/join', { whats_app_session_id: sid, user_id: 'r2', nickname: 'R2' });
+    const j2 = await join('k4', 'r2', 'R2');
+    assert.equal(j2.session_id, j1.session_id);
     assert.ok(j2.ms_left > 800, 'window reset penuh setelah pemain baru join');
-    ok('rolling window: pemain ke-2 join -> window reset ke penuh');
+    ok('rolling window: pemain baru -> window reset ke penuh');
   }
 
-  // --- 4. re-join tidak menggandakan pemain ---
+  // --- 5. kiosk dipakai berurutan: setelah sesi mulai, join baru -> sesi BARU ---
   {
-    const sid = 'sess-rejoin';
-    await post('/session/join', { whats_app_session_id: sid, user_id: 'x', nickname: 'X' });
-    const st = await post('/session/join', { whats_app_session_id: sid, user_id: 'x', nickname: 'X2' });
-    assert.equal(st.count, 1);
-    assert.equal(st.players[0].nickname, 'X2');
+    const j1 = await join('k5', 's1', 'S1');
+    await sleep(1200);                             // sesi pertama mulai
+    const st1 = await state(j1.session_id);
+    assert.equal(st1.phase, 'playing');
+    const j2 = await join('k5', 's2', 'S2');       // kiosk sama, tapi sesi lama sudah jalan
+    assert.notEqual(j2.session_id, j1.session_id, 'sesi baru untuk kiosk yang sama');
+    assert.equal(j2.count, 1);
+    ok('kiosk berurutan: setelah sesi mulai -> join baru buka sesi baru');
+  }
+
+  // --- 6. maks 4 pemain: pemain ke-5 (kiosk sama) -> sesi baru ---
+  {
+    let j;
+    for (const uid of ['p1', 'p2', 'p3', 'p4']) j = await join('k6', uid, uid);
+    assert.equal(j.count, 4);
+    const j5 = await join('k6', 'p5', 'Late');     // penuh -> sesi lama mulai -> ini sesi baru
+    assert.notEqual(j5.session_id, j.session_id);
+    assert.equal(j5.count, 1);
+    ok('maks 4: pemain ke-5 -> sesi baru (kiosk penuh)');
+  }
+
+  // --- 7. re-join tidak menggandakan pemain ---
+  {
+    const j1 = await join('k7', 'z', 'Z');
+    const j2 = await join('k7', 'z', 'Z2');        // user sama, reload
+    assert.equal(j2.session_id, j1.session_id);
+    assert.equal(j2.count, 1);
+    assert.equal(j2.players[0].nickname, 'Z2');
     ok('re-join (reload): tidak menggandakan, nickname diperbarui');
   }
 
   console.log(`\n${pass} test lulus ✅`);
 }
 
-// spin up server lalu jalankan test
 const srv = spawn('node', [path.join(__dirname, 'server.js')], { env, stdio: ['ignore', 'pipe', 'inherit'] });
 srv.stdout.on('data', async d => {
   if (!/server jalan/.test(String(d))) return;

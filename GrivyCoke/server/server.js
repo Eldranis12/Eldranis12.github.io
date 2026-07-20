@@ -1,22 +1,27 @@
 // ============================================================
 // Server multiplayer — Coke Hangout (Nongkrong) Tetris
 // ------------------------------------------------------------
-// Model sesuai "Kebutuhan dari Grivy" (12 Jul 2026): TIDAK real-time.
-// Tiap pemain main di papan sendiri di HP masing-masing. Server hanya:
-//   1. Waiting room — kelompokkan pemain lewat whats_app_session_id yang
-//      sama (maks 4), hitung window tunggu (default 15 dtk).
-//   2. Kumpulkan skor akhir tiap pemain, hasilkan ranking.
+// Model sesuai klarifikasi Grivy (Jul 2026): TIDAK real-time, dan Grivy
+// TIDAK punya konsep "game session". GAME (server ini) yang mengelola sesi.
 //
-// Aturan mode (Bagian 5 dokumen): mulai jika semua slot penuh ATAU window
-// habis; >1 pemain -> multiplayer, 1 pemain -> single player.
+// Pengelompokan pemain = per KIOSK (device_id) + window bergulir:
+//   - Pemain masuk kode di kiosk satu per satu (berurutan). Tiap pemain
+//     yang join ke device_id yang sama dalam window 15 dtk = satu sesi game.
+//   - Tiap pemain BARU join -> window dibuka lagi 15 dtk (rolling), maks 4.
+//   - Window habis / slot penuh -> mulai. >1 pemain = multi, 1 = single.
+//   - Setelah sesi sebuah kiosk mulai, join berikutnya ke kiosk itu -> sesi
+//     BARU (kiosk dipakai berulang sepanjang hari).
 //
-// Zero dependency: cukup `node server.js` (Node 18+). Store in-memory —
-// data sesi bersifat sementara (TY page saja); leaderboard mingguan
-// berhadiah dikelola Kiosk Vendor, bukan server ini.
+// whats_app_session_id BUKAN kunci grup — itu identitas per-user (1:1 dgn
+// user), hanya disimpan sebagai konteks. Server yang MEMBUAT session_id dan
+// mengembalikannya saat join; klien memakai session_id itu untuk polling.
+//
+// Zero dependency: cukup `node server.js` (Node 18+). Store in-memory.
 // ============================================================
 
 'use strict';
 const http = require('http');
+const crypto = require('crypto');
 
 const PORT        = parseInt(process.env.PORT || '8787', 10);
 const WINDOW_MS   = parseInt(process.env.JOIN_WINDOW_SECONDS || '15', 10) * 1000;
@@ -29,13 +34,18 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const SESSION_TTL_MS = parseInt(process.env.SESSION_TTL_SECONDS || '300', 10) * 1000;
 
 // ---------- store ----------
-/** @type {Map<string, Session>} */
-const sessions = new Map();
+const sessions = new Map();       // session_id -> session
+const deviceActive = new Map();   // device_key -> session_id sesi yang SEDANG membentuk/berjalan
 
-function createSession(id) {
+const newId = () => crypto.randomBytes(6).toString('hex');
+// kunci grup: device_id (kiosk). Tanpa kiosk (uji tanpa device) -> solo per user.
+const deviceKeyOf = (deviceId, uid) => deviceId ? `dev:${deviceId}` : `u:${uid}`;
+
+function createSession(deviceKey) {
   const now = Date.now();
   const s = {
-    id,
+    id: newId(),
+    device: deviceKey,
     phase: 'waiting',                 // waiting | playing | ended
     createdAt: now,
     deadline: now + WINDOW_MS,        // batas window tunggu
@@ -45,7 +55,8 @@ function createSession(id) {
     playDeadline: null,               // batas kumpul skor
     endedAt: null,
   };
-  sessions.set(id, s);
+  sessions.set(s.id, s);
+  deviceActive.set(deviceKey, s.id);  // jadi sesi "membentuk" untuk kiosk ini
   return s;
 }
 
@@ -95,8 +106,9 @@ function resultsPayload(s) {
   const rows = (s.roster || [...s.players.keys()])
     .map(uid => {
       const p = s.players.get(uid);
-      return { user_id: uid, nickname: p.nickname, score: p.score ?? 0,
-               submitted: !!p.submitted };
+      return { user_id: uid, nickname: p.nickname,
+               whats_app_session_id: p.whatsAppSessionId || '',
+               score: p.score ?? 0, submitted: !!p.submitted };
     })
     .sort((a, b) => b.score - a.score);
   return { session_id: s.id, mode: s.mode, ready: s.phase === 'ended', results: rows };
@@ -130,6 +142,8 @@ function readBody(req) {
   });
 }
 
+const clip = s => String(s || 'Player').slice(0, 40);
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return send(res, 204, {});
 
@@ -142,55 +156,47 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true, sessions: sessions.size, uptime: process.uptime() });
     }
 
-    // --- join: pemain masuk sesi (dipanggil saat game di HP dibuka) ---
+    // --- join: pemain masuk (dipanggil saat game di HP dibuka) ---
+    // Grup per device_id (kiosk); server yang menentukan session_id.
     if (req.method === 'POST' && path === '/session/join') {
       const b = await readBody(req);
-      const sid = b.whats_app_session_id, uid = b.user_id;
-      if (!sid || !uid) return send(res, 400, { error: 'whats_app_session_id & user_id wajib' });
+      const uid = b.user_id;
+      if (!uid) return send(res, 400, { error: 'user_id wajib' });
 
-      let s = sessions.get(sid);
-      if (!s) s = createSession(sid);
-      advance(s);
+      const key = deviceKeyOf(b.device_id, uid);
+      // ambil sesi yang sedang membentuk untuk kiosk ini
+      let s = null;
+      const activeId = deviceActive.get(key);
+      if (activeId) { s = sessions.get(activeId); if (s) advance(s); }
+      // tidak ada sesi waiting untuk kiosk ini (belum ada / yg lama sudah mulai)
+      // -> buka sesi BARU (kiosk dipakai berurutan sepanjang hari)
+      if (!s || s.phase !== 'waiting') s = createSession(key);
 
-      if (s.phase === 'waiting') {
-        if (!s.players.has(uid) && s.players.size < MAX_PLAYERS) {
-          s.players.set(uid, {
-            user_id: uid,
-            nickname: String(b.nickname || 'Player').slice(0, 40),
-            device_id: b.device_id || '',
-            score: null,
-            submitted: false,
-            joinedAt: Date.now(),
-          });
-          // rolling window (permintaan klien): tiap pemain BARU join, buka lagi
-          // window penuh supaya teman yang menyusul sempat masuk.
-          s.deadline = Date.now() + WINDOW_MS;
-        } else if (s.players.has(uid)) {
-          // re-join (reload HP): perbarui nickname; jangan gandakan / reset window
-          s.players.get(uid).nickname = String(b.nickname || s.players.get(uid).nickname).slice(0, 40);
-        }
-        // slot penuh -> mulai sekarang (tidak menunggu sisa window)
-        if (s.players.size >= MAX_PLAYERS) s.deadline = Date.now();
-        advance(s);
-        return send(res, 200, publicState(s));
+      if (!s.players.has(uid) && s.players.size < MAX_PLAYERS) {
+        s.players.set(uid, {
+          user_id: uid,
+          nickname: clip(b.nickname),
+          device_id: b.device_id || '',
+          whatsAppSessionId: b.whats_app_session_id || '',
+          score: null,
+          submitted: false,
+          joinedAt: Date.now(),
+        });
+        // rolling window: tiap pemain BARU join, buka lagi window penuh
+        s.deadline = Date.now() + WINDOW_MS;
+      } else if (s.players.has(uid)) {
+        // re-join (reload HP): perbarui nickname; jangan gandakan / reset window
+        s.players.get(uid).nickname = clip(b.nickname || s.players.get(uid).nickname);
       }
-
-      // sesi sudah jalan/selesai: pemain yang sudah di roster boleh lanjut,
-      // pendatang telat main sendiri (single) di sesi baru terpisah.
-      if (s.roster && s.roster.includes(uid)) return send(res, 200, publicState(s));
-      const solo = createSession(`${sid}#solo-${uid}`);
-      solo.players.set(uid, { user_id: uid, nickname: String(b.nickname || 'Player').slice(0, 40),
-        device_id: b.device_id || '', score: null, submitted: false, joinedAt: Date.now() });
-      solo.deadline = Date.now();
-      advance(solo);
-      return send(res, 200, { ...publicState(solo), late: true });
+      // slot penuh -> mulai sekarang (tidak menunggu sisa window)
+      if (s.players.size >= MAX_PLAYERS) s.deadline = Date.now();
+      advance(s);
+      return send(res, 200, publicState(s));
     }
 
-    // --- state: polling waiting room ---
+    // --- state: polling waiting room (pakai session_id dari /join) ---
     if (req.method === 'GET' && path === '/session/state') {
-      const sid = u.searchParams.get('whats_app_session_id');
-      const uid = u.searchParams.get('user_id');
-      const s = sessions.get(sid) || (uid && sessions.get(`${sid}#solo-${uid}`));
+      const s = sessions.get(u.searchParams.get('session_id'));
       if (!s) return send(res, 404, { error: 'sesi tidak ditemukan' });
       advance(s);
       return send(res, 200, publicState(s));
@@ -199,12 +205,10 @@ const server = http.createServer(async (req, res) => {
     // --- score: kirim skor akhir ---
     if (req.method === 'POST' && path === '/session/score') {
       const b = await readBody(req);
-      const sid = b.whats_app_session_id, uid = b.user_id;
-      if (!sid || !uid) return send(res, 400, { error: 'whats_app_session_id & user_id wajib' });
-      const s = sessions.get(sid) || sessions.get(`${sid}#solo-${uid}`);
+      const s = sessions.get(b.session_id);
       if (!s) return send(res, 404, { error: 'sesi tidak ditemukan' });
       advance(s);
-      const p = s.players.get(uid);
+      const p = s.players.get(b.user_id);
       if (!p) return send(res, 404, { error: 'pemain tidak ada di sesi' });
       if (!p.submitted) {                       // skor pertama = final (anti timpa)
         p.score = Math.max(0, parseInt(b.score, 10) || 0);
@@ -216,9 +220,7 @@ const server = http.createServer(async (req, res) => {
 
     // --- results: polling ranking akhir ---
     if (req.method === 'GET' && path === '/session/results') {
-      const sid = u.searchParams.get('whats_app_session_id');
-      const uid = u.searchParams.get('user_id');
-      const s = sessions.get(sid) || (uid && sessions.get(`${sid}#solo-${uid}`));
+      const s = sessions.get(u.searchParams.get('session_id'));
       if (!s) return send(res, 404, { error: 'sesi tidak ditemukan' });
       advance(s);
       return send(res, 200, resultsPayload(s));
@@ -236,7 +238,10 @@ setInterval(() => {
   for (const [id, s] of sessions) {
     const stale = (s.phase === 'ended' && s.endedAt && now - s.endedAt > SESSION_TTL_MS) ||
                   (now - s.createdAt > SESSION_TTL_MS + GAME_MS + WINDOW_MS);
-    if (stale) sessions.delete(id);
+    if (stale) {
+      sessions.delete(id);
+      if (deviceActive.get(s.device) === id) deviceActive.delete(s.device);
+    }
   }
 }, 60_000).unref();
 
@@ -244,4 +249,4 @@ server.listen(PORT, () => {
   console.log(`[mp] server jalan di :${PORT}  (window ${WINDOW_MS / 1000}s, max ${MAX_PLAYERS}, game ${GAME_MS / 1000}s)`);
 });
 
-module.exports = { server, sessions }; // untuk test
+module.exports = { server, sessions, deviceActive }; // untuk test

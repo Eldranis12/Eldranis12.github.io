@@ -4,12 +4,19 @@ Server sesi untuk mode **single/multiplayer**, sesuai dokumen *"Kebutuhan dari
 Grivy"* (12 Jul 2026). **Bukan real-time**: tiap pemain main di papan sendiri
 di HP masing-masing. Server hanya:
 
-1. **Waiting room** — mengelompokkan pemain lewat `whats_app_session_id` yang
-   sama (maks 4), menghitung window tunggu (default 15 detik).
+1. **Waiting room** — mengelompokkan pemain per **`device_id` (kiosk)** +
+   window **bergulir** (reset 15 dtk tiap pemain baru join, maks 4). Server
+   yang **membuat `session_id`** dan mengembalikannya saat join.
 2. **Kumpul skor akhir + ranking** — skor dikirim sekali di akhir sesi.
 
-Aturan mode (dokumen Bagian 5): mulai jika slot penuh **ATAU** window habis;
+Aturan mode: mulai jika slot penuh **ATAU** window habis;
 `>1 pemain → multiplayer`, `1 pemain → single player`.
+
+> **Kunci grup = `device_id`, BUKAN `whats_app_session_id`** (klarifikasi Grivy
+> Jul 2026). Grivy tak punya konsep game-session; `whats_app_session_id` itu
+> per-user (1:1, beda tiap pemain) — hanya konteks. Pemain masuk kode di kiosk
+> berurutan; yang join ke `device_id` sama dalam window = satu sesi. Kiosk sama
+> dipakai berulang: setelah sesi mulai, join berikutnya ke kiosk itu = sesi baru.
 
 Zero dependency (Node 18+). Store **in-memory** — data sesi bersifat sementara
 (hanya untuk TY page). Leaderboard mingguan berhadiah dikelola Kiosk Vendor.
@@ -40,11 +47,15 @@ Semua body/response JSON. CORS aktif (`CORS_ORIGIN`).
 
 | Method | Path | Dipanggil saat | Body / Query |
 |---|---|---|---|
-| `POST` | `/session/join` | Game di HP dibuka | `{whats_app_session_id, user_id, nickname, device_id}` |
-| `GET`  | `/session/state` | Polling waiting room (~1 dtk) | `?whats_app_session_id=&user_id=` |
-| `POST` | `/session/score` | Game pemain selesai | `{whats_app_session_id, user_id, score}` |
-| `GET`  | `/session/results` | Polling ranking di TY page | `?whats_app_session_id=&user_id=` |
+| `POST` | `/session/join` | Game di HP dibuka | `{device_id, user_id, nickname, whats_app_session_id?}` → balas `{session_id, …}` |
+| `GET`  | `/session/state` | Polling waiting room (~1 dtk) | `?session_id=` |
+| `POST` | `/session/score` | Game pemain selesai | `{session_id, user_id, score}` |
+| `GET`  | `/session/results` | Polling ranking di TY page | `?session_id=` |
 | `GET`  | `/health` | Cek status | — |
+
+**Alur:** `join` mengelompokkan lewat `device_id` lalu **mengembalikan
+`session_id`**; klien pakai `session_id` itu untuk `state`/`score`/`results`.
+`whats_app_session_id` opsional (konteks per-user, ikut di hasil).
 
 **State (`phase`):** `waiting` → `playing` → `ended`.
 `final_mode` (`single`/`multi`) terisi begitu window habis.
@@ -98,7 +109,8 @@ Uji dari luar sebelum go-live:
 curl https://mp.example.com/health          # -> {"ok":true,...}
 ```
 Atau tanpa ubah config, tes langsung dari game:
-`https://eldranis12.github.io/GrivyCoke/?mp_url=https://mp.example.com&whats_app_session_id=T1&user_id=u1&nickname=Uji`
+`https://eldranis12.github.io/GrivyCoke/?mp_url=https://mp.example.com&user_id=u1&nickname=Uji&device_id=001`
+(2 HP dgn `device_id` sama = satu sesi; `user_id` beda tiap pemain)
 
 > **Sudah punya app Node/Express sendiri?** Bisa digabung: `server.js` mengekspor
 > `sessions` + logikanya sederhana (lihat endpoint di bawah) — pindahkan handler

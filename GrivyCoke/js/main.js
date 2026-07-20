@@ -685,7 +685,7 @@ async function startGame() {
   if (id !== loopId) return; // sudah di-restart selama menunggu
   $('#waiting-overlay').classList.add('hidden');
 
-  notifyGameStart(PLAYER.whatsAppSessionId);
+  notifyGameStart(session && session.sessionId ? session.sessionId : '');
   lastTs = performance.now();
   requestAnimationFrame(ts => tick(ts, id));
 }
@@ -763,9 +763,9 @@ async function endGame(reason = 'timeup') {
     }).catch(() => fallback);
     if (gen !== loopId) return;
     renderResults(finalRows);
-    notifyGameEnd(PLAYER.whatsAppSessionId, finalRows.map(({ nickname, score }) => ({ nickname, score })));
+    notifyGameEnd(session && session.sessionId ? session.sessionId : '', finalRows.map(({ nickname, score }) => ({ nickname, score })));
   } else {
-    notifyGameEnd(PLAYER.whatsAppSessionId, fallback.map(({ nickname, score }) => ({ nickname, score })));
+    notifyGameEnd(session && session.sessionId ? session.sessionId : '', fallback.map(({ nickname, score }) => ({ nickname, score })));
   }
 }
 

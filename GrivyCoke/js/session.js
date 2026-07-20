@@ -2,15 +2,17 @@
 // SessionService — jembatan game <-> server multiplayer.
 // ------------------------------------------------------------
 // Dua mode di balik satu interface:
-//   • REMOTE — CONFIG.multiplayerUrl diisi + ada whats_app_session_id &
-//     user_id. Join sesi ke server (folder server/), polling waiting room,
-//     kirim skor akhir, ambil ranking nyata.
+//   • REMOTE — CONFIG.multiplayerUrl + user_id ada. Join ke server; server
+//     mengelompokkan pemain per device_id (kiosk) + window bergulir, lalu
+//     MENGEMBALIKAN session_id. Klien polling waiting room + ranking pakai
+//     session_id itu.
 //   • LOCAL  — tidak ada server/parameter. Game jalan single player (fallback
 //     aman), atau simulasi pemain lain lewat ?others= untuk demo TY page.
 //
-// Aturan mode (dokumen Grivy Bagian 5): >1 pemain -> multi, 1 -> single.
-// Model TIDAK real-time: papan tiap pemain independen; server hanya
-// mengelompokkan + mengumpulkan skor akhir.
+// Pengelompokan (klarifikasi Grivy): whats_app_session_id BUKAN kunci grup —
+// itu per-user. Grup = device_id (kiosk) + join dalam window 15 dtk. Model
+// TIDAK real-time: papan tiap pemain independen; server hanya mengelompokkan
+// + mengumpulkan skor akhir.
 // ============================================================
 
 import { CONFIG, PLAYER } from './config.js';
@@ -42,27 +44,27 @@ class RemoteSession {
     this.base = base;
     this.remote = true;
     this.mode = 'single';
+    this._sessionId = null;                    // ditentukan server saat join
     this._q = {
-      whats_app_session_id: PLAYER.whatsAppSessionId,
+      device_id: PLAYER.deviceId,              // kunci grup (kiosk)
       user_id: PLAYER.userId,
       nickname: PLAYER.nickname,
-      device_id: PLAYER.deviceId,
+      whats_app_session_id: PLAYER.whatsAppSessionId, // konteks per-user saja
     };
-    this._joined = false;
   }
+
+  get sessionId() { return this._sessionId; }
 
   async join() {
-    await jpost(this.base + '/session/join', this._q);
-    this._joined = true;
+    const r = await jpost(this.base + '/session/join', this._q);
+    this._sessionId = r.session_id;            // dipakai untuk polling berikutnya
   }
 
-  // Polling waiting room sampai fase 'playing'. onTick({count,max,players,msLeft})
-  // dipanggil tiap poll untuk update overlay. Resolve {mode, players}.
+  // Polling waiting room sampai fase 'playing'. onTick(state) dipanggil tiap
+  // poll untuk update overlay. Resolve {mode, players}.
   async waitForStart(onTick) {
-    const qs = `whats_app_session_id=${encodeURIComponent(this._q.whats_app_session_id)}` +
-               `&user_id=${encodeURIComponent(this._q.user_id)}`;
     for (;;) {
-      const st = await jget(`${this.base}/session/state?${qs}`);
+      const st = await jget(`${this.base}/session/state?session_id=${encodeURIComponent(this._sessionId)}`);
       onTick && onTick(st);
       if (st.phase !== 'waiting') {
         this.mode = st.final_mode || st.mode || 'single';
@@ -74,7 +76,8 @@ class RemoteSession {
   }
 
   submitScore(score) {
-    return jpost(this.base + '/session/score', { ...this._q, score }).catch(() => {});
+    return jpost(this.base + '/session/score',
+      { session_id: this._sessionId, user_id: this._q.user_id, score }).catch(() => {});
   }
 
   // Polling ranking dengan UPDATE HIDUP: onUpdate(rows, ready) dipanggil tiap
@@ -82,15 +85,13 @@ class RemoteSession {
   // Ini yang bikin skor pemain yang selesai belakangan muncul di TY page pemain
   // yang selesai duluan (tanpa tampak "nyangkut").
   async watchResults(onUpdate, timeoutMs) {
-    const qs = `whats_app_session_id=${encodeURIComponent(this._q.whats_app_session_id)}` +
-               `&user_id=${encodeURIComponent(this._q.user_id)}`;
     // default: tunggu sampai game pasti berakhir (durasi + grace) + buffer
     const cap = timeoutMs ?? (CONFIG.gameSeconds * 1000 + 30000);
     const until = Date.now() + cap;
     let rows = [];
     for (;;) {
       let data = null;
-      try { data = await jget(`${this.base}/session/results?${qs}`); } catch {}
+      try { data = await jget(`${this.base}/session/results?session_id=${encodeURIComponent(this._sessionId)}`); } catch {}
       if (data && data.results) {
         rows = data.results.map(r => ({ nickname: r.nickname, score: r.score,
           me: r.user_id === this._q.user_id, submitted: r.submitted }));
@@ -111,6 +112,8 @@ class LocalSession {
     this.mode = this.others.length > 0 ? 'multi' : 'single';
     this._score = 0;
   }
+
+  get sessionId() { return null; }
 
   async join() {}
 
@@ -143,8 +146,9 @@ class LocalSession {
   }
 }
 
-// Pilih implementasi: remote hanya kalau URL server + identitas pemain lengkap.
+// Pilih implementasi: remote kalau ada URL server + user_id. Grup ditentukan
+// server via device_id (kiosk); tanpa device_id -> server buat sesi solo.
 export function createSession() {
-  const canRemote = CONFIG.multiplayerUrl && PLAYER.whatsAppSessionId && PLAYER.userId;
+  const canRemote = CONFIG.multiplayerUrl && PLAYER.userId;
   return canRemote ? new RemoteSession(CONFIG.multiplayerUrl) : new LocalSession();
 }
