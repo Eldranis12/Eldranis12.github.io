@@ -622,12 +622,13 @@ addEventListener('contextmenu', e => e.preventDefault());
 
 // ---------- confetti (TY page) ----------
 // Asset resmi "Confetti 30" (PNG sequence 279 frame + alpha asli) di-encode
-// jadi animated AVIF transparan via avifenc (bukan ffmpeg/libaom yang
-// membuang alpha). Downscale frame lewat premultiplied alpha supaya warna
-// tepi partikel tidak tercampur hitam (terlihat gelap/kusam).
-// Pipeline: ffmpeg fps=20,premultiply,scale=720,unpremultiply -> avifenc
-// --fps 20 --repetition-count 0 -q 50 --qalpha 62.
-const CONFETTI_SRC = 'assets/video/confetti.avif';
+// jadi animated PNG (APNG) transparan. Sebelumnya pakai animated AVIF, tapi
+// iOS Safari mengabaikan kanal alpha AVIF animasi -> confetti tampil sebagai
+// KOTAK HITAM menutup layar di iPhone (feedback 20 Jul). APNG punya alpha
+// penuh yang didukung Safari/iOS + Chrome/Android/desktop lewat <img> biasa.
+// Downscale lewat premultiplied alpha supaya tepi partikel tidak gelap.
+// Pipeline: ffmpeg fps=18,premultiply,scale=480,unpremultiply -plays 1 (9.3s).
+const CONFETTI_SRC = 'assets/video/confetti.png';
 let confettiHideTimer = null;
 
 function startConfetti() {
