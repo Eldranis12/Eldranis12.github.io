@@ -115,15 +115,10 @@ function show(id) {
 function updateWaiting(st) {
   const count = st.count ?? (st.players ? st.players.length : 1);
   const max = st.max ?? CONFIG.maxPlayers;
-  const sec = Math.ceil((st.ms_left ?? 0) / 1000);
-  const cEl = $('#waiting-count'), tEl = $('#waiting-timer'), rEl = $('#waiting-roster');
-  if (cEl) cEl.textContent = `${count}/${max} pemain`;
-  if (tEl) tEl.textContent = sec > 0 ? `Mulai dalam ${sec} detik…` : 'Memulai…';
-  if (rEl && st.players) {
-    rEl.innerHTML = st.players.map(p =>
-      `<div class="wr-name${p.user_id === PLAYER.userId ? ' me' : ''}">${esc(p.nickname)}</div>`
-    ).join('');
-  }
+  // mockup: "N dari 4 pemain sudah siap" (roster & hitung mundur eksplisit
+  // dihilangkan supaya sesuai desain; botol = indikator loading)
+  const cEl = $('#waiting-count');
+  if (cEl) cEl.textContent = `${count} dari ${max} pemain sudah siap`;
 }
 
 // ---------- HUD ----------
@@ -811,11 +806,17 @@ async function endGame(reason = 'timeup') {
 
 $('#btn-start').addEventListener('click', () => { playSfx('start'); startGame(); });
 
-// ---- preview QA: buka ?preview=ty (multi) / ?preview=ty1 (single) untuk
-// melihat halaman skor tanpa main dulu (data contoh). Aman utk produksi:
-// hanya jalan kalau param preview diisi. ----
+// ---- preview QA: buka ?preview=ty (multi) / ?preview=ty1 (single) /
+// ?preview=wait (waiting screen) untuk melihat layar tanpa main dulu (data
+// contoh). Aman utk produksi: hanya jalan kalau param preview diisi. ----
 (function previewTY() {
   const mode = new URLSearchParams(location.search).get('preview');
+  if (mode === 'wait') {                 // layar loading (botol terisi coke)
+    show('#screen-game');
+    $('#waiting-overlay').classList.remove('hidden');
+    updateWaiting({ count: 2, max: 4 });
+    return;
+  }
   if (mode !== 'ty' && mode !== 'ty1') return;
   const screen = $('#screen-result');
   if (mode === 'ty1') {
