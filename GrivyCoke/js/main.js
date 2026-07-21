@@ -620,23 +620,62 @@ addEventListener('keyup', e => {
 // cegah menu context "download image" saat tombol ditahan lama di HP
 addEventListener('contextmenu', e => e.preventDefault());
 
-// ---------- confetti (TY page) ----------
-// Asset resmi "Confetti 30" (PNG sequence 279 frame + alpha asli) di-encode
-// jadi animated PNG (APNG) transparan. Sebelumnya pakai animated AVIF, tapi
-// iOS Safari mengabaikan kanal alpha AVIF animasi -> confetti tampil sebagai
-// KOTAK HITAM menutup layar di iPhone (feedback 20 Jul). APNG punya alpha
-// penuh yang didukung Safari/iOS + Chrome/Android/desktop lewat <img> biasa.
-// Downscale lewat premultiplied alpha supaya tepi partikel tidak gelap.
-// Pipeline: ffmpeg fps=18,premultiply,scale=480,unpremultiply -plays 1 (9.3s).
-const CONFETTI_SRC = 'assets/video/confetti.png';
-let confettiHideTimer = null;
+// ---------- confetti (TY page) — partikel canvas ----------
+// Kenapa canvas, bukan gambar animasi: format gambar animasi tidak andal di
+// iOS Safari. AVIF animasi -> kanal alpha diabaikan -> KOTAK HITAM. APNG ->
+// kadang TAK TAMPIL sama sekali (mis. Low Power Mode iOS cuma render frame
+// pertama yang masih kosong). Canvas 2D didukung 100% semua device termasuk
+// iOS, tanpa bergantung decode/autoplay/format. Digambar via setInterval
+// (bukan hanya rAF) supaya tetap jalan walau tab sedang di-throttle.
+const confettiCanvas = $('#confetti');
+const confettiCtx = confettiCanvas.getContext('2d');
+const CONFETTI_COLORS = ['#e4051f', '#ffffff', '#ff5b6a', '#ffd23f', '#3ec1ff', '#7ee06a', '#c86bff', '#ff9b3d'];
+let confettiTimer = 0;
 
-function startConfetti() {
-  const img = $('#confetti-img');
-  img.src = CONFETTI_SRC + '?t=' + Date.now(); // mulai animasi dari awal
-  img.classList.remove('hidden');
-  clearTimeout(confettiHideTimer);
-  confettiHideTimer = setTimeout(() => img.classList.add('hidden'), 9300); // durasi avif 9.3s
+function startConfetti(durationMs = 4500) {
+  const cv = confettiCanvas, ctx = confettiCtx, W = cv.width, H = cv.height;
+  const parts = [];
+  for (let i = 0; i < 150; i++) parts.push({
+    x: Math.random() * W,
+    y: -60 - Math.random() * H * 0.6,          // mulai di atas layar, jatuh masuk
+    w: 20 + Math.random() * 24,
+    h: 12 + Math.random() * 18,
+    vy: 420 + Math.random() * 560,              // px/detik (koordinat 1080x2340)
+    vx: -140 + Math.random() * 280,
+    rot: Math.random() * Math.PI * 2,
+    vr: -7 + Math.random() * 14,                // putaran
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    sway: 24 + Math.random() * 46,              // goyang kiri-kanan
+    phase: Math.random() * Math.PI * 2,
+    flip: Math.random() * Math.PI * 2,          // efek kertas berbalik (tinggi menyusut)
+    vflip: 5 + Math.random() * 7,
+  });
+  clearInterval(confettiTimer);
+  const t0 = performance.now();
+  let last = t0;
+  confettiTimer = setInterval(() => {
+    const now = performance.now();
+    const dt = Math.min(60, now - last) / 1000; last = now;
+    const age = now - t0;
+    ctx.clearRect(0, 0, W, H);
+    const fade = age > durationMs ? Math.max(0, 1 - (age - durationMs) / 700) : 1;
+    for (const p of parts) {
+      p.y += p.vy * dt;
+      p.x += (p.vx + Math.sin(age / 500 + p.phase) * p.sway) * dt;
+      p.rot += p.vr * dt;
+      p.flip += p.vflip * dt;
+      if (age < durationMs && p.y > H + 50) { p.y = -50; p.x = Math.random() * W; } // daur ulang
+      const sc = Math.abs(Math.cos(p.flip));     // 0..1 -> kertas seolah berputar
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h * sc / 2, p.w, p.h * sc);
+      ctx.restore();
+    }
+    if (fade <= 0) { clearInterval(confettiTimer); ctx.clearRect(0, 0, W, H); }
+  }, 1000 / 60);
 }
 
 // ---------- alur game ----------
@@ -800,4 +839,4 @@ $('#btn-start').addEventListener('click', () => { playSfx('start'); startGame();
 })();
 
 window.__endGame = endGame; // hook debug/QA
-window.__confetti = { start: startConfetti, img: () => $('#confetti-img') }; // hook debug/QA
+window.__confetti = { start: startConfetti, canvas: () => confettiCanvas }; // hook debug/QA
