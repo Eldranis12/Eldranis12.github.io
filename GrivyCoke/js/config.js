@@ -4,11 +4,15 @@
 
 const url = new URLSearchParams(location.search);
 
-// Base URL server multiplayer (Node.js, folder server/). Isi saat produksi,
-// mis. 'https://mp.coca-cola.co.id'. Kosong = mode lokal: game jalan single
-// player tanpa server (fallback aman), simulasi pemain lain lewat ?others=.
-// Override saat testing lewat ?mp_url=http://localhost:8787
-const MP_URL_DEFAULT = 'https://coke-mp.8infiniooh.com';
+// Base URL server multiplayer (Node.js, folder server/).
+// Saat game dibuka di localhost (dev) otomatis pakai server lokal
+// (http://localhost:8787) — tinggal `node server/server.js`. Di host lain
+// (produksi/GitHub Pages) pakai URL produksi. Override kapan saja: ?mp_url=
+// (mis. ?mp_url=http://192.168.1.5:8787 untuk uji dari HP di LAN yang sama).
+const IS_LOCALHOST = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname);
+const MP_URL_DEFAULT = IS_LOCALHOST
+  ? 'http://localhost:8787'
+  : 'https://coke-mp.8infiniooh.com';
 
 export const PLAYER = {
   whatsAppSessionId: url.get('whats_app_session_id') || '',
