@@ -701,7 +701,7 @@ function renderResults(rows) {
   });
   $('#session-results').innerHTML = list.map((r, i) => `
     <div class="result-row${r.me ? ' me' : ''}${r.submitted === false ? ' pending' : ''}">
-      <span class="rank">${i + 1}</span>
+      <span class="rank">#${i + 1}</span>
       <span class="name">${esc(r.nickname)}</span>
       <span class="score">${r.submitted === false ? 'bermain…' : r.score}</span>
     </div>`).join('');
@@ -771,6 +771,33 @@ async function endGame(reason = 'timeup') {
 }
 
 $('#btn-start').addEventListener('click', () => { playSfx('start'); startGame(); });
+
+// ---- preview QA: buka ?preview=ty (multi) / ?preview=ty1 (single) untuk
+// melihat halaman skor tanpa main dulu (data contoh). Aman utk produksi:
+// hanya jalan kalau param preview diisi. ----
+(function previewTY() {
+  const mode = new URLSearchParams(location.search).get('preview');
+  if (mode !== 'ty' && mode !== 'ty1') return;
+  const screen = $('#screen-result');
+  if (mode === 'ty1') {
+    screen.classList.remove('multi');
+    $('.your-score').textContent = 'YOUR SCORE';
+    $('#final-score').textContent = '12500';
+    $('#session-results').classList.add('hidden');
+  } else {
+    screen.classList.add('multi');
+    $('.your-score').textContent = 'SCOREBOARD';
+    $('#session-results').classList.remove('hidden');
+    renderResults([
+      { nickname: 'User name', score: 15000, submitted: true },
+      { nickname: PLAYER.nickname || 'User name', score: 7000, me: true, submitted: true },
+      { nickname: 'User name', score: 5000, submitted: true },
+      { nickname: 'User name', score: 1000, submitted: true },
+    ]);
+  }
+  show('#screen-result');
+  startConfetti();
+})();
 
 window.__endGame = endGame; // hook debug/QA
 window.__confetti = { start: startConfetti, img: () => $('#confetti-img') }; // hook debug/QA

@@ -550,25 +550,37 @@ img {
   letter-spacing: 3px;
   margin-top: 0;
 }
-#screen-result.multi #session-results {      /* satu panel gelap membungkus baris */
-  margin-top: 48px;
-  gap: 14px;
-  width: 790px;
-  padding: 30px 32px;
-  background: rgba(22, 3, 3, 0.72);
-  border: 3px solid rgba(255, 255, 255, 0.4);
-  border-radius: 46px;
+#screen-result.multi #session-results {      /* panel gelap membungkus tabel ranking (mockup Happy) */
+  margin-top: 44px;
+  gap: 0;
+  width: 800px;
+  padding: 6px 46px;
+  background: rgba(18, 2, 2, 0.85);
+  border: 3px solid rgba(255, 255, 255, 0.38);
+  border-radius: 42px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .3);
 }
-#screen-result.multi .result-row {           /* baris di dalam panel (bukan pill) */
-  background: rgba(255, 255, 255, 0.07);
+#screen-result.multi .result-row {           /* baris tabel rata dengan garis pemisah (bukan pill) */
+  background: none;
   border: none;
-  border-radius: 22px;
-  padding: 16px 30px;
+  border-radius: 0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.14);
+  padding: 30px 6px;
+  gap: 22px;
+  font-size: 46px;
+}
+#screen-result.multi .result-row:last-child { border-bottom: none; }
+#screen-result.multi .result-row .rank {
+  width: 104px;
+  color: rgba(255, 255, 255, 0.82);
 }
 #screen-result.multi .result-row.me {        /* baris sendiri di-highlight putih */
   background: #fff;
   color: var(--coke-red);
+  border-bottom-color: transparent;
+  border-radius: 20px;
 }
+#screen-result.multi .result-row.me .rank { color: var(--coke-red); }
 #screen-result.multi h2 { margin-top: 60px; }
 
 /* feedback 07 Jul: botol tidak terhalang tulisan & tidak ngambang —
