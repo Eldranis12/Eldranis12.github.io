@@ -115,10 +115,16 @@ function show(id) {
 function updateWaiting(st) {
   const count = st.count ?? (st.players ? st.players.length : 1);
   const max = st.max ?? CONFIG.maxPlayers;
-  // mockup: "N dari 4 pemain sudah siap" (roster & hitung mundur eksplisit
-  // dihilangkan supaya sesuai desain; botol = indikator loading)
+  // mockup: "N dari 4 pemain sudah siap" (roster dihilangkan supaya sesuai
+  // desain; botol = indikator loading). Countdown TETAP ditampilkan
+  // (feedback: "countdown menunggu player jangan dihilangkan").
   const cEl = $('#waiting-count');
   if (cEl) cEl.textContent = `${count} dari ${max} pemain sudah siap`;
+  const tEl = $('#waiting-timer');
+  if (tEl) {
+    const sec = Math.ceil((st.ms_left ?? 0) / 1000);
+    tEl.textContent = sec > 0 ? `Mulai dalam ${sec} detik…` : '';
+  }
   // isi botol naik sesuai proporsi pemain siap (feedback: "animasi isi
   // botol bergelombang"). translateY dihitung di JS & di-set langsung
   // (bukan calc()+custom property) supaya konsisten di semua browser.
@@ -826,7 +832,7 @@ $('#btn-start').addEventListener('click', () => { playSfx('start'); startGame();
   if (mode === 'wait') {                 // layar loading (botol terisi coke)
     show('#screen-game');
     $('#waiting-overlay').classList.remove('hidden');
-    updateWaiting({ count: 2, max: 4 });
+    updateWaiting({ count: 2, max: 4, ms_left: 9000 });
     return;
   }
   if (mode !== 'ty' && mode !== 'ty1') return;
