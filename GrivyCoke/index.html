@@ -73,16 +73,40 @@
       <img class="swoosh" src="assets/img/swoosh.png" alt="">
       <img class="copyright" src="assets/img/copyright.png" alt="">
 
-      <!-- waiting screen multiplayer (brief: botol coke sebagai loading) -->
+      <!-- waiting screen multiplayer: layar GELAP SOLID (sama seperti Cara
+           Bermain, bukan tumpukan transparan di atas board) supaya board di
+           belakang benar-benar tidak kelihatan (feedback: "ga sesuai" — board
+           masih kebaca lewat overlay lama). Botol coke = loading state. -->
       <div id="waiting-overlay" class="hidden">
+        <img class="deco deco-tl" src="assets/img/deco-2.png" alt="">
+        <img class="deco deco-tr" src="assets/img/deco-1.png" alt="">
+        <img class="waiting-logo" src="assets/img/logo.png" alt="Coca-Cola">
         <h1>Siap Bertanding?</h1>
-        <p class="waiting-text" id="waiting-count">Menunggu pemain lain…</p>
-        <p class="waiting-sub">Begitu semua siap, permainan langsung dimulai!</p>
+        <div class="waiting-copy">
+          <p class="waiting-text" id="waiting-count">Menunggu pemain lain…</p>
+          <p class="waiting-sub">Begitu semua siap, permainan langsung dimulai!</p>
+        </div>
         <div class="bottle-loader">
-          <span class="bottle-dots"></span>
+          <!-- botol loading pakai ASET ASLI dari desain (bukan reka ulang):
+               Asset 31 = siluet botol putih (dasar + mask cairan), Asset 32
+               = logo merah. Cairan merah dipotong (CSS mask) ke siluet
+               Asset 31 supaya bentuknya PERSIS sama seperti desain, lalu
+               dinaikkan sesuai jumlah pemain siap dengan tepi bergelombang
+               (feedback: "animasi isi botol bergelombang"). Logo satu warna
+               saja, statis -- feedback: "jangan jadi merah putih" (efek
+               logo ganti warna dihapus, terlihat mengganggu). -->
           <div class="waiting-bottle">
-            <img class="bl-empty" src="assets/img/bottle.png" alt="">
-            <img class="bl-fill" src="assets/img/bottle.png" alt="">
+            <img class="bl-base" src="assets/img/bottle-loading.png" alt="">
+            <img class="bl-logo-red" src="assets/img/bottle-loading-logo-red.png" alt="">
+            <div class="bl-liquid-mask">
+              <div id="waiting-liquid" class="bl-liquid-level">
+                <svg class="bl-wave-svg" viewBox="0 0 180 709" preserveAspectRatio="none">
+                  <path class="bl-wave-path" d="M-180,10
+                    q22,-14 45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0
+                    L540,760 L-180,760 Z"/>
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
       </div>

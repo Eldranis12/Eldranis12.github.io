@@ -119,6 +119,18 @@ function updateWaiting(st) {
   // dihilangkan supaya sesuai desain; botol = indikator loading)
   const cEl = $('#waiting-count');
   if (cEl) cEl.textContent = `${count} dari ${max} pemain sudah siap`;
+  // isi botol naik sesuai proporsi pemain siap (feedback: "animasi isi
+  // botol bergelombang"). translateY dihitung di JS & di-set langsung
+  // (bukan calc()+custom property) supaya konsisten di semua browser.
+  // Tinggi dibaca dari elemen langsung (bukan angka tetap) supaya selalu
+  // sinkron dengan ukuran .waiting-bottle di CSS.
+  const liquid = $('#waiting-liquid');
+  const bottleEl = $('.waiting-bottle');
+  if (liquid && bottleEl) {
+    const pct = Math.min(1, count / max);
+    const h = bottleEl.offsetHeight || 747;
+    liquid.style.transform = `translateY(${Math.round(h * (1 - pct))}px)`;
+  }
 }
 
 // ---------- HUD ----------

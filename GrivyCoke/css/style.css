@@ -311,23 +311,43 @@ img {
   100% { opacity: 0; transform: translateY(-40px) scale(1); }
 }
 
-/* waiting screen multiplayer (mockup: layar gelap, "Siap Bertanding?",
-   botol coca-cola sebagai loading state) */
+/* waiting screen multiplayer: layar gelap SOLID sama seperti "Cara Bermain"
+   (deco pojok + watermark logo), "Siap Bertanding?", botol coca-cola sebagai
+   loading state. Background solid (BUKAN rgba tembus pandang) supaya board
+   di belakang benar-benar tersembunyi — sebelumnya translucent dan board
+   masih kebaca (feedback). */
 #waiting-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(23, 21, 25, 0.92);   /* game board samar di belakang (mockup) */
+  background: var(--dark);
   z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 22px;
+  gap: 16px;
+  padding: 0 60px;
+}
+.waiting-logo {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  opacity: .55;                    /* watermark, bukan fokus utama */
 }
 #waiting-overlay h1 {
   color: #fff;
   font-size: 88px;
   font-weight: 800;
+  text-align: center;
+}
+/* teks status + subjudul dikelompokkan rapat jadi satu blok (mockup) */
+.waiting-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: -4px;
 }
 .waiting-text {
   color: #fff;
@@ -349,40 +369,60 @@ img {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 20px;
+  margin-top: 36px;
 }
-/* garis titik di atas botol (motif drop tetris) */
-.bottle-dots {
-  width: 8px;
-  height: 74px;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, .85) 45%, transparent 48%);
-  background-size: 8px 20px;
-  background-repeat: repeat-y;
-  margin-bottom: 6px;
-}
+/* botol loading pakai ASET ASLI (assets/img/bottle-loading*.png, 180x672) --
+   dua percobaan sebelumnya (SVG hasil reka ulang tangan) bentuknya meleset
+   dari desain asli (feedback "masih salah" 2x). Sekarang siluetnya PERSIS
+   dari file asli, di-pakai sebagai CSS mask supaya cairan animasi bisa
+   dipotong ke bentuk itu tanpa perlu trace ulang jadi path. */
 .waiting-bottle {
   position: relative;
-  width: 250px;
-  height: 797px;                     /* 250 * 972/305, jaga rasio botol */
+  width: 200px;
+  height: 747px;                      /* 200 * 672/180, rasio kanvas asli */
 }
-.waiting-bottle img {
+.waiting-bottle img { position: absolute; display: block; }
+.bl-base { inset: 0; width: 100%; height: 100%; }
+/* posisi logo persis seperti di desain asli (diukur dari Asset 34: bbox
+   logo dalam kanvas 180x672 -> x20 y304 w136 h42, dipakai sbg persentase).
+   Satu warna saja, statis, diam di tempat (feedback: "jangan jadi merah
+   putih" -- efek logo ganti warna sebelumnya dihapus). */
+.bl-logo-red {
+  left: 11.11%; top: 45.24%; width: 75.56%; height: auto;
+}
+.bl-liquid-mask {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: url('../assets/img/bottle-loading.png');
+  mask-image: url('../assets/img/bottle-loading.png');
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+/* cairan naik ke level yang dihitung & di-set langsung (translateY inline)
+   dari js/main.js updateWaiting() -- dihitung di JS (bukan calc()+custom
+   property CSS) karena kombinasi itu tidak konsisten recompute pada
+   transform di sebagian browser. */
+.bl-liquid-level {
+  position: absolute;
+  inset: 0;
+  transition: transform 1s ease-out;
+}
+.bl-wave-svg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  display: block;
 }
-.bl-empty {                          /* botol "kosong": pucat & redup */
-  filter: grayscale(.9) brightness(1.55) opacity(.42);
+.bl-wave-path {
+  fill: var(--coke-red);
+  animation: bottle-wave-scroll 2.2s linear infinite;
 }
-.bl-fill {                           /* coke penuh warna, muncul dari bawah naik */
-  animation: coke-fill 2.4s ease-in-out infinite;
-}
-@keyframes coke-fill {
-  0%   { -webkit-clip-path: inset(100% 0 0 0); clip-path: inset(100% 0 0 0); opacity: 1; }  /* kosong */
-  70%  { -webkit-clip-path: inset(0 0 0 0);    clip-path: inset(0 0 0 0);    opacity: 1; }  /* penuh */
-  90%  { -webkit-clip-path: inset(0 0 0 0);    clip-path: inset(0 0 0 0);    opacity: 1; }
-  100% { -webkit-clip-path: inset(0 0 0 0);    clip-path: inset(0 0 0 0);    opacity: 0; }  /* fade sebelum ulang */
+@keyframes bottle-wave-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-90px); }   /* -1 periode gelombang: loop mulus */
 }
 
 
