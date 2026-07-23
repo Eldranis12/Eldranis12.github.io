@@ -743,13 +743,17 @@ async function endGame(reason = 'timeup') {
   // aman: LocalSession menyimpan skor, RemoteSession POST /session/score.
   if (session) session.submitScore(game.score);
 
-  // feedback 13 Jul: waktu habis -> tampilkan "Yah, Waktunya Habis!" di board
-  // dulu, delay 2 detik, baru pindah ke Your Score
+  // teks penutup di board dulu (delay 2 detik) sebelum pindah ke Your Score:
+  //  - waktu habis  -> "Yah, Waktunya Habis!"  (feedback 13 Jul)
+  //  - papan penuh  -> "Papan Penuh!"
   let minDelay = 900;
-  if (reason === 'timeup') {
+  const overText = reason === 'timeup' ? 'Yah, Waktunya Habis!'
+                 : reason === 'topout' ? 'Papan Penuh!'
+                 : null;
+  if (overText) {
     const el = document.createElement('div');
-    el.className = 'time-up-text';
-    el.textContent = 'Yah, Waktunya Habis!';
+    el.className = 'time-up-text';   // gaya sama: putih + stroke merah + shadow
+    el.textContent = overText;
     $('#popup-layer').appendChild(el);
     minDelay = 2000;
   }

@@ -37,7 +37,23 @@ const AC = window.AudioContext || window.webkitAudioContext;
 const actx = AC ? new AC() : null;
 const buffers = {};
 
+// Master bus: gain (headroom) -> limiter (kompresor) -> output.
+// Di iOS beberapa efek bisa bunyi bersamaan (tick + kata + mendarat + clear);
+// tanpa limiter jumlahnya bisa melewati 0dB -> clipping/"biso". Limiter menjaga
+// puncak tetap di bawah 0dB tanpa memotong kasar.
+let master = null;
 if (actx) {
+  const limiter = actx.createDynamicsCompressor();
+  limiter.threshold.value = -3;   // mulai menahan mendekati puncak
+  limiter.knee.value = 0;         // keras (limiter, bukan kompresor lembut)
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.12;
+  master = actx.createGain();
+  master.gain.value = 0.8;        // headroom supaya tumpukan suara tak clip
+  master.connect(limiter);
+  limiter.connect(actx.destination);
+
   for (const [name, src] of Object.entries(FILES)) {
     fetch(src)
       .then(r => r.arrayBuffer())
@@ -45,17 +61,21 @@ if (actx) {
       .then(d => { buffers[name] = d; })
       .catch(() => console.warn('gagal load audio', src));
   }
-  // browser mobile menahan audio sampai ada gesture pertama
-  const unlock = () => { if (actx.state === 'suspended') actx.resume(); };
-  addEventListener('pointerdown', unlock);
-  addEventListener('keydown', unlock);
+  // browser mobile menahan audio sampai ada gesture pertama; iOS juga bisa
+  // menaruh context ke 'suspended'/'interrupted' setelah kunci layar / balik
+  // dari app lain — resume tiap ada gesture & saat halaman kembali terlihat.
+  const resume = () => { if (actx.state !== 'running') actx.resume().catch(() => {}); };
+  addEventListener('pointerdown', resume);
+  addEventListener('keydown', resume);
+  addEventListener('visibilitychange', () => { if (!document.hidden) resume(); });
 }
 
 export function playSfx(name) {
   if (!actx || !buffers[name]) return;
-  if (actx.state === 'suspended') actx.resume();
+  if (actx.state !== 'running') actx.resume().catch(() => {});
   const s = actx.createBufferSource();
   s.buffer = buffers[name];
-  s.connect(actx.destination);
+  s.connect(master);          // lewat master bus (limiter) — cegah clipping
   s.start();
+  s.onended = () => { try { s.disconnect(); } catch {} };
 }

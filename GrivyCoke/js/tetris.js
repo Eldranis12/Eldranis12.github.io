@@ -173,7 +173,55 @@ export class Tetris {
       this.grid.splice(y, 1);
       this.grid.unshift(Array(this.cols).fill(null));
     }
+    this.settleFloating();   // jatuhkan blok yang menggantung di atas lubang
     const perfect = this.grid.every(r => r.every(v => !v));
     return perfect;
+  }
+
+  // Cascade/sticky gravity: turunkan blok yang MENGGANTUNG (komponen terhubung
+  // tanpa penyangga) sampai bertumpu. Gravitasi naif Tetris (geser baris saat
+  // clear) bisa meninggalkan blok melayang di atas lubang; klien minta blok
+  // jatuh ke bawah, bukan ngambang. Overhang yang valid (bertumpu di kolomnya)
+  // tidak terpengaruh karena ia "supported".
+  settleFloating() {
+    const R = this.rows, C = this.cols, grid = this.grid;
+    for (let pass = 0; pass < R; pass++) {
+      // label komponen terhubung 4-arah
+      const comp = Array.from({ length: R }, () => Array(C).fill(-1));
+      let nc = 0;
+      for (let y = 0; y < R; y++)
+        for (let x = 0; x < C; x++)
+          if (grid[y][x] && comp[y][x] === -1) {
+            const st = [[y, x]]; comp[y][x] = nc;
+            while (st.length) {
+              const [cy, cx] = st.pop();
+              for (const [dy, dx] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                const ny = cy + dy, nx = cx + dx;
+                if (ny >= 0 && ny < R && nx >= 0 && nx < C && grid[ny][nx] && comp[ny][nx] === -1) {
+                  comp[ny][nx] = nc; st.push([ny, nx]);
+                }
+              }
+            }
+            nc++;
+          }
+      // komponen "supported" = ada sel di lantai atau menumpu sel komponen lain
+      const supported = new Array(nc).fill(false);
+      for (let y = 0; y < R; y++)
+        for (let x = 0; x < C; x++) {
+          if (!grid[y][x]) continue;
+          const c = comp[y][x];
+          if (y === R - 1 || (grid[y + 1][x] && comp[y + 1][x] !== c)) supported[c] = true;
+        }
+      // turunkan 1 baris tiap sel komponen menggantung (dari bawah ke atas)
+      let moved = false;
+      for (let y = R - 2; y >= 0; y--)
+        for (let x = 0; x < C; x++)
+          if (grid[y][x] && !supported[comp[y][x]] && !grid[y + 1][x]) {
+            grid[y + 1][x] = grid[y][x];
+            grid[y][x] = null;
+            moved = true;
+          }
+      if (!moved) break;   // semua sudah bertumpu
+    }
   }
 }
