@@ -351,9 +351,11 @@ img {
   font-weight: 600;
   text-align: center;
 }
-/* subtitle mockup: "Begitu semua siap, permainan langsung dimulai!" */
+/* subtitle mockup: "Begitu semua siap, permainan langsung dimulai!"
+   feedback: teksnya kurang putih -- dulu diredupkan (opacity .78), sekarang
+   putih penuh biar konsisten dengan teks lain di layar loading. */
 .waiting-sub {
-  color: rgba(255, 255, 255, .78);
+  color: #fff;
   font-size: 40px;
   font-weight: 600;
   text-align: center;
@@ -620,6 +622,10 @@ img {
   width: 104px;
   color: rgba(255, 255, 255, 0.82);
 }
+/* feedback: tinggi baris "me" beda dari baris biasa (padding-top/bottom
+   dulu cuma 5px vs 30px) -> tinggi & posisi panel bergeser tergantung
+   pemain mana yang jadi "aku" di data. Padding vertikal DISAMAKAN dgn
+   .result-row supaya semua baris tingginya konsisten, siapa pun "aku". */
 #screen-result.multi .result-row.me {        /* baris sendiri di-highlight putih */
   background: #fff;
   color: var(--coke-red);
@@ -629,8 +635,8 @@ img {
   margin-right: -30px;
   padding-left: 36px;
   padding-right: 36px;
-  padding-top: 5px;
-  padding-bottom: 5px;
+  padding-top: 30px;
+  padding-bottom: 30px;
 }
 #screen-result.multi .result-row.me .rank { color: var(--coke-red); }
 #screen-result.multi h2 { margin-top: 60px; }
