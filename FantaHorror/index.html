@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FANTA Horror Gamification - Gebuk Suzzanna, Amankan Fantamu!</title>
+  <meta name="description" content="Mainkan game FANTA Horror! Lindungi botol Fanta dari cegatan tangan Suzzanna selama 30 detik untuk memenangkan voucher nonton bioskop eksklusif!">
+  
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+  <div id="app-container">
+
+    <!-- Floating Top Control Bar -->
+    <div class="top-controls-bar">
+      <button id="quota-toggle-btn" class="icon-btn" title="Toggle Quota Active / Habis untuk Demo">
+        ⚡ QUOTA TOGGLE
+      </button>
+      <button id="audio-toggle-btn" class="icon-btn" aria-label="Mute / Unmute Audio">
+        🔊 MUSIK & SFX
+      </button>
+    </div>
+
+    <!-- 1. LANDING PAGE (LP) -->
+    <section id="screen-lp" class="screen">
+      <div class="lp-header">
+        <img src="assets/crop_lp_header.png" alt="Yakali Gamau Pilih? FANTA Horror Game">
+      </div>
+
+      <div class="lp-actions">
+        <button id="btn-main-game" class="img-btn">
+          <img src="assets/crop_btn_main_game.png" alt="Main Game / Main Demi Voucher">
+        </button>
+        <button id="btn-upload-struk" class="img-btn">
+          <img src="assets/crop_btn_upload_struk.png" alt="Upload Struk Demi Voucher">
+        </button>
+      </div>
+
+      <div class="lp-footer">
+        <button id="btn-cara-bermain" class="btn-link">
+          <img src="assets/crop_btn_cara_bermain.png" alt="Cara Bermain">
+        </button>
+        <p class="tnc-text">*syarat & ketentuan berlaku</p>
+      </div>
+    </section>
+
+    <!-- 2. VOUCHER SELECTION SCREEN -->
+    <section id="screen-voucher-select" class="screen hidden">
+      <div class="voucher-header">
+        <img src="assets/crop_select_voucher_header.png" alt="Pilih Voucher Dulu Yuk">
+      </div>
+
+      <div class="voucher-grid">
+        <div class="voucher-card" data-voucher="CGV">
+          <img src="assets/crop_voucher_cgv_active.png" alt="CGV 50% discount for cinema + 1 free Fanta">
+        </div>
+        <div class="voucher-card" data-voucher="CINEPOLIS">
+          <img src="assets/crop_voucher_cinepolis_active.png" alt="Cinépolis Buy 1 Get 1 cinema voucher + 1 free Fanta">
+        </div>
+        <div class="voucher-card voucher-card-center" data-voucher="XXI">
+          <img src="assets/crop_voucher_xxi_active.png" alt="XXI 25k discount for cinema + free 1 Fanta">
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. GAME ARENA SCREEN -->
+    <section id="screen-game" class="screen hidden">
+      <div class="game-header-panel">
+        <div id="health-bar" class="health-bar-container">
+          <!-- Render 5 health bottle icons dynamically -->
+        </div>
+        <div class="timer-box">
+          <span class="timer-label">WAKTU</span>
+          <span id="timer-display" class="timer-val">30s</span>
+        </div>
+      </div>
+
+      <div id="graves-grid" class="graves-grid-container">
+        <!-- 3x3 Graves slots dynamically rendered in JS -->
+      </div>
+    </section>
+
+    <!-- 4. WINNER SCREEN -->
+    <section id="screen-win" class="screen hidden">
+      <div class="result-header">
+        <img src="assets/crop_winner_header.png" alt="Emang Paling Gercep, Fanta Aman">
+      </div>
+
+      <div class="result-actions">
+        <div class="result-row-btn">
+          <button class="img-btn btn-share">
+            <img src="assets/crop_btn_share.png" alt="Share">
+          </button>
+          <button class="img-btn btn-main-lagi">
+            <img src="assets/crop_btn_main_lagi.png" alt="Main Lagi">
+          </button>
+        </div>
+        <button class="img-btn btn-ambil-voucher btn-ambil-voucher-win">
+          <img src="assets/crop_btn_ambil_voucher.png" alt="Ambil Voucher Di Sini">
+        </button>
+      </div>
+    </section>
+
+    <!-- 5. LOSE SCREEN -->
+    <section id="screen-lose" class="screen hidden">
+      <div class="result-header">
+        <img src="assets/crop_lose_header.png" alt="Haussss... Yah Fantanya Udah Habis!">
+      </div>
+
+      <div class="result-actions">
+        <div class="result-row-btn">
+          <button class="img-btn btn-share">
+            <img src="assets/crop_btn_share_lose.png" alt="Share">
+          </button>
+          <button class="img-btn btn-main-lagi">
+            <img src="assets/crop_btn_main_lagi_lose.png" alt="Main Lagi">
+          </button>
+        </div>
+        <button class="img-btn btn-ambil-voucher btn-ambil-voucher-lose">
+          <img src="assets/crop_btn_ambil_voucher_lose.png" alt="Ambil Voucher Di Sini">
+        </button>
+      </div>
+    </section>
+
+    <!-- MODAL: CARA BERMAIN -->
+    <div id="modal-cara-bermain" class="modal-overlay hidden">
+      <div class="modal-cara-bermain-box">
+        <h2 class="cara-bermain-title">👻 CARA BERMAIN</h2>
+        
+        <div class="cara-bermain-rules">
+          <div class="rule-block">
+            <h3>1. LIHAT KUBURANNYA</h3>
+            <p>Botol Fanta segar akan muncul secara acak dari salah satu kuburan. Segera ketuk (tap) botolnya secepat mungkin untuk mempertahankan nyawamu.</p>
+          </div>
+
+          <div class="rule-block">
+            <h3>2. GEBUK TANGAN JAILNYA!</h3>
+            <p>Awas! Tangan pucat Suzzanna akan ikut keluar dari dalam kuburan untuk mencuri Fantamu. Segera ketuk berkali-kali (tap) tangan Suzzanna sebelum dia berhasil membawa kabur botol tersebut.</p>
+          </div>
+
+          <div class="rule-block">
+            <h3>3. AMANKAN NYAWAMU</h3>
+            <p>Kamu memiliki 5 nyawa yang digambarkan sebagai botol Fanta di bagian atas layar. Setiap kali Suzzanna berhasil mencuri Fanta, nyawamu akan berkurang 1.</p>
+          </div>
+
+          <div class="rule-block">
+            <h3>4. BERTAHAN 30 DETIK</h3>
+            <p>Pertahankan stok Fantamu! Jika kamu bisa bertahan selama 30 detik dengan minimal 1 sisa botol Fanta di health-bar, kamu menang dan Fanta aman dari gentayangan!</p>
+          </div>
+        </div>
+
+        <button id="btn-close-cara-bermain" class="btn-tutup-green">
+          <img src="assets/crop_btn_tutup_green.png" alt="TUTUP">
+        </button>
+      </div>
+    </div>
+
+    <!-- MODAL: UPLOAD STRUK -->
+    <div id="modal-upload-struk" class="modal-overlay hidden">
+      <div class="modal-content">
+        <h2 class="modal-title">🧾 UPLOAD STRUK</h2>
+        <p id="upload-voucher-target-text" class="result-voucher-info" style="margin-bottom: 10px; font-size: 0.9rem;"></p>
+        <form id="form-upload-struk" class="upload-form">
+          <div class="form-group">
+            <label for="input-name">Nama Lengkap</label>
+            <input type="text" id="input-name" placeholder="Masukkan nama kamu" required>
+          </div>
+          <div class="form-group">
+            <label for="input-phone">Nomor WhatsApp / HP</label>
+            <input type="tel" id="input-phone" placeholder="0812xxxxxxx" required>
+          </div>
+          <div class="form-group">
+            <label for="input-receipt-file">Foto Struk Pembelian FANTA</label>
+            <input type="file" id="input-receipt-file" accept="image/*" required>
+          </div>
+          <div id="receipt-status-msg"></div>
+          <button type="submit" class="submit-btn">KIRIM STRUK</button>
+        </form>
+        <button id="btn-close-upload-struk" class="close-btn">BATAL</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/sound.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

@@ -1,0 +1,746 @@
+/*
+  FANTA Horror Game - CSS Design System & Layout Styles
+  Clean layout without background duplication or overlapping elements.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Creepster&display=swap');
+
+:root {
+  --fanta-orange: #FF6600;
+  --fanta-dark-orange: #CC4400;
+  --fanta-yellow: #FFAA00;
+  --horror-purple: #1A0B2E;
+  --horror-dark: #0B0514;
+  --horror-green: #2BFF88;
+  --text-light: #FFFFFF;
+  --text-muted: #D1C4E9;
+  --font-primary: 'Outfit', sans-serif;
+  --font-horror: 'Creepster', cursive;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+body {
+  background-color: #05020A;
+  color: var(--text-light);
+  font-family: var(--font-primary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* App Viewport Container (9:19.5 aspect ratio) */
+#app-container {
+  position: relative;
+  width: 100vw;
+  max-width: 440px;
+  height: 100vh;
+  max-height: 920px;
+  background-color: var(--horror-dark);
+  box-shadow: 0 0 50px rgba(255, 102, 0, 0.25), 0 0 100px rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255, 102, 0, 0.3);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Utility classes */
+.hidden {
+  display: none !important;
+}
+
+/* Floating Audio & Dev Controls */
+.top-controls-bar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+}
+
+.icon-btn {
+  background: rgba(26, 11, 46, 0.88);
+  border: 1.5px solid var(--fanta-orange);
+  color: var(--fanta-yellow);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  transition: transform 0.15s ease, background-color 0.2s ease;
+}
+
+.icon-btn:active {
+  transform: scale(0.92);
+}
+
+.icon-btn.muted {
+  border-color: #888;
+  color: #aaa;
+  background: rgba(40,40,40,0.85);
+}
+
+/* Screens Base */
+.screen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 55px 16px 20px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* ====================================
+   1. LANDING PAGE (LP)
+==================================== */
+#screen-lp {
+  background-image: url('assets/clean_lp_bg.png');
+}
+
+.lp-header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 10px;
+  flex-shrink: 0;
+}
+
+.lp-header img {
+  width: 75%;
+  max-width: 260px;
+  height: auto;
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.8));
+}
+
+/* Main buttons arranged side-by-side in a row */
+.lp-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+  margin-bottom: 16px;
+  padding: 0 10px;
+}
+
+.img-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.15s ease, filter 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.lp-actions .img-btn {
+  width: 46%;
+  max-width: 170px;
+}
+
+.img-btn img {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.7));
+}
+
+.img-btn:hover {
+  transform: scale(1.04);
+  filter: brightness(1.1);
+}
+
+.img-btn:active {
+  transform: scale(0.95);
+}
+
+.lp-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-link img {
+  height: 34px;
+  width: auto;
+}
+
+.tnc-text {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+}
+
+/* ====================================
+   2. VOUCHER SELECTION SCREEN
+==================================== */
+#screen-voucher-select {
+  background-image: url('assets/clean_select_voucher_bg.png');
+}
+
+.voucher-header {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+  flex-shrink: 0;
+}
+
+.voucher-header img {
+  width: 75%;
+  max-width: 250px;
+  height: auto;
+}
+
+.voucher-grid {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: auto 0;
+  padding: 0 6px;
+}
+
+.voucher-card {
+  width: 47%;
+  max-width: 170px;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.voucher-card.voucher-card-center {
+  width: 47%;
+  max-width: 170px;
+}
+
+.voucher-card img {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.7));
+}
+
+.voucher-card:hover {
+  transform: translateY(-3px) scale(1.03);
+}
+
+.voucher-card.quota-out {
+  filter: grayscale(1) opacity(0.65);
+  cursor: not-allowed;
+}
+
+/* ====================================
+   3. GAME ARENA SCREEN (30s SURVIVAL)
+==================================== */
+#screen-game {
+  background-image: url('assets/game_bg.png');
+  padding: 16px 12px 16px;
+}
+
+/* Header Panel (Nyawa + Timer) */
+.game-header-panel {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(11, 5, 20, 0.88);
+  border: 2px solid var(--fanta-orange);
+  border-radius: 18px;
+  margin-top: 30px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.8), inset 0 0 15px rgba(255, 102, 0, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.health-bar-container {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.health-bottle {
+  width: 22px;
+  height: 44px;
+  background-image: url('assets/crop_fanta_health_icon.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: opacity 0.3s ease, transform 0.3s ease, filter 0.3s ease;
+}
+
+.health-bottle.empty {
+  opacity: 0.25;
+  filter: grayscale(1) blur(1px);
+  transform: scale(0.85);
+}
+
+.timer-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timer-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.timer-val {
+  font-family: var(--font-primary);
+  font-size: 1.7rem;
+  font-weight: 900;
+  color: var(--fanta-yellow);
+  text-shadow: 0 0 10px rgba(255, 170, 0, 0.8);
+}
+
+.timer-val.urgent {
+  color: #FF2244;
+  animation: timerPulse 0.5s infinite alternate;
+}
+
+@keyframes timerPulse {
+  from { transform: scale(1); text-shadow: 0 0 10px #FF2244; }
+  to { transform: scale(1.15); text-shadow: 0 0 20px #FF0000, 0 0 30px #FF0000; }
+}
+
+/* 3x3 Graves Grid */
+.graves-grid-container {
+  position: relative;
+  width: 100%;
+  height: 68vh;
+  max-height: 560px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 10px;
+  padding: 8px;
+  margin-top: auto;
+}
+
+.grave-slot {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  overflow: visible;
+  cursor: pointer;
+}
+
+.slot-target-container {
+  position: absolute;
+  bottom: 10%;
+  width: 85%;
+  height: 85%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.target-element {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  opacity: 0;
+  transform: translateY(100%);
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
+  pointer-events: auto;
+}
+
+/* Fanta Bottle Target */
+.fanta-bottle {
+  background-image: url('assets/crop_fanta_bottle_grave.png');
+}
+
+/* Suzzanna Hand Target */
+.suzzanna-hand {
+  background-image: url('assets/crop_suzzanna_steal_bottle.png');
+}
+
+.tap-counter-badge {
+  position: absolute;
+  top: -15px;
+  background: #FF2244;
+  color: #FFF;
+  font-size: 0.75rem;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 2px solid #FFF;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 10;
+}
+
+.tap-counter-badge.hit-shake {
+  animation: badgeShake 0.15s ease-in-out;
+}
+
+@keyframes badgeShake {
+  0% { transform: scale(1.2) rotate(0deg); }
+  25% { transform: scale(1.3) rotate(-10deg); }
+  75% { transform: scale(1.3) rotate(10deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* Active Slot States */
+.grave-slot.active-bottle .fanta-bottle {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.grave-slot.active-suzzanna .suzzanna-hand {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.grave-slot.active-suzzanna .tap-counter-badge {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.grave-slot.saved .fanta-bottle,
+.grave-slot.suzzanna-defeated .suzzanna-hand {
+  animation: savePop 0.35s ease-out forwards;
+}
+
+@keyframes savePop {
+  0% { transform: scale(1) translateY(0); opacity: 1; }
+  50% { transform: scale(1.25) translateY(-20px); opacity: 0.8; }
+  100% { transform: scale(0.5) translateY(40px); opacity: 0; }
+}
+
+/* Frozen Effect directly on targets (No blue rectangle box) */
+.grave-slot.freezing .suzzanna-hand,
+.grave-slot.freezing .fanta-bottle {
+  filter: drop-shadow(0 0 20px #00E5FF) hue-rotate(160deg) brightness(1.3);
+  transform: translateY(100%);
+  opacity: 0;
+  transition: transform 0.6s ease-in, opacity 0.6s ease-in, filter 0.3s ease;
+}
+
+/* ====================================
+   4. WINNER & LOSE SCREENS
+==================================== */
+#screen-win {
+  background-image: url('assets/clean_winner_bg.png');
+}
+
+#screen-lose {
+  background-image: url('assets/clean_lose_bg.png');
+}
+
+.result-header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 15px;
+}
+
+.result-header img {
+  width: 82%;
+  max-width: 290px;
+  height: auto;
+  filter: drop-shadow(0 0 12px rgba(43, 255, 34, 0.7));
+}
+
+.result-voucher-info {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--fanta-yellow);
+  text-align: center;
+  margin-top: 10px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+}
+
+.result-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.btn-ambil-voucher {
+  width: 85%;
+  max-width: 280px;
+}
+
+.result-row-btn {
+  display: flex;
+  gap: 10px;
+  width: 85%;
+  max-width: 280px;
+  justify-content: center;
+}
+
+.result-row-btn .img-btn {
+  width: 48%;
+}
+
+/* ====================================
+   5. MODAL OVERLAYS ("Cara Bermain", "Upload Struk")
+==================================== */
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  z-index: 200;
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* CARA BERMAIN MODAL (Matching Brief Screenshot Design) */
+.modal-cara-bermain-box {
+  width: 90%;
+  max-width: 330px;
+  background: linear-gradient(180deg, #091C0E 0%, #040E07 100%);
+  border: 2.5px solid #2BFF22;
+  border-radius: 20px;
+  padding: 20px 16px 18px;
+  box-shadow: 0 0 25px rgba(43, 255, 34, 0.5), inset 0 0 15px rgba(43, 255, 34, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.cara-bermain-title {
+  font-family: var(--font-primary);
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #FFFFFF;
+  text-align: center;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 10px rgba(43, 255, 34, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cara-bermain-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.rule-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rule-block h3 {
+  color: #FFFFFF;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.rule-block p {
+  color: #D2F5D5;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  font-weight: 400;
+}
+
+.btn-tutup-green {
+  background: none;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  width: 55%;
+  max-width: 160px;
+  margin-top: 6px;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.btn-tutup-green img {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 4px 12px rgba(43, 255, 34, 0.4));
+}
+
+.btn-tutup-green:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
+.btn-tutup-green:active {
+  transform: scale(0.95);
+}
+
+.modal-title {
+  font-family: var(--font-horror);
+  font-size: 1.7rem;
+  color: var(--fanta-yellow);
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.modal-body {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #E2D9F3;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rule-item {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px 12px;
+  border-radius: 12px;
+  border-left: 4px solid var(--fanta-orange);
+}
+
+.rule-item h4 {
+  color: var(--fanta-orange);
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+/* Upload Receipt Form */
+.upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--fanta-yellow);
+}
+
+.form-group input {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 102, 0, 0.5);
+  border-radius: 10px;
+  color: #FFF;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.form-group input:focus {
+  border-color: var(--fanta-yellow);
+  box-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #FF6600, #CC3300);
+  color: #FFF;
+  font-weight: 800;
+  font-size: 0.9rem;
+  padding: 11px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(255, 102, 0, 0.4);
+  transition: transform 0.15s ease;
+}
+
+.submit-btn:active {
+  transform: scale(0.96);
+}
+
+.status-msg {
+  font-size: 0.8rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.status-msg.success {
+  background: rgba(43, 255, 136, 0.15);
+  color: var(--horror-green);
+  border: 1px solid var(--horror-green);
+}
+
+.close-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--text-muted);
+  padding: 10px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.2s ease;
+}
+
+.close-btn:hover {
+  background: rgba(255,255,255,0.2);
+  color: #FFF;
+}
