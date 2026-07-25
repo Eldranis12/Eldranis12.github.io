@@ -62,15 +62,31 @@ export const CONFIG = {
   multiplayerUrl: (url.get('mp_url') || MP_URL_DEFAULT).replace(/\/+$/, ''),
 
   // simulasi hasil pemain lain untuk demo/uji TY page multiplayer,
-  // contoh: ?others=Nadia:450,Bima:300 (dihapus saat server multiplayer jadi)
-  mockOthers: (url.get('others') || '')
-    .split(',')
-    .filter(Boolean)
-    .slice(0, 3)
-    .map(s => {
-      const [nickname, score] = s.split(':');
-      return { nickname: nickname || 'Player', score: parseInt(score, 10) || 0 };
-    }),
+  // contoh: ?others=3 atau ?others=Nadia:15000,Bima:7000,Rian:5000
+  mockOthers: (() => {
+    const raw = url.get('others');
+    if (!raw) return [];
+    const num = parseInt(raw, 10);
+    if (!isNaN(num) && !raw.includes(':')) {
+      const defaults = [
+        { nickname: 'User name 1', score: 15000 },
+        { nickname: 'User name 2', score: 7000 },
+        { nickname: 'User name 3', score: 5000 },
+      ];
+      return defaults.slice(0, Math.min(num, 3));
+    }
+    return raw
+      .split(',')
+      .filter(Boolean)
+      .slice(0, 3)
+      .map((s, i) => {
+        const [nickname, score] = s.split(':');
+        return {
+          nickname: nickname || `User name ${i + 1}`,
+          score: parseInt(score, 10) || (15000 - i * 4000),
+        };
+      });
+  })(),
 
   // endpoint kiosk vendor (diisi saat detail API tersedia)
   kioskStartUrl: url.get('kiosk_start_url') || '',

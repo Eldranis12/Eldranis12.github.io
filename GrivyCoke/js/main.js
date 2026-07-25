@@ -134,7 +134,7 @@ function updateWaiting(st) {
   const bottleEl = $('.waiting-bottle');
   if (liquid && bottleEl) {
     const pct = Math.min(1, count / max);
-    const h = bottleEl.offsetHeight || 747;
+    const h = bottleEl.offsetHeight || 485;
     liquid.style.transform = `translateY(${Math.round(h * (1 - pct))}px)`;
   }
 }
