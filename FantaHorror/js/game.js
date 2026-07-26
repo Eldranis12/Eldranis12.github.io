@@ -346,6 +346,8 @@ class FantaHorrorGame {
 
     clearAllSlots() {
         this.slots.forEach(slot => {
+            if (slot.attackTimeout) clearTimeout(slot.attackTimeout);
+            if (slot.stealTimeout) clearTimeout(slot.stealTimeout);
             if (slot.timeoutId) clearTimeout(slot.timeoutId);
             slot.status = 'empty';
             slot.tapsLeft = 0;
@@ -380,39 +382,34 @@ class FantaHorrorGame {
         const emptySlots = this.slots.filter(s => s.status === 'empty');
         if (emptySlots.length === 0) return;
 
-        const spawnCount = Math.min(emptySlots.length, Math.random() < 0.4 ? 2 : 1);
+        // Randomly spawn 1 to 4 bottles at once (bisa langsung 3 atau 4)
+        const maxSpawn = Math.min(emptySlots.length, 4);
+        const spawnCount = Math.floor(Math.random() * maxSpawn) + 1;
         
         for (let i = 0; i < spawnCount; i++) {
             const randomIndex = Math.floor(Math.random() * emptySlots.length);
             const slot = emptySlots.splice(randomIndex, 1)[0];
-
-            const isSuzzanna = Math.random() < 0.35;
-
-            if (isSuzzanna) {
-                this.spawnSuzzanna(slot);
-            } else {
-                this.spawnBottle(slot);
-            }
+            this.spawnBottle(slot);
         }
     }
 
     spawnBottle(slot) {
+        if (slot.attackTimeout) clearTimeout(slot.attackTimeout);
+        if (slot.stealTimeout) clearTimeout(slot.stealTimeout);
+
         slot.status = 'bottle';
         slot.el.className = 'grave-slot active-bottle popping';
         window.soundManager.playSfx('rockCracks');
 
-        slot.timeoutId = setTimeout(() => {
-            if (slot.status === 'bottle') {
-                slot.status = 'empty';
-                slot.el.className = 'grave-slot retracting';
-                setTimeout(() => {
-                    if (slot.status === 'empty') slot.el.className = 'grave-slot';
-                }, 300);
+        // If bottle is not tapped after 1 second, Suzzanna's hand appears to try to grab it!
+        slot.attackTimeout = setTimeout(() => {
+            if (slot.status === 'bottle' && this.gameState === 'PLAYING') {
+                this.transitionToSuzzannaAttack(slot);
             }
-        }, 1800);
+        }, 1000);
     }
 
-    spawnSuzzanna(slot) {
+    transitionToSuzzannaAttack(slot) {
         slot.status = 'suzzanna';
         slot.tapsLeft = 3;
         slot.el.className = 'grave-slot active-suzzanna popping';
@@ -420,21 +417,22 @@ class FantaHorrorGame {
         const tapBadge = slot.el.querySelector('.tap-counter-badge');
         if (tapBadge) tapBadge.textContent = `TAP 3X!`;
 
-        window.soundManager.playSfx('rockCracks');
         window.soundManager.playSfx('witchLaugh');
 
-        slot.timeoutId = setTimeout(() => {
-            if (slot.status === 'suzzanna') {
+        // If user doesn't tap Suzzanna's hand 3 times within 1.5 seconds, she steals & freezes the bottle!
+        slot.stealTimeout = setTimeout(() => {
+            if (slot.status === 'suzzanna' && this.gameState === 'PLAYING') {
                 this.handleSuzzannaSteal(slot);
             }
-        }, 2200);
+        }, 1500);
     }
 
     handleSlotTap(slot) {
         if (this.gameState !== 'PLAYING') return;
 
         if (slot.status === 'bottle') {
-            if (slot.timeoutId) clearTimeout(slot.timeoutId);
+            // User saved the standard bottle before Suzzanna appeared!
+            if (slot.attackTimeout) clearTimeout(slot.attackTimeout);
             slot.status = 'saved';
             slot.el.className = 'grave-slot saved';
             window.soundManager.playSfx('punch');
@@ -445,6 +443,7 @@ class FantaHorrorGame {
             }, 350);
 
         } else if (slot.status === 'suzzanna') {
+            // User is multi-tapping Suzzanna's hand to shoo her away!
             slot.tapsLeft--;
             window.soundManager.playSfx('punch');
 
@@ -456,7 +455,8 @@ class FantaHorrorGame {
             }
 
             if (slot.tapsLeft <= 0) {
-                if (slot.timeoutId) clearTimeout(slot.timeoutId);
+                // Successfully shooed Suzzanna away!
+                if (slot.stealTimeout) clearTimeout(slot.stealTimeout);
                 slot.status = 'saved';
                 slot.el.className = 'grave-slot suzzanna-defeated';
                 window.soundManager.playSfx('femaleScream');
@@ -464,7 +464,7 @@ class FantaHorrorGame {
                 setTimeout(() => {
                     slot.status = 'empty';
                     slot.el.className = 'grave-slot';
-                }, 500);
+                }, 450);
             }
         }
     }
