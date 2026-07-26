@@ -212,19 +212,18 @@ class FantaHorrorGame {
             const targetContainer = document.createElement('div');
             targetContainer.className = 'slot-target-container';
 
-            const bottleEl = document.createElement('div');
-            bottleEl.className = 'target-element fanta-bottle';
-
             const suzzannaEl = document.createElement('div');
             suzzannaEl.className = 'target-element suzzanna-hand';
 
-            const tapBadge = document.createElement('div');
-            tapBadge.className = 'tap-counter-badge';
-            tapBadge.textContent = 'TAP 3X!';
+            const bottleEl = document.createElement('div');
+            bottleEl.className = 'target-element fanta-bottle';
 
-            targetContainer.appendChild(bottleEl);
+            const stolenEl = document.createElement('div');
+            stolenEl.className = 'target-element suzzanna-stolen';
+
             targetContainer.appendChild(suzzannaEl);
-            targetContainer.appendChild(tapBadge);
+            targetContainer.appendChild(bottleEl);
+            targetContainer.appendChild(stolenEl);
 
             slotEl.appendChild(targetContainer);
             this.ui.gravesGrid.appendChild(slotEl);
@@ -414,17 +413,14 @@ class FantaHorrorGame {
         slot.tapsLeft = 3;
         slot.el.className = 'grave-slot active-suzzanna popping';
         
-        const tapBadge = slot.el.querySelector('.tap-counter-badge');
-        if (tapBadge) tapBadge.textContent = `TAP 3X!`;
-
         window.soundManager.playSfx('witchLaugh');
 
-        // If user doesn't tap Suzzanna's hand 3 times within 1.5 seconds, she steals & freezes the bottle!
+        // Gives player 3 seconds to tap Suzzanna's hand 3 times to shoo her away!
         slot.stealTimeout = setTimeout(() => {
             if (slot.status === 'suzzanna' && this.gameState === 'PLAYING') {
                 this.handleSuzzannaSteal(slot);
             }
-        }, 1500);
+        }, 3000);
     }
 
     handleSlotTap(slot) {
@@ -446,13 +442,6 @@ class FantaHorrorGame {
             // User is multi-tapping Suzzanna's hand to shoo her away!
             slot.tapsLeft--;
             window.soundManager.playSfx('punch');
-
-            const tapBadge = slot.el.querySelector('.tap-counter-badge');
-            if (tapBadge) {
-                tapBadge.textContent = slot.tapsLeft > 0 ? `TAP ${slot.tapsLeft}X!` : `DEFENDED!`;
-                tapBadge.classList.add('hit-shake');
-                setTimeout(() => tapBadge.classList.remove('hit-shake'), 150);
-            }
 
             if (slot.tapsLeft <= 0) {
                 // Successfully shooed Suzzanna away!
