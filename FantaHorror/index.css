@@ -372,7 +372,7 @@ body {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 90px;
+  width: 100%;
   height: 125px;
   display: flex;
   justify-content: center;
@@ -407,7 +407,7 @@ body {
   transform: translateX(-50%) translateY(100%);
   width: 100%;
   height: 100%;
-  background-size: auto 100%;
+  background-size: contain;
   background-repeat: no-repeat;
   background-position: bottom center;
   opacity: 0;
@@ -421,13 +421,17 @@ body {
   transform: translateX(-50%) translateY(0);
 }
 
-.grave-slot.active-suzzanna .fanta-bottle,
-.grave-slot.active-suzzanna .suzzanna-hand {
+.grave-slot.active-suzzanna .fanta-bottle {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
 
-/* 1. Standard Green Fanta Bottle */
+.grave-slot.active-suzzanna .suzzanna-hand {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.3) translateY(-6px);
+}
+
+/* 1. Standard Green Fanta Bottle (Padded 192x425 px asset) */
 .fanta-bottle {
   background-image: url('assets/crop_fanta_bottle_grave.png');
   z-index: 2;
@@ -437,9 +441,11 @@ body {
 .suzzanna-hand {
   background-image: url('assets/crop_suzzanna_hand.png');
   z-index: 1;
+  transform: translateX(-50%) scale(1.3) translateY(-6px);
+  transform-origin: bottom center;
 }
 
-/* 3. Suzzanna Frozen Blue Bottle (Appears when defense fails) */
+/* 3. Suzzanna Frozen Blue Bottle (192x425 px asset - 1:1 exact match to green bottle) */
 .suzzanna-stolen {
   background-image: url('assets/crop_suzzanna_steal_bottle.png');
   z-index: 3;
