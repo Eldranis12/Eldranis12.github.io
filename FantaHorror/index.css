@@ -346,14 +346,14 @@ body {
 .graves-grid-container {
   position: relative;
   width: 100%;
-  height: 65vh;
-  max-height: 520px;
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  gap: 6px;
-  padding: 0 8px 12px;
-  margin-top: auto;
+  gap: 4px;
+  padding: 10px 8px 10px;
+  margin-top: 10px;
+  margin-bottom: 20px;
 }
 
 .grave-slot {
@@ -369,10 +369,11 @@ body {
 
 .slot-target-container {
   position: absolute;
-  bottom: 24%;
-  left: 15%;
-  width: 70%;
-  height: 65%;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 125px;
   display: flex;
   justify-content: center;
   align-items: flex-end;
@@ -413,10 +414,10 @@ body {
   z-index: 3;
 }
 
-/* Visual Debug Tap Badge */
+/* Visual Debug Tap Badge - Positioned ABOVE the bottle cap */
 .tap-counter-badge {
   position: absolute;
-  top: 5px;
+  top: -26px;
   left: 50%;
   transform: translateX(-50%) scale(0.9);
   background: #FF2244;
@@ -654,115 +655,4 @@ body {
 
 .btn-tutup-green:active {
   transform: scale(0.95);
-}
-
-.modal-title {
-  font-family: var(--font-horror);
-  font-size: 1.7rem;
-  color: var(--fanta-yellow);
-  text-align: center;
-  letter-spacing: 1px;
-}
-
-.modal-body {
-  font-size: 0.8rem;
-  line-height: 1.5;
-  color: #E2D9F3;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rule-item {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 10px 12px;
-  border-radius: 12px;
-  border-left: 4px solid var(--fanta-orange);
-}
-
-.rule-item h4 {
-  color: var(--fanta-orange);
-  margin-bottom: 4px;
-  font-size: 0.9rem;
-}
-
-/* Upload Receipt Form */
-.upload-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.form-group label {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--fanta-yellow);
-}
-
-.form-group input {
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 102, 0, 0.5);
-  border-radius: 10px;
-  color: #FFF;
-  font-size: 0.85rem;
-  outline: none;
-}
-
-.form-group input:focus {
-  border-color: var(--fanta-yellow);
-  box-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
-}
-
-.submit-btn {
-  background: linear-gradient(135deg, #FF6600, #CC3300);
-  color: #FFF;
-  font-weight: 800;
-  font-size: 0.9rem;
-  padding: 11px;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(255, 102, 0, 0.4);
-  transition: transform 0.15s ease;
-}
-
-.submit-btn:active {
-  transform: scale(0.96);
-}
-
-.status-msg {
-  font-size: 0.8rem;
-  padding: 8px 12px;
-  border-radius: 8px;
-  text-align: center;
-}
-
-.status-msg.success {
-  background: rgba(43, 255, 136, 0.15);
-  color: var(--horror-green);
-  border: 1px solid var(--horror-green);
-}
-
-.close-btn {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: var(--text-muted);
-  padding: 10px;
-  border-radius: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  text-align: center;
-  transition: background-color 0.2s ease;
-}
-
-.close-btn:hover {
-  background: rgba(255,255,255,0.2);
-  color: #FFF;
 }

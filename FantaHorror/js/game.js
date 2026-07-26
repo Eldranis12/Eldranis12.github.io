@@ -49,8 +49,7 @@ class FantaHorrorGame {
             };
 
             this.modals = {
-                caraBermain: document.getElementById('modal-cara-bermain'),
-                uploadStruk: document.getElementById('modal-upload-struk')
+                caraBermain: document.getElementById('modal-cara-bermain')
             };
 
             this.ui = {
@@ -60,8 +59,7 @@ class FantaHorrorGame {
                 quotaToggleBtn: document.getElementById('quota-toggle-btn'),
                 audioToggleBtn: document.getElementById('audio-toggle-btn'),
                 selectedVoucherWin: document.getElementById('selected-voucher-win-text'),
-                selectedVoucherLose: document.getElementById('selected-voucher-lose-text'),
-                uploadVoucherTargetText: document.getElementById('upload-voucher-target-text')
+                selectedVoucherLose: document.getElementById('selected-voucher-lose-text')
             };
 
             this.bindEvents();
@@ -107,26 +105,10 @@ class FantaHorrorGame {
             this.showModal('caraBermain');
         });
 
-        // Modal close buttons
+        // Modal close button
         document.getElementById('btn-close-cara-bermain')?.addEventListener('click', () => {
             window.soundManager.playSfx('buttonClick');
             this.hideModal('caraBermain');
-        });
-
-        document.getElementById('btn-close-upload-struk')?.addEventListener('click', () => {
-            window.soundManager.playSfx('buttonClick');
-            this.hideModal('uploadStruk');
-        });
-
-        // Form Submission for Upload Receipt
-        document.getElementById('form-upload-struk')?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            window.soundManager.playSfx('buttonClick');
-            const receiptAlert = document.getElementById('receipt-status-msg');
-            if (receiptAlert) {
-                receiptAlert.textContent = `Struk berhasil dikirim! Kupon Voucher ${this.selectedVoucher || 'FANTA'} kamu sedang diproses.`;
-                receiptAlert.className = 'status-msg success';
-            }
         });
 
         // Voucher Cards Selection Logic ("PILIH VOUCHER DULU YUK")
@@ -143,13 +125,7 @@ class FantaHorrorGame {
                 window.soundManager.playSfx('buttonClick');
                 this.selectedVoucher = voucherType;
 
-                if (this.entryMode === 'UPLOAD_RECEIPT') {
-                    // Upload Receipt Flow: Open Receipt Upload Form for this specific voucher
-                    if (this.ui.uploadVoucherTargetText) {
-                        this.ui.uploadVoucherTargetText.textContent = `Target Voucher: ${voucherType}`;
-                    }
-                    this.showModal('uploadStruk');
-                } else if (this.entryMode === 'CLAIM_WINNER_VOUCHER') {
+                if (this.entryMode === 'CLAIM_WINNER_VOUCHER') {
                     // Winner Voucher Claim Flow
                     alert(`Selamat! Voucher ${this.selectedVoucher} berhasil diklaim untuk menonton bioskop pilihanmu!`);
                 } else {
