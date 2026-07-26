@@ -363,7 +363,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  overflow: hidden;
+  overflow: visible;
   cursor: pointer;
 }
 
@@ -377,8 +377,27 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
+}
+
+/* Row-specific vertical offset to align bottles precisely over perspective fire mounds */
+.grave-slot[data-id="0"] .slot-target-container,
+.grave-slot[data-id="1"] .slot-target-container,
+.grave-slot[data-id="2"] .slot-target-container {
+  bottom: 0px;
+}
+
+.grave-slot[data-id="3"] .slot-target-container,
+.grave-slot[data-id="4"] .slot-target-container,
+.grave-slot[data-id="5"] .slot-target-container {
+  bottom: 45px;
+}
+
+.grave-slot[data-id="6"] .slot-target-container,
+.grave-slot[data-id="7"] .slot-target-container,
+.grave-slot[data-id="8"] .slot-target-container {
+  bottom: 85px;
 }
 
 .target-element {
@@ -402,22 +421,26 @@ body {
   z-index: 2;
 }
 
-/* 2. Suzzanna Open Pale Hand (Rises Behind Green Bottle) */
+/* 2. Suzzanna Open Pale Hand (Large menacing hand reaching up behind bottle) */
 .suzzanna-hand {
   background-image: url('assets/crop_suzzanna_hand.png');
   z-index: 1;
+  transform: scale(1.45) translateY(-8px);
+  transform-origin: bottom center;
 }
 
-/* 3. Suzzanna Frozen Blue Bottle (Appears when defense fails) */
+/* 3. Suzzanna Frozen Blue Bottle (Scaled 1:1 to match green bottle) */
 .suzzanna-stolen {
   background-image: url('assets/crop_suzzanna_steal_bottle.png');
   z-index: 3;
+  transform: scale(0.65) translateY(15px);
+  transform-origin: bottom center;
 }
 
 /* Visual Debug Tap Badge - Positioned ABOVE the bottle cap */
 .tap-counter-badge {
   position: absolute;
-  top: -26px;
+  top: -28px;
   left: 50%;
   transform: translateX(-50%) scale(0.9);
   background: #FF2244;
