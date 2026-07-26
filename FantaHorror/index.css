@@ -372,7 +372,7 @@ body {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 60px;
+  width: 90px;
   height: 125px;
   display: flex;
   justify-content: center;
@@ -403,16 +403,28 @@ body {
 .target-element {
   position: absolute;
   bottom: 0;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
   width: 100%;
   height: 100%;
-  background-size: contain;
+  background-size: auto 100%;
   background-repeat: no-repeat;
   background-position: bottom center;
   opacity: 0;
-  transform: translateY(100%);
   transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
   pointer-events: auto;
+}
+
+/* Active popping state */
+.grave-slot.active-bottle .fanta-bottle {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.grave-slot.active-suzzanna .fanta-bottle,
+.grave-slot.active-suzzanna .suzzanna-hand {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 /* 1. Standard Green Fanta Bottle */
@@ -421,20 +433,16 @@ body {
   z-index: 2;
 }
 
-/* 2. Suzzanna Open Pale Hand (Large menacing hand reaching up behind bottle) */
+/* 2. Suzzanna Open Pale Hand (Rises Behind Green Bottle) */
 .suzzanna-hand {
   background-image: url('assets/crop_suzzanna_hand.png');
   z-index: 1;
-  transform: scale(1.45) translateY(-8px);
-  transform-origin: bottom center;
 }
 
-/* 3. Suzzanna Frozen Blue Bottle (Scaled 1:1 to match green bottle) */
+/* 3. Suzzanna Frozen Blue Bottle (Appears when defense fails) */
 .suzzanna-stolen {
   background-image: url('assets/crop_suzzanna_steal_bottle.png');
   z-index: 3;
-  transform: scale(0.65) translateY(15px);
-  transform-origin: bottom center;
 }
 
 /* Visual Debug Tap Badge - Positioned ABOVE the bottle cap */
@@ -477,14 +485,14 @@ body {
 /* Active Slot States */
 .grave-slot.active-bottle .fanta-bottle {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
 }
 
 /* Suzzanna attack: Green bottle in front, open pale hand behind */
 .grave-slot.active-suzzanna .fanta-bottle,
 .grave-slot.active-suzzanna .suzzanna-hand {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
 }
 
 /* Saved animation */
@@ -496,9 +504,9 @@ body {
 }
 
 @keyframes savePop {
-  0% { transform: scale(1) translateY(0); opacity: 1; }
-  50% { transform: scale(1.2) translateY(-15px); opacity: 0.8; }
-  100% { transform: scale(0.4) translateY(30px); opacity: 0; }
+  0% { transform: translateX(-50%) scale(1) translateY(0); opacity: 1; }
+  50% { transform: translateX(-50%) scale(1.2) translateY(-15px); opacity: 0.8; }
+  100% { transform: translateX(-50%) scale(0.4) translateY(30px); opacity: 0; }
 }
 
 /* Steal & Freezing state when player fails to tap 3 times within 3 seconds */
@@ -509,7 +517,7 @@ body {
 
 .grave-slot.freezing .suzzanna-stolen {
   opacity: 1;
-  transform: translateY(100%);
+  transform: translateX(-50%) translateY(100%);
   transition: transform 0.6s ease-in, opacity 0.6s ease-in;
 }
 
