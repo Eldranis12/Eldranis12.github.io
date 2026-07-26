@@ -221,9 +221,14 @@ class FantaHorrorGame {
             const stolenEl = document.createElement('div');
             stolenEl.className = 'target-element suzzanna-stolen';
 
+            const tapBadge = document.createElement('div');
+            tapBadge.className = 'tap-counter-badge';
+            tapBadge.textContent = 'TAP 3X!';
+
             targetContainer.appendChild(suzzannaEl);
             targetContainer.appendChild(bottleEl);
             targetContainer.appendChild(stolenEl);
+            targetContainer.appendChild(tapBadge);
 
             slotEl.appendChild(targetContainer);
             this.ui.gravesGrid.appendChild(slotEl);
@@ -412,6 +417,11 @@ class FantaHorrorGame {
         slot.status = 'suzzanna';
         slot.tapsLeft = 3;
         slot.el.className = 'grave-slot active-suzzanna popping';
+
+        const tapBadge = slot.el.querySelector('.tap-counter-badge');
+        if (tapBadge) {
+            tapBadge.textContent = 'TAP 3X!';
+        }
         
         window.soundManager.playSfx('witchLaugh');
 
@@ -442,6 +452,13 @@ class FantaHorrorGame {
             // User is multi-tapping Suzzanna's hand to shoo her away!
             slot.tapsLeft--;
             window.soundManager.playSfx('punch');
+
+            const tapBadge = slot.el.querySelector('.tap-counter-badge');
+            if (tapBadge) {
+                tapBadge.textContent = slot.tapsLeft > 0 ? `TAP ${slot.tapsLeft}X!` : `DEFENDED!`;
+                tapBadge.classList.add('hit-shake');
+                setTimeout(() => tapBadge.classList.remove('hit-shake'), 150);
+            }
 
             if (slot.tapsLeft <= 0) {
                 // Successfully shooed Suzzanna away!
