@@ -129,8 +129,8 @@ class FantaHorrorGame {
                     // Winner Voucher Claim Flow
                     alert(`Selamat! Voucher ${this.selectedVoucher} berhasil diklaim untuk menonton bioskop pilihanmu!`);
                 } else {
-                    // Default Game Flow: Launch 30s Survival Game!
-                    this.startGame();
+                    // Upload Struk Flow: each option leads to its campaign link (brief: "setiap opsi akan menuju link campaign"), NOT the survival game
+                    alert(`Menuju link campaign voucher ${this.selectedVoucher}...`);
                 }
             });
         });
@@ -453,7 +453,7 @@ class FantaHorrorGame {
 
     handleSuzzannaSteal(slot) {
         slot.status = 'frozen';
-        slot.el.className = 'grave-slot suzzanna-stolen freezing';
+        slot.el.className = 'grave-slot stolen freezing';
         window.soundManager.playSfx('iceFreeze');
 
         this.health = Math.max(0, this.health - 1);

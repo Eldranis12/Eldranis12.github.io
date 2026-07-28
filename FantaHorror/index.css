@@ -11,7 +11,7 @@
   --fanta-yellow: #FFAA00;
   --horror-purple: #1A0B2E;
   --horror-dark: #0B0514;
-  --horror-green: #2BFF88;
+  --horror-green: #2BFF22;
   --text-light: #FFFFFF;
   --text-muted: #D1C4E9;
   --font-primary: 'Outfit', sans-serif;
@@ -326,8 +326,8 @@ body {
   font-size: 2.3rem;
   font-weight: 900;
   color: #05020A;
-  -webkit-text-stroke: 2.5px #02E661;
-  text-shadow: 0 0 14px rgba(2, 230, 97, 0.9), 0 0 4px #02E661;
+  -webkit-text-stroke: 2.5px #2BFF22;
+  text-shadow: 0 0 14px rgba(43, 255, 34, 0.9), 0 0 4px #2BFF22;
   letter-spacing: -0.5px;
 }
 
@@ -420,6 +420,7 @@ body {
   transform: translateX(-50%) translateY(0);
 }
 
+/* Suzzanna attack: standard bottle stays in front, ghost hand rises behind it */
 .grave-slot.active-suzzanna .fanta-bottle {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
@@ -444,7 +445,7 @@ body {
   transform-origin: bottom center;
 }
 
-/* 3. Suzzanna Frozen Blue Bottle (192x425 px asset - 1:1 exact match to green bottle) */
+/* 3. Hand grips the bottle and drags it into the grave once stolen — frozen only at this final pull */
 .suzzanna-stolen {
   background-image: url('assets/crop_suzzanna_steal_bottle.png');
   z-index: 3;
@@ -487,22 +488,8 @@ body {
   100% { transform: translateX(-50%) scale(1) rotate(0deg); }
 }
 
-/* Active Slot States */
-.grave-slot.active-bottle .fanta-bottle {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-/* Suzzanna attack: Green bottle in front, open pale hand behind */
-.grave-slot.active-suzzanna .fanta-bottle,
-.grave-slot.active-suzzanna .suzzanna-hand {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
 /* Saved animation */
 .grave-slot.saved .fanta-bottle,
-.grave-slot.saved .suzzanna-hand,
 .grave-slot.suzzanna-defeated .fanta-bottle,
 .grave-slot.suzzanna-defeated .suzzanna-hand {
   animation: savePop 0.35s ease-out forwards;

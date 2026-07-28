@@ -70,7 +70,8 @@ class SoundManager {
 
         if (this.sounds[key]) {
             this.currentBgm = this.sounds[key];
-            this.currentBgm.currentTime = 0;
+            // Brief: Dark Ambiance track skips its first 5 seconds
+            this.currentBgm.currentTime = key === 'darkAmbiance' ? 5 : 0;
             this.currentBgm.play().catch(e => {
                 console.log('BGM playback pending user interaction:', e);
             });
