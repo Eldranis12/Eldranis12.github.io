@@ -4,10 +4,39 @@
  * Updated to remove rectangular ice overlay box and apply frozen effect directly to targets.
  */
 
+/*
+ * Grivy campaign config — source: "Fanta Horror Q3_26 - Game URLs - Channels".
+ * Set CHANNEL to 0 for the staging/testing channel, 1 for the live campaign.
+ * In production the game is served from fun.fanta.id/c/fanta-horror-game-922,
+ * so the coupon API call is same-origin.
+ */
+const CHANNEL = 1;
+
+const CHANNELS = [
+    {   // 0 - Testing
+        domain: 'https://stage.grivy.app',
+        cinemaMain: 'fanta-horror-testing-main-cinema',
+        fantaMain: 'fanta-horror-testing-main-voucher'
+    },
+    {   // 1 - Real Campaign
+        domain: 'https://fun.fanta.id',
+        cinemaMain: 'fanta-horror-196',
+        fantaMain: 'fanta-horror-564'
+    }
+];
+
+const GRIVY = CHANNELS[CHANNEL];
+const campaignUrl = code => `${GRIVY.domain}/c/${code}`;
+
+// Difficulty tuning: share of bottles Suzzanna never grabs, and how long they linger
+// before sinking back. Raise the chance to make the game more forgiving.
+const SAFE_BOTTLE_CHANCE = 0.25;
+const SAFE_BOTTLE_LIFETIME_MS = 2500;
+
 class FantaHorrorGame {
     constructor() {
         this.gameState = 'LP'; // 'LP', 'VOUCHER_SELECT', 'PLAYING', 'WIN', 'LOSE'
-        this.entryMode = 'GAME'; // 'GAME', 'UPLOAD_RECEIPT', 'CLAIM_WINNER_VOUCHER'
+        this.entryMode = 'GAME'; // 'GAME', 'CLAIM_WINNER_VOUCHER'
         this.timer = 30;
         this.timerInterval = null;
         this.spawnerInterval = null;
@@ -15,7 +44,13 @@ class FantaHorrorGame {
         this.health = 5;
         this.maxHealth = 5;
         this.selectedVoucher = null; // 'CGV', 'CINEPOLIS', 'XXI'
-        
+
+        // Coupon availability per campaign, resolved from the Grivy API on load.
+        // Default true = fail open: a live campaign is never hidden because the check failed;
+        // the Grivy landing page is the real source of truth if coupons ran out mid-session.
+        this.cinemaAvailable = true;
+        this.fantaAvailable = true;
+
         // Quota state for testing (true = active 'PILIH', false = habis 'HABIS')
         this.voucherQuota = {
             CGV: true,
@@ -65,7 +100,47 @@ class FantaHorrorGame {
             this.bindEvents();
             this.renderGraveGrid();
             this.switchScreen('LP');
+            this.checkCouponQuota();
         });
+    }
+
+    /*
+     * Grivy "campaigns-check-active" API. A campaign only counts as available when it is
+     * active AND still has coupons; anything else (inactive, finished, missing from the
+     * response) hides its CTA. Network/parse failures leave the defaults untouched.
+     */
+    async checkCouponQuota() {
+        try {
+            const res = await fetch(`${GRIVY.domain}/api/games/campaigns-check-active`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    campaign_public_codes: [GRIVY.cinemaMain, GRIVY.fantaMain]
+                })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const data = await res.json();
+            if (!Array.isArray(data)) throw new Error('unexpected response shape');
+
+            const available = code => {
+                const c = data.find(item => item && item.public_code === code);
+                return !!(c && c.campaign_active && !c.coupons_finished);
+            };
+            this.cinemaAvailable = available(GRIVY.cinemaMain);
+            this.fantaAvailable = available(GRIVY.fantaMain);
+        } catch (err) {
+            console.warn('Coupon quota check failed, keeping CTAs visible:', err);
+        }
+
+        this.applyQuotaUI();
+    }
+
+    // Re-applies coupon-dependent CTA visibility to whichever screen is showing.
+    applyQuotaUI() {
+        document.getElementById('btn-upload-struk')?.classList.toggle('hidden', !this.cinemaAvailable);
+        document.querySelector('.btn-ambil-voucher-win')?.classList.toggle('hidden', !this.fantaAvailable);
+        document.querySelector('.btn-ambil-voucher-lose')?.classList.toggle('hidden', !this.fantaAvailable);
     }
 
     bindEvents() {
@@ -76,13 +151,12 @@ class FantaHorrorGame {
             this.ui.audioToggleBtn.setAttribute('aria-label', isMuted ? 'Unmute Audio' : 'Mute Audio');
         });
 
-        // Quota toggle for testing (Toggles active vs quota out states)
+        // Quota toggle for testing: simulates the "Kupon Habis" state without touching the API
         this.ui.quotaToggleBtn?.addEventListener('click', () => {
             window.soundManager.playSfx('buttonClick');
-            this.voucherQuota.CGV = !this.voucherQuota.CGV;
-            this.voucherQuota.CINEPOLIS = !this.voucherQuota.CINEPOLIS;
-            this.voucherQuota.XXI = !this.voucherQuota.XXI;
-            this.updateVoucherUI();
+            this.cinemaAvailable = !this.cinemaAvailable;
+            this.fantaAvailable = !this.fantaAvailable;
+            this.applyQuotaUI();
         });
 
         // LP Button 1: "MAIN GAME" (Starts 30s Game directly as shown in Slide 3!)
@@ -92,11 +166,10 @@ class FantaHorrorGame {
             this.startGame();
         });
 
-        // LP Button 2: "UPLOAD STRUK DEMI VOUCHER" (Leads to Prize Options "PILIH VOUCHER DULU YUK" as shown in Slide 2!)
+        // LP Button 2: "UPLOAD STRUK & AMBIL VOUCHERNYA" -> Grivy cinema-voucher campaign page
         document.getElementById('btn-upload-struk')?.addEventListener('click', () => {
             window.soundManager.playSfx('buttonClick');
-            this.entryMode = 'UPLOAD_RECEIPT';
-            this.switchScreen('VOUCHER_SELECT');
+            window.location.href = campaignUrl(GRIVY.cinemaMain);
         });
 
         // LP Bottom Link: "CARA BERMAIN"
@@ -125,13 +198,9 @@ class FantaHorrorGame {
                 window.soundManager.playSfx('buttonClick');
                 this.selectedVoucher = voucherType;
 
-                if (this.entryMode === 'CLAIM_WINNER_VOUCHER') {
-                    // Winner Voucher Claim Flow
-                    alert(`Selamat! Voucher ${this.selectedVoucher} berhasil diklaim untuk menonton bioskop pilihanmu!`);
-                } else {
-                    // Upload Struk Flow: each option leads to its campaign link (brief: "setiap opsi akan menuju link campaign"), NOT the survival game
-                    alert(`Menuju link campaign voucher ${this.selectedVoucher}...`);
-                }
+                // This screen is now only reached via the winner's "AMBIL VOUCHER DI SINI" claim flow
+                // ("Upload Struk" redirects off-app to Grivy instead, per brief "Kupon Habis" v2)
+                alert(`Selamat! Voucher ${this.selectedVoucher} berhasil diklaim untuk menonton bioskop pilihanmu!`);
             });
         });
 
@@ -159,20 +228,12 @@ class FantaHorrorGame {
             });
         });
 
-        // Winner Screen: "AMBIL VOUCHER DI SINI" -> Leads to Voucher Selection screen to choose prize!
-        document.querySelectorAll('.btn-ambil-voucher-win').forEach(btn => {
+        // Win & Lose Screens: "YAKALI GAK MAU FANTA" -> Grivy Fanta-voucher campaign page.
+        // Hidden entirely when that campaign's coupons are finished (brief "Kupon Habis").
+        document.querySelectorAll('.btn-ambil-voucher').forEach(btn => {
             btn.addEventListener('click', () => {
                 window.soundManager.playSfx('buttonClick');
-                this.entryMode = 'CLAIM_WINNER_VOUCHER';
-                this.switchScreen('VOUCHER_SELECT');
-            });
-        });
-
-        // Lose Screen: "AMBIL VOUCHER DI SINI" -> Disabled / inactive as shown in Slide 3
-        document.querySelectorAll('.btn-ambil-voucher-lose').forEach(btn => {
-            btn.addEventListener('click', () => {
-                window.soundManager.playSfx('buttonClick');
-                alert('Fantamu habis diambil Suzzanna! Main lagi dan bertahan selama 30 detik untuk mendapatkan voucher.');
+                window.location.href = campaignUrl(GRIVY.fantaMain);
             });
         });
     }
@@ -247,6 +308,7 @@ class FantaHorrorGame {
             if (this.ui.selectedVoucherWin) {
                 this.ui.selectedVoucherWin.textContent = `EMANG PALING GERCEP, FANTA AMAN!`;
             }
+            this.applyQuotaUI();
             window.soundManager.stopBgm();
             window.soundManager.playSfx('winPiano');
         } else if (screenName === 'LOSE') {
@@ -254,6 +316,7 @@ class FantaHorrorGame {
             if (this.ui.selectedVoucherLose) {
                 this.ui.selectedVoucherLose.textContent = `HAUSSSS..... YAH FANTANYA UDAH HABIS!!!`;
             }
+            this.applyQuotaUI();
             window.soundManager.stopBgm();
             window.soundManager.playSfx('gameOver');
         }
@@ -380,6 +443,20 @@ class FantaHorrorGame {
         slot.status = 'bottle';
         slot.el.className = 'grave-slot active-bottle popping';
         window.soundManager.playSfx('rockCracks');
+
+        // A share of bottles are "safe": Suzzanna never grabs them, so missing one costs
+        // nothing. They linger a while, then sink back on their own. Looks identical to a
+        // normal bottle, so the player still reacts to everything -- it just softens the
+        // punishment for the ones they miss.
+        if (Math.random() < SAFE_BOTTLE_CHANCE) {
+            slot.attackTimeout = setTimeout(() => {
+                if (slot.status === 'bottle' && this.gameState === 'PLAYING') {
+                    slot.status = 'empty';
+                    slot.el.className = 'grave-slot';
+                }
+            }, SAFE_BOTTLE_LIFETIME_MS);
+            return;
+        }
 
         // If bottle is not tapped after 1 second, Suzzanna's hand appears to try to grab it!
         slot.attackTimeout = setTimeout(() => {

@@ -4,8 +4,8 @@
     {
       "name": "fanta-horror",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8642"],
-      "port": 8642
+      "runtimeArgs": ["-m", "http.server", "8651"],
+      "port": 8651
     }
   ]
 }
