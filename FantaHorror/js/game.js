@@ -264,9 +264,13 @@ class FantaHorrorGame {
                 const data = await res.json();
                 if (!Array.isArray(data)) throw new Error('unexpected response shape');
 
+                window.lastGrivyResponse = data;
+                window.lastGrivyError = null;
+
                 logGrivyDebug('API Response: Check Coupon Quota', {
                     httpStatus: `${res.status} OK`,
-                    responseData: data
+                    responseData: data,
+                    tip: 'Type "lastGrivyResponse" in console to view raw data'
                 });
 
                 const available = code => {
@@ -294,9 +298,12 @@ class FantaHorrorGame {
                     voucherQuota: this.voucherQuota
                 });
             } catch (err) {
+                window.lastGrivyResponse = null;
+                window.lastGrivyError = err.message || String(err);
                 logGrivyDebug('Coupon Quota API Check Failed / Fallback Active', {
                     error: err.message || err,
-                    fallbackState: 'Keep CTAs visible (Fail Open)'
+                    fallbackState: 'Keep CTAs visible (Fail Open)',
+                    tip: 'Type "lastGrivyError" in console for error details'
                 }, true);
             } finally {
                 clearTimeout(requestTimeout);
