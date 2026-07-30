@@ -3,7 +3,29 @@
   Clean layout without background duplication or overlapping elements.
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Creepster&display=swap');
+@font-face {
+  font-family: 'Bebas Neue Pro';
+  src: url('Fanta Horror_Q3_26/Assets/FONT/Bebas-Neue-Pro-Book-BF66cf3d779e1f9.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bebas Neue Pro';
+  src: url('Fanta Horror_Q3_26/Assets/FONT/Bebas-Neue-Pro-Bold-BF66cf3d7770dfe.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bebas Neue Pro Expanded';
+  src: url('Fanta Horror_Q3_26/Assets/FONT/Bebas-Neue-Pro-Expanded-ExtraBold-BF66cf3d793166e.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   --fanta-orange: #FF6600;
@@ -14,8 +36,9 @@
   --horror-green: #2BFF22;
   --text-light: #FFFFFF;
   --text-muted: #D1C4E9;
-  --font-primary: 'Outfit', sans-serif;
-  --font-horror: 'Creepster', cursive;
+  --font-primary: 'Bebas Neue Pro', 'Arial Narrow', sans-serif;
+  --font-expanded: 'Bebas Neue Pro Expanded', 'Arial Narrow', sans-serif;
+  --font-horror: 'Bebas Neue Pro Expanded', 'Arial Narrow', sans-serif;
 }
 
 * {
@@ -298,9 +321,8 @@ body {
 }
 
 .health-bottle {
-  width: 24px;
-  height: 48px;
-  background-image: url('assets/crop_fanta_health_icon.png');
+  width: 22px;
+  height: 70px;
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -308,14 +330,16 @@ body {
 }
 
 .health-bottle.full {
+  background-image: url('Fanta Horror_Q3_26/Assets/Nyawa.png');
   opacity: 1;
   filter: drop-shadow(0 2px 6px rgba(0,255,102,0.4));
 }
 
 .health-bottle.empty {
-  opacity: 0.3;
-  filter: brightness(0.12) desaturate(100%);
-  transform: scale(0.92);
+  background-image: url('Fanta Horror_Q3_26/Assets/Nyawa hilang.png');
+  opacity: 1;
+  filter: none;
+  transform: none;
 }
 
 .timer-box {
@@ -325,7 +349,7 @@ body {
 }
 
 .timer-val {
-  font-family: var(--font-primary);
+  font-family: var(--font-expanded);
   font-size: 2.3rem;
   font-weight: 900;
   color: #05020A;
@@ -434,10 +458,26 @@ body {
   transform: translateX(-50%) scale(1.4) translateY(-6px);
 }
 
-/* 1. Standard Green Fanta Bottle (Padded 192x425 px asset) */
+/* Four approved FANTA packshots. The flavor class is assigned per grave slot. */
 .fanta-bottle {
-  background-image: url('assets/crop_fanta_bottle_grave.png');
+  background-image: url('Fanta Horror_Q3_26/Assets/Packshots Orange.png');
   z-index: 2;
+}
+
+.grave-slot.flavor-orange .fanta-bottle {
+  background-image: url('Fanta Horror_Q3_26/Assets/Packshots Orange.png');
+}
+
+.grave-slot.flavor-strawberry .fanta-bottle {
+  background-image: url('Fanta Horror_Q3_26/Assets/Packshots Strawberry.png');
+}
+
+.grave-slot.flavor-fruit-punch .fanta-bottle {
+  background-image: url('Fanta Horror_Q3_26/Assets/Packshots Fruit Punch.png');
+}
+
+.grave-slot.flavor-grape .fanta-bottle {
+  background-image: url('Fanta Horror_Q3_26/Assets/Packshots Grape.png');
 }
 
 /* 2. Suzzanna Open Pale Hand (Rises Behind Green Bottle) */
@@ -450,12 +490,29 @@ body {
 
 /* 3. Hand grips the bottle and drags it into the grave once stolen — frozen only at this final pull */
 .suzzanna-stolen {
-  background-image: url('assets/crop_suzzanna_steal_bottle.png');
+  background-image: url('Fanta Horror_Q3_26/Assets/BOTTLE-TAKE-BY-SUZZANA-Orange.png');
   z-index: 3;
+}
+
+.grave-slot.flavor-orange .suzzanna-stolen {
+  background-image: url('Fanta Horror_Q3_26/Assets/BOTTLE-TAKE-BY-SUZZANA-Orange.png');
+}
+
+.grave-slot.flavor-strawberry .suzzanna-stolen {
+  background-image: url('Fanta Horror_Q3_26/Assets/BOTTLE-TAKE-BY-SUZZANA-Strawberry.png');
+}
+
+.grave-slot.flavor-fruit-punch .suzzanna-stolen {
+  background-image: url('Fanta Horror_Q3_26/Assets/BOTTLE-TAKE-BY-SUZZANA-Fruit punch.png');
+}
+
+.grave-slot.flavor-grape .suzzanna-stolen {
+  background-image: url('Fanta Horror_Q3_26/Assets/BOTTLE-TAKE-BY-SUZZANA-Grape.png');
 }
 
 /* Visual Debug Tap Badge - Positioned ABOVE the bottle cap */
 .tap-counter-badge {
+  font-family: var(--font-expanded);
   position: absolute;
   top: -28px;
   left: 50%;
@@ -652,44 +709,24 @@ body {
 #screen-lp.coupon-out #btn-main-game,
 #screen-lp.coupon-out .lp-footer .btn-link {
   top: 73%;
-  width: 40%;
-  height: 5.8%;
+  width: 40.74%;
+  height: 8.21%;
   pointer-events: auto;
 }
 
 #screen-lp.coupon-out #btn-main-game {
-  left: 52%;
+  left: 50.93%;
   opacity: 1;
-  border: 2px solid #2bff22;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #b7ddb3 0%, #54bf43 48%, #159c0d 100%);
-  box-shadow: 0 0 10px rgba(43, 255, 34, 0.75);
-}
-
-#screen-lp.coupon-out #btn-main-game img {
-  visibility: hidden;
-}
-
-#screen-lp.coupon-out #btn-main-game::after {
-  content: 'MAIN GAME';
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: clamp(0.72rem, 4vw, 1.1rem);
-  font-weight: 900;
-  text-shadow: 0 1px 2px #073b05;
 }
 
 #screen-lp.coupon-out .lp-footer .btn-link {
-  left: 8%;
+  left: 8.33%;
   opacity: 1;
 }
 
 #screen-lp.coupon-out .tnc-text {
   position: absolute;
-  top: 80%;
+  top: 82%;
   left: 0;
   width: 100%;
   opacity: 1;

@@ -16,22 +16,89 @@ const CHANNELS = [
     {   // 0 - Testing
         domain: 'https://stage.grivy.app',
         cinemaMain: 'fanta-horror-testing-main-cinema',
-        fantaMain: 'fanta-horror-testing-main-voucher'
+        fantaMain: 'fanta-horror-testing-main-voucher',
+        childCampaigns: {
+            cinema: [],
+            fanta: []
+        }
     },
     {   // 1 - Real Campaign
         domain: 'https://fun.fanta.id',
         cinemaMain: 'fanta-horror-196',
-        fantaMain: 'fanta-horror-564'
+        fantaMain: 'fanta-horror-564',
+        childCampaigns: {
+            cinema: [],
+            fanta: []
+        }
     }
 ];
 
-const GRIVY = CHANNELS[CHANNEL];
+/*
+ * Grivy may inject the real child campaign public codes before game.js loads:
+ *
+ * window.FANTA_HORROR_CONFIG = {
+ *   childCampaigns: {
+ *     cinema: [
+ *       { name: 'CGV', code: 'public-code' },
+ *       { name: 'Cinepolis', code: 'public-code' },
+ *       { name: 'XXI', code: 'public-code' },
+ *       { name: 'Platinum', code: 'public-code' }
+ *     ],
+ *     fanta: [
+ *       { name: 'Alfamart', code: 'public-code' },
+ *       { name: 'Indomaret', code: 'public-code' }
+ *     ]
+ *   },
+ *   appOrigin: 'https://grivy.app'
+ * };
+ */
+const RUNTIME_CONFIG = window.FANTA_HORROR_CONFIG || {};
+const GRIVY = {
+    ...CHANNELS[CHANNEL],
+    ...RUNTIME_CONFIG,
+    childCampaigns: {
+        ...CHANNELS[CHANNEL].childCampaigns,
+        ...(RUNTIME_CONFIG.childCampaigns || {})
+    }
+};
 const campaignUrl = code => `${GRIVY.domain}/c/${code}`;
+const normalizeCampaigns = campaigns => (campaigns || [])
+    .map(campaign => typeof campaign === 'string' ? { code: campaign } : campaign)
+    .filter(campaign => campaign && campaign.code);
+
+const GRIVY_ACTIONS = {
+    getPrize: 'GET_PRIZE',
+    getVoucher: 'GET_VOUCHER'
+};
+
+function triggerGrivyAction(action, campaignCode) {
+    const payload = {
+        source: 'fanta-horror-game',
+        type: GRIVY_ACTIONS[action],
+        action,
+        campaignCode
+    };
+
+    // Useful for hosts that mount the game in the same document.
+    window.dispatchEvent(new CustomEvent(`fanta-horror:${action}`, {
+        detail: payload
+    }));
+
+    // The Grivy app can listen to this when the game is embedded in an iframe/webview.
+    if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, GRIVY.appOrigin || '*');
+        return;
+    }
+
+    // Standalone/local browser fallback.
+    window.location.href = campaignUrl(campaignCode);
+}
 
 // Difficulty tuning: share of bottles Suzzanna never grabs, and how long they linger
 // before sinking back. Raise the chance to make the game more forgiving.
 const SAFE_BOTTLE_CHANCE = 0.25;
 const SAFE_BOTTLE_LIFETIME_MS = 2500;
+const BOTTLE_FLAVORS = ['orange', 'strawberry', 'fruit-punch', 'grape'];
 
 class FantaHorrorGame {
     constructor() {
@@ -64,6 +131,7 @@ class FantaHorrorGame {
             status: 'empty', // 'empty', 'bottle', 'suzzanna', 'saved', 'frozen'
             tapsLeft: 0,
             timeoutId: null,
+            flavor: null,
             el: null
         }));
 
@@ -105,17 +173,28 @@ class FantaHorrorGame {
     }
 
     /*
-     * Grivy "campaigns-check-active" API. A campaign only counts as available when it is
-     * active AND still has coupons; anything else (inactive, finished, missing from the
-     * response) hides its CTA. Network/parse failures leave the defaults untouched.
+     * Grivy "campaigns-check-active" API. Availability for each main page is aggregated
+     * from its child campaigns. A main page stays available when at least one child is
+     * active and still has coupons. Until child public codes are injected, this falls
+     * back to the main campaign code so existing environments remain testable.
      */
     async checkCouponQuota() {
         try {
+            const cinemaChildren = normalizeCampaigns(GRIVY.childCampaigns.cinema);
+            const fantaChildren = normalizeCampaigns(GRIVY.childCampaigns.fanta);
+            const cinemaCodes = cinemaChildren.length
+                ? cinemaChildren.map(campaign => campaign.code)
+                : [GRIVY.cinemaMain];
+            const fantaCodes = fantaChildren.length
+                ? fantaChildren.map(campaign => campaign.code)
+                : [GRIVY.fantaMain];
+            const campaignCodes = [...new Set([...cinemaCodes, ...fantaCodes])];
+
             const res = await fetch(`${GRIVY.domain}/api/games/campaigns-check-active`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    campaign_public_codes: [GRIVY.cinemaMain, GRIVY.fantaMain]
+                    campaign_public_codes: campaignCodes
                 })
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -127,8 +206,20 @@ class FantaHorrorGame {
                 const c = data.find(item => item && item.public_code === code);
                 return !!(c && c.campaign_active && !c.coupons_finished);
             };
-            this.cinemaAvailable = available(GRIVY.cinemaMain);
-            this.fantaAvailable = available(GRIVY.fantaMain);
+            this.cinemaAvailable = cinemaCodes.some(available);
+            this.fantaAvailable = fantaCodes.some(available);
+
+            const cinemaAvailability = Object.fromEntries(
+                cinemaChildren.map(campaign => [
+                    String(campaign.name || '').toUpperCase(),
+                    available(campaign.code)
+                ])
+            );
+            ['CGV', 'CINEPOLIS', 'XXI'].forEach(voucher => {
+                if (voucher in cinemaAvailability) {
+                    this.voucherQuota[voucher] = cinemaAvailability[voucher];
+                }
+            });
         } catch (err) {
             console.warn('Coupon quota check failed, keeping CTAs visible:', err);
         }
@@ -192,7 +283,7 @@ class FantaHorrorGame {
         // LP Button 2: "UPLOAD STRUK & AMBIL VOUCHERNYA" -> Grivy cinema-voucher campaign page
         document.getElementById('btn-upload-struk')?.addEventListener('click', () => {
             window.soundManager.playSfx('buttonClick');
-            window.location.href = campaignUrl(GRIVY.cinemaMain);
+            triggerGrivyAction('getVoucher', GRIVY.cinemaMain);
         });
 
         // LP Bottom Link: "CARA BERMAIN"
@@ -256,7 +347,7 @@ class FantaHorrorGame {
         document.querySelectorAll('.btn-ambil-voucher').forEach(btn => {
             btn.addEventListener('click', () => {
                 window.soundManager.playSfx('buttonClick');
-                window.location.href = campaignUrl(GRIVY.fantaMain);
+                triggerGrivyAction('getPrize', GRIVY.fantaMain);
             });
         });
     }
@@ -417,10 +508,18 @@ class FantaHorrorGame {
             if (slot.timeoutId) clearTimeout(slot.timeoutId);
             slot.status = 'empty';
             slot.tapsLeft = 0;
+            slot.flavor = null;
             if (slot.el) {
                 slot.el.className = 'grave-slot';
             }
         });
+    }
+
+    setSlotClass(slot, ...stateClasses) {
+        const flavorClass = slot.flavor ? `flavor-${slot.flavor}` : '';
+        slot.el.className = ['grave-slot', flavorClass, ...stateClasses]
+            .filter(Boolean)
+            .join(' ');
     }
 
     updateHealthUI() {
@@ -464,7 +563,8 @@ class FantaHorrorGame {
         if (slot.stealTimeout) clearTimeout(slot.stealTimeout);
 
         slot.status = 'bottle';
-        slot.el.className = 'grave-slot active-bottle popping';
+        slot.flavor = BOTTLE_FLAVORS[Math.floor(Math.random() * BOTTLE_FLAVORS.length)];
+        this.setSlotClass(slot, 'active-bottle', 'popping');
         window.soundManager.playSfx('rockCracks');
 
         // A share of bottles are "safe": Suzzanna never grabs them, so missing one costs
@@ -475,6 +575,7 @@ class FantaHorrorGame {
             slot.attackTimeout = setTimeout(() => {
                 if (slot.status === 'bottle' && this.gameState === 'PLAYING') {
                     slot.status = 'empty';
+                    slot.flavor = null;
                     slot.el.className = 'grave-slot';
                 }
             }, SAFE_BOTTLE_LIFETIME_MS);
@@ -492,7 +593,7 @@ class FantaHorrorGame {
     transitionToSuzzannaAttack(slot) {
         slot.status = 'suzzanna';
         slot.tapsLeft = 3;
-        slot.el.className = 'grave-slot active-suzzanna popping';
+        this.setSlotClass(slot, 'active-suzzanna', 'popping');
 
         const tapBadge = slot.el.querySelector('.tap-counter-badge');
         if (tapBadge) {
@@ -516,11 +617,12 @@ class FantaHorrorGame {
             // User saved the standard bottle before Suzzanna appeared!
             if (slot.attackTimeout) clearTimeout(slot.attackTimeout);
             slot.status = 'saved';
-            slot.el.className = 'grave-slot saved';
+            this.setSlotClass(slot, 'saved');
             window.soundManager.playSfx('punch');
 
             setTimeout(() => {
                 slot.status = 'empty';
+                slot.flavor = null;
                 slot.el.className = 'grave-slot';
             }, 350);
 
@@ -540,11 +642,12 @@ class FantaHorrorGame {
                 // Successfully shooed Suzzanna away!
                 if (slot.stealTimeout) clearTimeout(slot.stealTimeout);
                 slot.status = 'saved';
-                slot.el.className = 'grave-slot suzzanna-defeated';
+                this.setSlotClass(slot, 'suzzanna-defeated');
                 window.soundManager.playSfx('femaleScream');
 
                 setTimeout(() => {
                     slot.status = 'empty';
+                    slot.flavor = null;
                     slot.el.className = 'grave-slot';
                 }, 450);
             }
@@ -553,7 +656,7 @@ class FantaHorrorGame {
 
     handleSuzzannaSteal(slot) {
         slot.status = 'frozen';
-        slot.el.className = 'grave-slot stolen freezing';
+        this.setSlotClass(slot, 'stolen', 'freezing');
         window.soundManager.playSfx('iceFreeze');
 
         this.health = Math.max(0, this.health - 1);
@@ -561,6 +664,7 @@ class FantaHorrorGame {
 
         setTimeout(() => {
             slot.status = 'empty';
+            slot.flavor = null;
             slot.el.className = 'grave-slot';
         }, 600);
 
