@@ -74,24 +74,6 @@ function logGrivyDebug(title, data, isError = false) {
         console.log('Data / Payload:', data);
         console.groupEnd();
     }
-
-    // Auto-inject on-screen visual debug HUD at the bottom of the screen
-    let debugHud = document.getElementById('grivy-debug-hud');
-    if (!debugHud) {
-        debugHud = document.createElement('div');
-        debugHud.id = 'grivy-debug-hud';
-        debugHud.style.cssText = 'position:fixed;bottom:4px;left:4px;right:4px;background:rgba(8,16,10,0.92);color:#00FF88;font-family:Consolas,monospace;font-size:10px;padding:8px 10px;border-radius:8px;border:1px solid #00FF88;z-index:99999;max-height:140px;overflow-y:auto;pointer-events:auto;box-shadow:0 0 12px rgba(0,255,136,0.4);';
-        document.body.appendChild(debugHud);
-    }
-    const logItem = document.createElement('div');
-    logItem.style.marginBottom = '4px';
-    logItem.style.borderBottom = '1px dashed rgba(0,255,136,0.2)';
-    logItem.style.paddingBottom = '3px';
-    logItem.style.color = isError ? '#FF5555' : '#00FF88';
-    
-    const formattedData = typeof data === 'object' ? JSON.stringify(data, null, 1) : String(data);
-    logItem.innerHTML = `<span style="color:#FFF;">[${time}]</span> <strong>${title}:</strong> <span style="color:${isError ? '#FF8888' : '#AAFFDD'};">${formattedData}</span>`;
-    debugHud.prepend(logItem);
 }
 
 function triggerGrivyAction(action, campaignCode) {
