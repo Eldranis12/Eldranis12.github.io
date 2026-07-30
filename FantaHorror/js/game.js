@@ -133,11 +133,34 @@ class FantaHorrorGame {
             console.warn('Coupon quota check failed, keeping CTAs visible:', err);
         }
 
+        // Local/QA preview only. Production still follows the Grivy API unless this
+        // explicit query parameter is supplied.
+        const couponPreview = new URLSearchParams(window.location.search).get('coupon');
+        if (couponPreview === 'out') {
+            this.cinemaAvailable = false;
+            this.fantaAvailable = false;
+        } else if (couponPreview === 'active') {
+            this.cinemaAvailable = true;
+            this.fantaAvailable = true;
+        }
+
         this.applyQuotaUI();
+
+        const screenPreview = new URLSearchParams(window.location.search).get('screen');
+        if (screenPreview === 'win') this.switchScreen('WIN');
+        if (screenPreview === 'lose') this.switchScreen('LOSE');
     }
 
     // Re-applies coupon-dependent CTA visibility to whichever screen is showing.
     applyQuotaUI() {
+        const lpScreen = document.getElementById('screen-lp');
+        const winScreen = document.getElementById('screen-win');
+        const loseScreen = document.getElementById('screen-lose');
+
+        lpScreen?.classList.toggle('coupon-out', !this.cinemaAvailable);
+        winScreen?.classList.toggle('coupon-out', !this.fantaAvailable);
+        loseScreen?.classList.toggle('coupon-out', !this.fantaAvailable);
+
         document.getElementById('btn-upload-struk')?.classList.toggle('hidden', !this.cinemaAvailable);
         document.querySelector('.btn-ambil-voucher-win')?.classList.toggle('hidden', !this.fantaAvailable);
         document.querySelector('.btn-ambil-voucher-lose')?.classList.toggle('hidden', !this.fantaAvailable);

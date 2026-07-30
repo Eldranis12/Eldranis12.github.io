@@ -38,17 +38,20 @@ body {
   overflow: hidden;
 }
 
-/* App Viewport Container (9:19.5 aspect ratio) */
+/* App Viewport Container (approved 6:13 PSD artboard) */
 #app-container {
   position: relative;
-  width: 100vw;
-  max-width: 440px;
-  height: 100vh;
-  max-height: 920px;
+  /* Every approved PSD is 1080 x 2340 (6:13).  Keeping this artboard ratio
+     prevents the portrait artwork from being cropped on common phone sizes. */
+  width: min(100vw, calc(100vh * 6 / 13));
+  height: min(100vh, calc(100vw * 13 / 6));
+  max-width: 540px;
+  max-height: 1170px;
+  aspect-ratio: 6 / 13;
   background-color: var(--horror-dark);
   box-shadow: 0 0 50px rgba(255, 102, 0, 0.25), 0 0 100px rgba(0, 0, 0, 0.9);
-  border: 1px solid rgba(255, 102, 0, 0.3);
-  border-radius: 20px;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -118,7 +121,7 @@ body {
    1. LANDING PAGE (LP)
 ==================================== */
 #screen-lp {
-  background-image: url('assets/clean_lp_bg.png');
+  background-image: url('assets/Fanta-Horor-LP Game_full.png');
 }
 
 .lp-header {
@@ -211,7 +214,7 @@ body {
    2. VOUCHER SELECTION SCREEN
 ==================================== */
 #screen-voucher-select {
-  background-image: url('assets/clean_select_voucher_bg.png');
+  background-image: url('assets/Fanta-Horor-Select options_full.png');
 }
 
 .voucher-header {
@@ -531,12 +534,198 @@ body {
    4. WINNER & LOSE SCREENS
 ==================================== */
 #screen-win {
-  background-image: url('assets/clean_winner_bg.png');
+  background-image: url('assets/Fanta-Horor-Winner_full.png');
 }
 
 #screen-lose {
-  background-image: url('assets/clean_lose_bg.png');
+  background-image: url('assets/Fanta-Horor-Lose_full.png');
 }
+
+/*
+  Static screens use the approved composite artwork.  The controls below stay
+  interactive but transparent, exactly over their PSD counterparts.  This
+  avoids rendering a second header/button set over the final artboard.
+*/
+#screen-lp,
+#screen-voucher-select,
+#screen-win,
+#screen-lose {
+  padding: 0;
+  background-size: 100% 100%;
+  background-position: center;
+}
+
+#screen-lp .lp-header,
+#screen-lp .tnc-text,
+#screen-voucher-select .voucher-header,
+#screen-win .result-header,
+#screen-lose .result-header {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#screen-lp .lp-actions,
+#screen-lp .lp-footer,
+#screen-voucher-select .voucher-grid,
+#screen-win .result-actions,
+#screen-lose .result-actions {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  display: block;
+  pointer-events: none;
+}
+
+#screen-lp .lp-actions .img-btn,
+#screen-lp .lp-footer .btn-link,
+#screen-voucher-select .voucher-card,
+#screen-win .result-actions .img-btn,
+#screen-lose .result-actions .img-btn {
+  position: absolute;
+  display: block;
+  max-width: none;
+  margin: 0;
+  opacity: 0;
+  pointer-events: auto;
+}
+
+#screen-lp .lp-actions .img-btn img,
+#screen-lp .lp-footer .btn-link img,
+#screen-voucher-select .voucher-card img,
+#screen-win .result-actions .img-btn img,
+#screen-lose .result-actions .img-btn img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Landing actions: original x/y coordinates from the 1080 x 2340 artboard. */
+#screen-lp #btn-main-game { left: 7%; top: 65%; width: 40%; height: 16%; }
+#screen-lp #btn-upload-struk { right: 7%; top: 65%; width: 40%; height: 16%; }
+#screen-lp .lp-footer .btn-link { left: 30%; top: 82%; width: 40%; height: 7%; }
+
+/* Voucher cards. */
+#screen-voucher-select .voucher-card { top: 34%; width: 31%; height: 17%; }
+#screen-voucher-select .voucher-card[data-voucher="CGV"] { left: 10%; }
+#screen-voucher-select .voucher-card[data-voucher="CINEPOLIS"] { right: 10%; }
+#screen-voucher-select .voucher-card.voucher-card-center { left: 29%; top: 54%; width: 42%; height: 17%; }
+
+/* Result CTAs. */
+#screen-win .result-row-btn,
+#screen-lose .result-row-btn {
+  position: static;
+  display: block;
+  width: auto;
+  max-width: none;
+}
+#screen-win .btn-share, #screen-lose .btn-share { left: 10%; top: 76%; width: 38%; height: 8%; }
+#screen-win .btn-main-lagi, #screen-lose .btn-main-lagi { right: 10%; top: 76%; width: 38%; height: 8%; }
+#screen-win .btn-ambil-voucher, #screen-lose .btn-ambil-voucher { left: 10%; top: 85%; width: 80%; height: 8%; }
+
+/* ====================================
+   COUPON-OUT VARIANTS (Brief Kupon Habis)
+==================================== */
+#screen-lp.coupon-out {
+  background-image: url('assets/clean_lp_bg.png');
+  background-size: auto 100%;
+}
+
+#screen-lp.coupon-out .lp-header {
+  position: absolute;
+  top: 4%;
+  left: 0;
+  width: 100%;
+  margin: 0;
+  opacity: 1;
+}
+
+#screen-lp.coupon-out .lp-header img {
+  width: 61%;
+  max-width: none;
+}
+
+#screen-lp.coupon-out .lp-actions,
+#screen-lp.coupon-out .lp-footer {
+  pointer-events: none;
+}
+
+#screen-lp.coupon-out #btn-main-game,
+#screen-lp.coupon-out .lp-footer .btn-link {
+  top: 73%;
+  width: 40%;
+  height: 5.8%;
+  pointer-events: auto;
+}
+
+#screen-lp.coupon-out #btn-main-game {
+  left: 52%;
+  opacity: 1;
+  border: 2px solid #2bff22;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #b7ddb3 0%, #54bf43 48%, #159c0d 100%);
+  box-shadow: 0 0 10px rgba(43, 255, 34, 0.75);
+}
+
+#screen-lp.coupon-out #btn-main-game img {
+  visibility: hidden;
+}
+
+#screen-lp.coupon-out #btn-main-game::after {
+  content: 'MAIN GAME';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: clamp(0.72rem, 4vw, 1.1rem);
+  font-weight: 900;
+  text-shadow: 0 1px 2px #073b05;
+}
+
+#screen-lp.coupon-out .lp-footer .btn-link {
+  left: 8%;
+  opacity: 1;
+}
+
+#screen-lp.coupon-out .tnc-text {
+  position: absolute;
+  top: 80%;
+  left: 0;
+  width: 100%;
+  opacity: 1;
+  pointer-events: none;
+}
+
+#screen-win.coupon-out,
+#screen-lose.coupon-out {
+  background-size: 100% 100%;
+  background-position: center;
+}
+
+#screen-win.coupon-out { background-image: url('assets/coupon_out_winner_full.png'); }
+#screen-lose.coupon-out { background-image: url('assets/coupon_out_lose_full.png'); }
+
+#screen-win.coupon-out .result-header,
+#screen-lose.coupon-out .result-header {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#screen-win.coupon-out .result-actions .btn-share,
+#screen-win.coupon-out .result-actions .btn-main-lagi,
+#screen-lose.coupon-out .result-actions .btn-share,
+#screen-lose.coupon-out .result-actions .btn-main-lagi {
+  top: 84.15%;
+  width: 37.32%;
+  height: 6.63%;
+  opacity: 0;
+}
+
+#screen-win.coupon-out .btn-share,
+#screen-lose.coupon-out .btn-share { left: 10.83%; }
+
+#screen-win.coupon-out .btn-main-lagi,
+#screen-lose.coupon-out .btn-main-lagi { right: 10%; }
 
 .result-header {
   width: 100%;
@@ -611,19 +800,20 @@ body {
 
 /* CARA BERMAIN MODAL (Matching Brief Screenshot Design) */
 .modal-cara-bermain-box {
-  width: 90%;
-  max-width: 330px;
-  background: linear-gradient(180deg, #091C0E 0%, #040E07 100%);
-  border: 2.5px solid #2BFF22;
-  border-radius: 20px;
-  padding: 20px 16px 18px;
-  box-shadow: 0 0 25px rgba(43, 255, 34, 0.5), inset 0 0 15px rgba(43, 255, 34, 0.15);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  max-height: 85vh;
-  overflow-y: auto;
+  position: relative;
+  width: min(92%, 407px);
+  max-height: 92%;
+  background: none;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+.cara-bermain-popup-img {
+  display: block;
+  width: 100%;
+  max-height: 92vh;
+  object-fit: contain;
 }
 
 .cara-bermain-title {
@@ -668,13 +858,17 @@ body {
 }
 
 .btn-tutup-green {
-  background: none;
+  position: absolute;
+  left: 24%;
+  bottom: 5.5%;
+  width: 52%;
+  height: 10%;
+  max-width: none;
+  margin: 0;
+  background: transparent;
   border: none;
   cursor: pointer;
   outline: none;
-  width: 55%;
-  max-width: 160px;
-  margin-top: 6px;
   transition: transform 0.15s ease, filter 0.2s ease;
 }
 
