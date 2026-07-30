@@ -10,10 +10,23 @@
  * In production the game is served from fun.fanta.id/c/fanta-horror-game-922,
  * so the coupon API call is same-origin.
  */
-const CHANNEL = 1;
+const DEFAULT_CHANNEL = 0; // 0 = Staging / Testing, 1 = Live / Real Campaign
+
+// Resolve channel from URL param (?env=live | ?channel=1) or window.FANTA_HORROR_CONFIG or default
+const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+const urlEnv = urlParams?.get('env') || urlParams?.get('channel');
+const RUNTIME_CONFIG = window.FANTA_HORROR_CONFIG || {};
+
+let resolvedChannel = DEFAULT_CHANNEL;
+if (urlEnv === 'live' || urlEnv === '1' || RUNTIME_CONFIG.channel === 1 || RUNTIME_CONFIG.env === 'live') {
+    resolvedChannel = 1;
+} else if (urlEnv === 'test' || urlEnv === 'staging' || urlEnv === '0' || RUNTIME_CONFIG.channel === 0 || RUNTIME_CONFIG.env === 'test') {
+    resolvedChannel = 0;
+}
+const CHANNEL = resolvedChannel;
 
 const CHANNELS = [
-    {   // 0 - Testing
+    {   // 0 - Testing / Staging
         domain: 'https://stage.grivy.app',
         cinemaMain: 'fanta-horror-testing-main-cinema',
         fantaMain: 'fanta-horror-testing-main-voucher',
@@ -22,7 +35,7 @@ const CHANNELS = [
             fanta: []
         }
     },
-    {   // 1 - Real Campaign
+    {   // 1 - Real Campaign (Live)
         domain: 'https://fun.fanta.id',
         cinemaMain: 'fanta-horror-196',
         fantaMain: 'fanta-horror-564',
@@ -33,26 +46,6 @@ const CHANNELS = [
     }
 ];
 
-/*
- * Grivy may inject the real child campaign public codes before game.js loads:
- *
- * window.FANTA_HORROR_CONFIG = {
- *   childCampaigns: {
- *     cinema: [
- *       { name: 'CGV', code: 'public-code' },
- *       { name: 'Cinepolis', code: 'public-code' },
- *       { name: 'XXI', code: 'public-code' },
- *       { name: 'Platinum', code: 'public-code' }
- *     ],
- *     fanta: [
- *       { name: 'Alfamart', code: 'public-code' },
- *       { name: 'Indomaret', code: 'public-code' }
- *     ]
- *   },
- *   appOrigin: 'https://grivy.app'
- * };
- */
-const RUNTIME_CONFIG = window.FANTA_HORROR_CONFIG || {};
 const GRIVY = {
     ...CHANNELS[CHANNEL],
     ...RUNTIME_CONFIG,
@@ -71,6 +64,36 @@ const GRIVY_ACTIONS = {
     getVoucher: 'GET_VOUCHER'
 };
 
+function logGrivyDebug(title, data, isError = false) {
+    const time = new Date().toLocaleTimeString();
+    const prefix = `[GRIVY DEBUG ${time}]`;
+    if (isError) {
+        console.error(`${prefix} ❌ ${title}:`, data);
+    } else {
+        console.group(`${prefix} 🎟️ ${title}`);
+        console.log('Data / Payload:', data);
+        console.groupEnd();
+    }
+
+    // Auto-inject on-screen visual debug HUD at the bottom of the screen
+    let debugHud = document.getElementById('grivy-debug-hud');
+    if (!debugHud) {
+        debugHud = document.createElement('div');
+        debugHud.id = 'grivy-debug-hud';
+        debugHud.style.cssText = 'position:fixed;bottom:4px;left:4px;right:4px;background:rgba(8,16,10,0.92);color:#00FF88;font-family:Consolas,monospace;font-size:10px;padding:8px 10px;border-radius:8px;border:1px solid #00FF88;z-index:99999;max-height:140px;overflow-y:auto;pointer-events:auto;box-shadow:0 0 12px rgba(0,255,136,0.4);';
+        document.body.appendChild(debugHud);
+    }
+    const logItem = document.createElement('div');
+    logItem.style.marginBottom = '4px';
+    logItem.style.borderBottom = '1px dashed rgba(0,255,136,0.2)';
+    logItem.style.paddingBottom = '3px';
+    logItem.style.color = isError ? '#FF5555' : '#00FF88';
+    
+    const formattedData = typeof data === 'object' ? JSON.stringify(data, null, 1) : String(data);
+    logItem.innerHTML = `<span style="color:#FFF;">[${time}]</span> <strong>${title}:</strong> <span style="color:${isError ? '#FF8888' : '#AAFFDD'};">${formattedData}</span>`;
+    debugHud.prepend(logItem);
+}
+
 function triggerGrivyAction(action, campaignCode) {
     const payload = {
         source: 'fanta-horror-game',
@@ -78,6 +101,11 @@ function triggerGrivyAction(action, campaignCode) {
         action,
         campaignCode
     };
+
+    logGrivyDebug(`Action Triggered: ${action}`, {
+        payload,
+        redirectUrl: campaignUrl(campaignCode)
+    });
 
     // Useful for hosts that mount the game in the same document.
     window.dispatchEvent(new CustomEvent(`fanta-horror:${action}`, {
@@ -181,61 +209,95 @@ class FantaHorrorGame {
         const params = new URLSearchParams(window.location.search);
         const couponPreview = params.get('coupon');
 
+        logGrivyDebug('Init Config & Channel Info', {
+            channelMode: CHANNEL === 1 ? '1 (Real Campaign)' : '0 (Staging / Testing)',
+            domain: GRIVY.domain,
+            activeCodes: {
+                cinemaMain: GRIVY.cinemaMain,
+                fantaMain: GRIVY.fantaMain
+            },
+            childCampaigns: GRIVY.childCampaigns
+        });
+
         // QA previews are deterministic and must not wait for the remote API.
         if (couponPreview === 'out') {
             this.cinemaAvailable = false;
             this.fantaAvailable = false;
+            logGrivyDebug('QA Coupon Preview Override', { couponPreview: 'out', cinemaAvailable: false, fantaAvailable: false });
         } else if (couponPreview === 'active') {
             this.cinemaAvailable = true;
             this.fantaAvailable = true;
+            logGrivyDebug('QA Coupon Preview Override', { couponPreview: 'active', cinemaAvailable: true, fantaAvailable: true });
         } else {
             const requestController = new AbortController();
             const requestTimeout = setTimeout(() => requestController.abort(), 3000);
 
             try {
-            const cinemaChildren = normalizeCampaigns(GRIVY.childCampaigns.cinema);
-            const fantaChildren = normalizeCampaigns(GRIVY.childCampaigns.fanta);
-            const cinemaCodes = cinemaChildren.length
-                ? cinemaChildren.map(campaign => campaign.code)
-                : [GRIVY.cinemaMain];
-            const fantaCodes = fantaChildren.length
-                ? fantaChildren.map(campaign => campaign.code)
-                : [GRIVY.fantaMain];
-            const campaignCodes = [...new Set([...cinemaCodes, ...fantaCodes])];
+                const cinemaChildren = normalizeCampaigns(GRIVY.childCampaigns.cinema);
+                const fantaChildren = normalizeCampaigns(GRIVY.childCampaigns.fanta);
+                const cinemaCodes = cinemaChildren.length
+                    ? cinemaChildren.map(campaign => campaign.code)
+                    : [GRIVY.cinemaMain];
+                const fantaCodes = fantaChildren.length
+                    ? fantaChildren.map(campaign => campaign.code)
+                    : [GRIVY.fantaMain];
+                const campaignCodes = [...new Set([...cinemaCodes, ...fantaCodes])];
 
-            const res = await fetch(`${GRIVY.domain}/api/games/campaigns-check-active`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                signal: requestController.signal,
-                body: JSON.stringify({
-                    campaign_public_codes: campaignCodes
-                })
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const apiUrl = `${GRIVY.domain}/api/games/campaigns-check-active`;
+                const requestBody = { campaign_public_codes: campaignCodes };
 
-            const data = await res.json();
-            if (!Array.isArray(data)) throw new Error('unexpected response shape');
+                logGrivyDebug('API Request: Check Coupon Quota', {
+                    endpointUrl: apiUrl,
+                    publicCodesSent: campaignCodes,
+                    requestPayload: requestBody
+                });
 
-            const available = code => {
-                const c = data.find(item => item && item.public_code === code);
-                return !!(c && c.campaign_active && !c.coupons_finished);
-            };
-            this.cinemaAvailable = cinemaCodes.some(available);
-            this.fantaAvailable = fantaCodes.some(available);
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: requestController.signal,
+                    body: JSON.stringify(requestBody)
+                });
 
-            const cinemaAvailability = Object.fromEntries(
-                cinemaChildren.map(campaign => [
-                    String(campaign.name || '').toUpperCase(),
-                    available(campaign.code)
-                ])
-            );
-            ['CGV', 'CINEPOLIS', 'XXI'].forEach(voucher => {
-                if (voucher in cinemaAvailability) {
-                    this.voucherQuota[voucher] = cinemaAvailability[voucher];
-                }
-            });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                const data = await res.json();
+                if (!Array.isArray(data)) throw new Error('unexpected response shape');
+
+                logGrivyDebug('API Response: Check Coupon Quota', {
+                    httpStatus: `${res.status} OK`,
+                    responseData: data
+                });
+
+                const available = code => {
+                    const c = data.find(item => item && item.public_code === code);
+                    return !!(c && c.campaign_active && !c.coupons_finished);
+                };
+                this.cinemaAvailable = cinemaCodes.some(available);
+                this.fantaAvailable = fantaCodes.some(available);
+
+                const cinemaAvailability = Object.fromEntries(
+                    cinemaChildren.map(campaign => [
+                        String(campaign.name || '').toUpperCase(),
+                        available(campaign.code)
+                    ])
+                );
+                ['CGV', 'CINEPOLIS', 'XXI'].forEach(voucher => {
+                    if (voucher in cinemaAvailability) {
+                        this.voucherQuota[voucher] = cinemaAvailability[voucher];
+                    }
+                });
+
+                logGrivyDebug('Resolved Quota Status', {
+                    cinemaAvailable: this.cinemaAvailable,
+                    fantaAvailable: this.fantaAvailable,
+                    voucherQuota: this.voucherQuota
+                });
             } catch (err) {
-                console.warn('Coupon quota check failed, keeping CTAs visible:', err);
+                logGrivyDebug('Coupon Quota API Check Failed / Fallback Active', {
+                    error: err.message || err,
+                    fallbackState: 'Keep CTAs visible (Fail Open)'
+                }, true);
             } finally {
                 clearTimeout(requestTimeout);
             }
