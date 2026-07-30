@@ -80,6 +80,28 @@ body {
   flex-direction: column;
 }
 
+#app-container.quota-loading .screen,
+#app-container.quota-loading .modal-overlay {
+  visibility: hidden;
+}
+
+#app-container.quota-loading::after {
+  content: 'LOADING...';
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-family: var(--font-expanded);
+  font-size: clamp(1.4rem, 7vw, 2.4rem);
+  letter-spacing: 0.08em;
+  background:
+    radial-gradient(circle at center, rgba(22, 79, 20, 0.42), transparent 42%),
+    #05020a;
+  text-shadow: 0 0 12px var(--horror-green);
+}
+
 /* Utility classes */
 .hidden {
   display: none !important;
@@ -295,8 +317,13 @@ body {
 /* ====================================
    3. GAME ARENA SCREEN (30s SURVIVAL)
 ==================================== */
+/*
+  Background re-exported from the PSD at exactly 1080 x 2340. The old game_bg.png was a
+  1323 x 2355 full-bleed frame, so `cover` shaved ~117px off each side and slid the graves
+  out from under the artboard coordinates the bottle positions are derived from.
+*/
 #screen-game {
-  background-image: url('assets/game_bg.png');
+  background-image: url('assets/game_bg_artboard.png');
   padding: 16px 14px 16px;
 }
 
@@ -369,93 +396,95 @@ body {
   to { transform: scale(1.15); text-shadow: 0 0 20px #FF0000, 0 0 30px #FF0000; }
 }
 
-/* 3x3 Graves Grid */
+/*
+  3x3 grave layout, measured straight out of Fanta-Horor-Game.psd (artboard 1080 x 2340).
+  #app-container is locked to the same 6/13 ratio, so the background art renders 1:1 with
+  the artboard and every figure below is a plain percentage of it -- no per-row nudging.
+      bottle          126 x 425
+      column centres  x = 177 / 529.5 / 882
+      bottle bases    y = 941 / 1476 / 2011
+*/
 .graves-grid-container {
-  position: relative;
-  width: 100%;
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 4px;
-  padding: 10px 8px 10px;
-  margin-top: 10px;
-  margin-bottom: 20px;
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  margin: 0;
 }
 
+/* Each slot IS the bottle box: `left` is its centre line, `bottom` its base. */
 .grave-slot {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  overflow: visible;
+  position: absolute;
+  width: 11.6667%;
+  height: 18.1624%;
+  transform: translateX(-50%);
   cursor: pointer;
 }
 
+.grave-slot[data-id="0"],
+.grave-slot[data-id="3"],
+.grave-slot[data-id="6"] { left: 16.3889%; }
+
+.grave-slot[data-id="1"],
+.grave-slot[data-id="4"],
+.grave-slot[data-id="7"] { left: 49.0278%; }
+
+.grave-slot[data-id="2"],
+.grave-slot[data-id="5"],
+.grave-slot[data-id="8"] { left: 81.6667%; }
+
+.grave-slot[data-id="0"],
+.grave-slot[data-id="1"],
+.grave-slot[data-id="2"] { bottom: 59.7863%; }
+
+.grave-slot[data-id="3"],
+.grave-slot[data-id="4"],
+.grave-slot[data-id="5"] { bottom: 36.9231%; }
+
+.grave-slot[data-id="6"],
+.grave-slot[data-id="7"],
+.grave-slot[data-id="8"] { bottom: 14.0598%; }
+
 .slot-target-container {
   position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 58px;
-  height: 125px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
+  inset: 0;
   pointer-events: none;
 }
 
-/* Row-specific vertical offset to align bottles precisely over perspective fire mounds */
-.grave-slot[data-id="0"] .slot-target-container,
-.grave-slot[data-id="1"] .slot-target-container,
-.grave-slot[data-id="2"] .slot-target-container {
-  bottom: 0px;
-}
-
-.grave-slot[data-id="3"] .slot-target-container,
-.grave-slot[data-id="4"] .slot-target-container,
-.grave-slot[data-id="5"] .slot-target-container {
-  bottom: 45px;
-}
-
-.grave-slot[data-id="6"] .slot-target-container,
-.grave-slot[data-id="7"] .slot-target-container,
-.grave-slot[data-id="8"] .slot-target-container {
-  bottom: 85px;
-}
-
+/*
+  Every layer is sized relative to the bottle box, so the hand and the grip composite
+  keep the exact proportions they have in the PSD. Sideways offsets use left/right
+  instead of translateX so the pop/drag animations own `transform` outright.
+*/
 .target-element {
   position: absolute;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%) translateY(100%);
-  width: 58px;
-  height: 125px;
+  /* Layers wider than the bottle box centre themselves via an explicit negative `left`
+     (50% + own offset - half own width). `margin-inline: auto` cannot do it: browsers
+     clamp auto margins to 0 once the available space goes negative. */
+  left: 0;
+  right: auto;
+  margin-inline: 0;
+  transform: translateY(100%);
+  width: 100%;
+  height: 100%;
   background-size: contain;
   background-repeat: no-repeat;
   background-position: bottom center;
   opacity: 0;
   transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
-/* Active popping state */
-.grave-slot.active-bottle .fanta-bottle {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-/* Suzzanna attack: standard bottle stays in front, ghost hand rises behind it */
+/* Active popping state -- the hand rises behind the still-free bottle first. */
+.grave-slot.active-bottle .fanta-bottle,
 .grave-slot.active-suzzanna .fanta-bottle {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(-3%);
 }
 
 .grave-slot.active-suzzanna .suzzanna-hand {
   opacity: 1;
-  transform: translateX(-50%) scale(1.4) translateY(-6px);
+  transform: translateY(0);
 }
 
 /* Four approved FANTA packshots. The flavor class is assigned per grave slot. */
@@ -480,17 +509,30 @@ body {
   background-image: url('Fanta Horror_Q3_26/Assets/Packshots Grape.png');
 }
 
-/* 2. Suzzanna Open Pale Hand (Rises Behind Green Bottle) */
+/*
+  2. Suzzanna's open hand, rising behind the bottle. PSD: 257 x 331, base 67px above the
+  bottle's base, centre 7.5px right of the bottle's -- expressed against the bottle box.
+*/
 .suzzanna-hand {
   background-image: url('assets/crop_suzzanna_hand.png');
+  width: 203.968%;
+  height: 77.882%;
+  bottom: 15.765%;
+  left: -46.032%;  /* 50% + 5.952% - 101.984% */
   z-index: 1;
-  transform: translateX(-50%) scale(1.4) translateY(-6px);
+  transform: translateY(60%);
   transform-origin: bottom center;
 }
 
-/* 3. Hand grips the bottle and drags it into the grave once stolen — frozen only at this final pull */
+/*
+  3. Grip composite (hand + frozen bottle), shown only while Suzzanna drags it under.
+  PSD: 192 x 425, same vertical extent as the bottle, centre 2.5px left of the bottle's,
+  so the bottle inside it lands exactly where the loose bottle was standing.
+*/
 .suzzanna-stolen {
   background-image: url('Fanta Horror_Q3_26/Assets/BOTTLE-TAKE-BY-SUZZANA-Orange.png');
+  width: 152.381%;
+  left: -28.1745%;  /* 50% - 1.984% - 76.1905% */
   z-index: 3;
 }
 
@@ -515,8 +557,11 @@ body {
   font-family: var(--font-expanded);
   position: absolute;
   top: -28px;
-  left: 50%;
-  transform: translateX(-50%) scale(0.9);
+  left: 0;
+  right: 0;
+  width: max-content;
+  margin-inline: auto;
+  transform: scale(0.9);
   background: #FF2244;
   color: #FFF;
   font-size: 0.72rem;
@@ -534,7 +579,7 @@ body {
 
 .grave-slot.active-suzzanna .tap-counter-badge {
   opacity: 1;
-  transform: translateX(-50%) scale(1);
+  transform: scale(1);
 }
 
 .tap-counter-badge.hit-shake {
@@ -542,10 +587,10 @@ body {
 }
 
 @keyframes badgeShake {
-  0% { transform: translateX(-50%) scale(1.2) rotate(0deg); }
-  25% { transform: translateX(-50%) scale(1.3) rotate(-8deg); }
-  75% { transform: translateX(-50%) scale(1.3) rotate(8deg); }
-  100% { transform: translateX(-50%) scale(1) rotate(0deg); }
+  0% { transform: scale(1.2) rotate(0deg); }
+  25% { transform: scale(1.3) rotate(-8deg); }
+  75% { transform: scale(1.3) rotate(8deg); }
+  100% { transform: scale(1) rotate(0deg); }
 }
 
 /* Saved animation */
@@ -556,35 +601,48 @@ body {
 }
 
 @keyframes savePop {
-  0% { transform: translateX(-50%) scale(1) translateY(0); opacity: 1; }
-  50% { transform: translateX(-50%) scale(1.2) translateY(-15px); opacity: 0.8; }
-  100% { transform: translateX(-50%) scale(0.4) translateY(30px); opacity: 0; }
+  0% { transform: translateY(-3%) scale(1); opacity: 1; }
+  50% { transform: translateY(-14%) scale(1.15); opacity: 0.8; }
+  100% { transform: translateY(18%) scale(0.4); opacity: 0; }
 }
 
-/* Steal & Freezing state when player fails to tap 3 times within 3 seconds */
-.grave-slot.freezing .fanta-bottle,
+/*
+  Suzzanna's grab. The loose bottle and the open hand cross-fade into the grip composite
+  during the first moments of the pull, so the bottle visibly turns to ice *while* being
+  dragged under -- it never snaps frozen while still standing still.
+  Each keyframe restates `transform` because these rules outlive .active-suzzanna, whose
+  resting offset would otherwise fall back to the off-screen base value.
+*/
+.grave-slot.freezing .fanta-bottle {
+  animation: grabBottleOff 0.2s ease-in forwards;
+}
+
+@keyframes grabBottleOff {
+  from { opacity: 1; transform: translateY(-3%); }
+  to { opacity: 0; transform: translateY(1%); }
+}
+
 .grave-slot.freezing .suzzanna-hand {
-  opacity: 0 !important;
+  animation: grabHandOff 0.2s ease-in forwards;
+}
+
+@keyframes grabHandOff {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(3%); }
 }
 
 .grave-slot.freezing .suzzanna-stolen {
-  opacity: 1;
-  animation: freezeDragDown 0.65s ease-in forwards;
+  animation: freezeDragDown 0.72s cubic-bezier(0.36, 0, 0.66, 1) forwards;
 }
 
 @keyframes freezeDragDown {
-  0% {
-    transform: translateX(-50%) translateY(0) scale(1);
-    opacity: 1;
-  }
-  30% {
-    transform: translateX(-50%) translateY(10px) scale(0.95);
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(-50%) translateY(100%) scale(0.6);
-    opacity: 0;
-  }
+  0% { opacity: 0; transform: translateY(-3%) scale(1); }
+  22% { opacity: 1; transform: translateY(3%) scale(0.99); }
+  100% { opacity: 0; transform: translateY(88%) scale(0.72); }
+}
+
+.grave-slot.freezing .tap-counter-badge {
+  opacity: 0;
 }
 
 /* ====================================
@@ -729,6 +787,7 @@ body {
   top: 82%;
   left: 0;
   width: 100%;
+  text-align: center;
   opacity: 1;
   pointer-events: none;
 }

@@ -94,10 +94,9 @@ function triggerGrivyAction(action, campaignCode) {
     window.location.href = campaignUrl(campaignCode);
 }
 
-// Difficulty tuning: share of bottles Suzzanna never grabs, and how long they linger
-// before sinking back. Raise the chance to make the game more forgiving.
+// Difficulty tuning: share of bottles Suzzanna never grabs (they just sit there
+// until tapped). Raise the chance to make the game more forgiving.
 const SAFE_BOTTLE_CHANCE = 0.25;
-const SAFE_BOTTLE_LIFETIME_MS = 2500;
 const BOTTLE_FLAVORS = ['orange', 'strawberry', 'fruit-punch', 'grape'];
 
 class FantaHorrorGame {
@@ -179,7 +178,21 @@ class FantaHorrorGame {
      * back to the main campaign code so existing environments remain testable.
      */
     async checkCouponQuota() {
-        try {
+        const params = new URLSearchParams(window.location.search);
+        const couponPreview = params.get('coupon');
+
+        // QA previews are deterministic and must not wait for the remote API.
+        if (couponPreview === 'out') {
+            this.cinemaAvailable = false;
+            this.fantaAvailable = false;
+        } else if (couponPreview === 'active') {
+            this.cinemaAvailable = true;
+            this.fantaAvailable = true;
+        } else {
+            const requestController = new AbortController();
+            const requestTimeout = setTimeout(() => requestController.abort(), 3000);
+
+            try {
             const cinemaChildren = normalizeCampaigns(GRIVY.childCampaigns.cinema);
             const fantaChildren = normalizeCampaigns(GRIVY.childCampaigns.fanta);
             const cinemaCodes = cinemaChildren.length
@@ -193,6 +206,7 @@ class FantaHorrorGame {
             const res = await fetch(`${GRIVY.domain}/api/games/campaigns-check-active`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: requestController.signal,
                 body: JSON.stringify({
                     campaign_public_codes: campaignCodes
                 })
@@ -220,26 +234,20 @@ class FantaHorrorGame {
                     this.voucherQuota[voucher] = cinemaAvailability[voucher];
                 }
             });
-        } catch (err) {
-            console.warn('Coupon quota check failed, keeping CTAs visible:', err);
-        }
-
-        // Local/QA preview only. Production still follows the Grivy API unless this
-        // explicit query parameter is supplied.
-        const couponPreview = new URLSearchParams(window.location.search).get('coupon');
-        if (couponPreview === 'out') {
-            this.cinemaAvailable = false;
-            this.fantaAvailable = false;
-        } else if (couponPreview === 'active') {
-            this.cinemaAvailable = true;
-            this.fantaAvailable = true;
+            } catch (err) {
+                console.warn('Coupon quota check failed, keeping CTAs visible:', err);
+            } finally {
+                clearTimeout(requestTimeout);
+            }
         }
 
         this.applyQuotaUI();
 
-        const screenPreview = new URLSearchParams(window.location.search).get('screen');
+        const screenPreview = params.get('screen');
         if (screenPreview === 'win') this.switchScreen('WIN');
         if (screenPreview === 'lose') this.switchScreen('LOSE');
+
+        document.getElementById('app-container')?.classList.remove('quota-loading');
     }
 
     // Re-applies coupon-dependent CTA visibility to whichever screen is showing.
@@ -568,17 +576,10 @@ class FantaHorrorGame {
         window.soundManager.playSfx('rockCracks');
 
         // A share of bottles are "safe": Suzzanna never grabs them, so missing one costs
-        // nothing. They linger a while, then sink back on their own. Looks identical to a
-        // normal bottle, so the player still reacts to everything -- it just softens the
-        // punishment for the ones they miss.
+        // nothing. No attack timeout is scheduled at all, so it just sits there (tappable,
+        // occupying its slot) until the player gets to it -- easier, not disappearing.
+        // Looks identical to a normal bottle, so the player still reacts to everything.
         if (Math.random() < SAFE_BOTTLE_CHANCE) {
-            slot.attackTimeout = setTimeout(() => {
-                if (slot.status === 'bottle' && this.gameState === 'PLAYING') {
-                    slot.status = 'empty';
-                    slot.flavor = null;
-                    slot.el.className = 'grave-slot';
-                }
-            }, SAFE_BOTTLE_LIFETIME_MS);
             return;
         }
 
@@ -655,6 +656,9 @@ class FantaHorrorGame {
     }
 
     handleSuzzannaSteal(slot) {
+        // The grab and the drag are one motion: the grip composite cross-fades in over the
+        // loose bottle as it is pulled under, so the bottle freezes on the way down rather
+        // than sitting frozen in place first.
         slot.status = 'frozen';
         this.setSlotClass(slot, 'stolen', 'freezing');
         window.soundManager.playSfx('iceFreeze');
@@ -662,15 +666,16 @@ class FantaHorrorGame {
         this.health = Math.max(0, this.health - 1);
         this.updateHealthUI();
 
-        setTimeout(() => {
+        slot.timeoutId = setTimeout(() => {
+            if (this.health <= 0) {
+                this.endGame(false);
+                return;
+            }
+
             slot.status = 'empty';
             slot.flavor = null;
             slot.el.className = 'grave-slot';
-        }, 600);
-
-        if (this.health <= 0) {
-            this.endGame(false);
-        }
+        }, 720);
     }
 
     endGame(isWin) {
