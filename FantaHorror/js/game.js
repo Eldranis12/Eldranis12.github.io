@@ -104,9 +104,18 @@ function triggerGrivyAction(action, campaignCode) {
     window.location.href = campaignUrl(campaignCode);
 }
 
-// Difficulty tuning: share of bottles Suzzanna never grabs (they just sit there
-// until tapped). Raise the chance to make the game more forgiving.
-const SAFE_BOTTLE_CHANCE = 0.25;
+// Pacing: bottles arrive one wave ("sesi") at a time. Only SESSION_THREATS of each wave
+// is ever grabbed by Suzzanna; the rest wait to be tapped. Lower SESSION_SIZE or raise
+// SESSION_GAP_MS to slow the game down further.
+// Poster handed to the OS share sheet when the player taps SHARE.
+// (The source file really is double-extensioned: "...Share.jpg.jpeg".)
+const SHARE_IMAGE_URL = 'assets/Fanta-Horor-Share.jpg.jpeg';
+const SHARE_IMAGE_FILENAME = 'fanta-horror-berani-coba.jpg';
+
+const SESSION_SIZE = 5;
+const SESSION_THREATS = 1;
+const SESSION_GAP_MS = 700;
+const ATTACK_DELAY_MS = 1000;
 const BOTTLE_FLAVORS = ['orange', 'strawberry', 'fruit-punch', 'grape'];
 
 class FantaHorrorGame {
@@ -116,6 +125,8 @@ class FantaHorrorGame {
         this.timer = 30;
         this.timerInterval = null;
         this.spawnerInterval = null;
+        this.sessionPending = false;
+        this.sessionTimeout = null;
         this.stingerInterval = null;
         this.health = 5;
         this.maxHealth = 5;
@@ -176,6 +187,8 @@ class FantaHorrorGame {
 
             this.bindEvents();
             this.renderGraveGrid();
+            this.applyLandingVariant();
+            this.preloadShareImage();
             this.switchScreen('LP');
             this.checkCouponQuota();
         });
@@ -255,9 +268,16 @@ class FantaHorrorGame {
                     tip: 'Type "lastGrivyResponse" in console to view raw data'
                 });
 
+                /*
+                 * Only an explicit answer hides a CTA. A code the API does not report on at
+                 * all (unpublished campaign -> empty array) is "unknown", not "sold out", so
+                 * it stays available -- same fail-open stance as a network error. Otherwise
+                 * the whole game sits in Kupon Habis mode before the campaigns go live.
+                 */
                 const available = code => {
                     const c = data.find(item => item && item.public_code === code);
-                    return !!(c && c.campaign_active && !c.coupons_finished);
+                    if (!c) return true;
+                    return !!(c.campaign_active && !c.coupons_finished);
                 };
                 this.cinemaAvailable = cinemaCodes.some(available);
                 this.fantaAvailable = fantaCodes.some(available);
@@ -301,19 +321,104 @@ class FantaHorrorGame {
         document.getElementById('app-container')?.classList.remove('quota-loading');
     }
 
+    /*
+     * Landing variant (brief "Landing Page"): the upload-struk offer is a desktop-only,
+     * once-per-session view. Phones always get the compact CARA BERMAIN + MAIN GAME row,
+     * and so does any desktop reload -- the sessionStorage flag is what makes the second
+     * view "compact", so it survives reloads but resets for a genuinely new visit.
+     */
+    applyLandingVariant() {
+        const SEEN_KEY = 'fanta-lp-offer-seen';
+        const isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        let seen = false;
+        try {
+            seen = sessionStorage.getItem(SEEN_KEY) === '1';
+            if (!isMobile) sessionStorage.setItem(SEEN_KEY, '1');
+        } catch (err) {
+            // Private mode / storage disabled: fall back to always showing the offer.
+        }
+
+        const compact = isMobile || seen;
+        this.screens.lp?.classList.toggle('lp-compact-mode', compact);
+    }
+
+    /*
+     * Share sheet carries the campaign poster image, not just a link.
+     *
+     * The file is fetched ahead of time because iOS Safari drops the tap's transient
+     * activation while an await is pending -- by click time the File must already exist,
+     * so navigator.share() is reached without an intervening await.
+     */
+    preloadShareImage() {
+        this.shareFilePromise = fetch(SHARE_IMAGE_URL)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.blob();
+            })
+            .then(blob => new File([blob], SHARE_IMAGE_FILENAME, { type: blob.type || 'image/png' }))
+            .catch(err => {
+                console.warn('Share image unavailable, will share the link only:', err);
+                return null;
+            });
+        // Resolve it eagerly so the click handler can read the settled value.
+        this.shareFilePromise.then(file => { this.shareFile = file; });
+    }
+
+    shareGame() {
+        const payload = {
+            title: 'FANTA Horror Game',
+            text: 'Berani coba??? Amankan Fanta dari gentayangan Suzzanna!',
+            url: window.location.href
+        };
+
+        if (this.shareFile && navigator.canShare?.({ files: [this.shareFile] })) {
+            navigator.share({ ...payload, files: [this.shareFile] }).catch(() => {});
+            return;
+        }
+
+        if (navigator.share) {
+            navigator.share(payload).catch(() => {});
+            return;
+        }
+
+        // Desktop browsers without the Web Share API: hand over the poster as a download.
+        if (this.shareFile) {
+            const href = URL.createObjectURL(this.shareFile);
+            const a = document.createElement('a');
+            a.href = href;
+            a.download = SHARE_IMAGE_FILENAME;
+            a.click();
+            URL.revokeObjectURL(href);
+            return;
+        }
+
+        alert('Salin Link Game: ' + window.location.href);
+    }
+
     // Re-applies coupon-dependent CTA visibility to whichever screen is showing.
     applyQuotaUI() {
         const lpScreen = document.getElementById('screen-lp');
         const winScreen = document.getElementById('screen-win');
         const loseScreen = document.getElementById('screen-lose');
 
+        /*
+         * normal      : voucher Fanta tersedia.
+         * voucher-out : voucher Fanta habis, tetapi kupon cinema masih tersedia.
+         * coupon-out  : semua kupon habis; CTA hilang dan SHARE / MAIN LAGI turun.
+         */
+        const couponOut = !this.fantaAvailable && !this.cinemaAvailable;
+        const voucherOut = !this.fantaAvailable && !couponOut;
+
         lpScreen?.classList.toggle('coupon-out', !this.cinemaAvailable);
-        winScreen?.classList.toggle('coupon-out', !this.fantaAvailable);
-        loseScreen?.classList.toggle('coupon-out', !this.fantaAvailable);
+
+        [winScreen, loseScreen].forEach(screen => {
+            screen?.classList.toggle('coupon-out', couponOut);
+            screen?.classList.toggle('voucher-out', voucherOut);
+        });
 
         document.getElementById('btn-upload-struk')?.classList.toggle('hidden', !this.cinemaAvailable);
-        document.querySelector('.btn-ambil-voucher-win')?.classList.toggle('hidden', !this.fantaAvailable);
-        document.querySelector('.btn-ambil-voucher-lose')?.classList.toggle('hidden', !this.fantaAvailable);
+        document.querySelector('.btn-ambil-voucher-win')?.classList.toggle('hidden', couponOut);
+        document.querySelector('.btn-ambil-voucher-lose')?.classList.toggle('hidden', couponOut);
     }
 
     bindEvents() {
@@ -332,7 +437,7 @@ class FantaHorrorGame {
             this.applyQuotaUI();
         });
 
-        // LP Button 1: "MAIN GAME" (Starts 30s Game directly as shown in Slide 3!)
+        // LP "MAIN GAME" -- the same hotspot in both landing variants, only re-placed by CSS.
         document.getElementById('btn-main-game')?.addEventListener('click', () => {
             window.soundManager.playSfx('buttonClick');
             this.entryMode = 'GAME';
@@ -345,7 +450,7 @@ class FantaHorrorGame {
             triggerGrivyAction('getVoucher', GRIVY.cinemaMain);
         });
 
-        // LP Bottom Link: "CARA BERMAIN"
+        // LP "CARA BERMAIN" -- likewise one hotspot, re-placed per variant.
         document.getElementById('btn-cara-bermain')?.addEventListener('click', () => {
             window.soundManager.playSfx('buttonClick');
             this.showModal('caraBermain');
@@ -389,15 +494,7 @@ class FantaHorrorGame {
         document.querySelectorAll('.btn-share').forEach(btn => {
             btn.addEventListener('click', () => {
                 window.soundManager.playSfx('buttonClick');
-                if (navigator.share) {
-                    navigator.share({
-                        title: 'FANTA Horror Game',
-                        text: 'Aku baru saja menyelamatkan stok FANTA dari gentayangan Suzzanna! Cobain gamenya yuk!',
-                        url: window.location.href
-                    }).catch(() => {});
-                } else {
-                    alert('Salin Link Game: ' + window.location.href);
-                }
+                this.shareGame();
             });
         });
 
@@ -525,6 +622,9 @@ class FantaHorrorGame {
     startGame() {
         this.health = 5;
         this.timer = 30;
+        // A wave scheduled by a previous round must not fire into this one.
+        clearTimeout(this.sessionTimeout);
+        this.sessionPending = false;
         this.clearAllSlots();
         this.updateHealthUI();
         this.updateTimerUI();
@@ -546,11 +646,20 @@ class FantaHorrorGame {
         }, 1000);
 
         // Start spawner loop
+        // Waves, not a drip feed: a new one only forms once the board has room again,
+        // so clearing bottles is what drives the pace rather than a fixed timer.
+        this.spawnSession();
         this.spawnerInterval = setInterval(() => {
-            if (this.gameState === 'PLAYING') {
-                this.spawnRandomTargets();
-            }
-        }, 900);
+            if (this.gameState !== 'PLAYING' || this.sessionPending) return;
+            const free = this.slots.filter(s => s.status === 'empty').length;
+            if (free < SESSION_SIZE) return;
+
+            this.sessionPending = true;
+            this.sessionTimeout = setTimeout(() => {
+                this.sessionPending = false;
+                if (this.gameState === 'PLAYING') this.spawnSession();
+            }, SESSION_GAP_MS);
+        }, 250);
 
         // Ambient horror stinger overlay
         this.stingerInterval = setInterval(() => {
@@ -562,9 +671,14 @@ class FantaHorrorGame {
 
     clearAllSlots() {
         this.slots.forEach(slot => {
-            if (slot.attackTimeout) clearTimeout(slot.attackTimeout);
-            if (slot.stealTimeout) clearTimeout(slot.stealTimeout);
-            if (slot.timeoutId) clearTimeout(slot.timeoutId);
+            // Null the handles too, not just cancel them: a stale id left behind still
+            // reads as "this bottle has Suzzanna's hand coming" to anything inspecting it.
+            clearTimeout(slot.attackTimeout);
+            clearTimeout(slot.stealTimeout);
+            clearTimeout(slot.timeoutId);
+            slot.attackTimeout = null;
+            slot.stealTimeout = null;
+            slot.timeoutId = null;
             slot.status = 'empty';
             slot.tapsLeft = 0;
             slot.flavor = null;
@@ -602,44 +716,48 @@ class FantaHorrorGame {
         }
     }
 
-    spawnRandomTargets() {
+    /*
+     * Bottles arrive in waves instead of a constant drip (brief: "buatkan seperti per sesi,
+     * misalnya satu sesi keluarnya 5, hanya ada 1 tangan suzzanna yang keluar"). Each wave
+     * puts SESSION_SIZE bottles on the board and only SESSION_THREATS of them are ever
+     * grabbed; the rest simply wait to be tapped, which is what keeps the pace calm.
+     */
+    spawnSession() {
         const emptySlots = this.slots.filter(s => s.status === 'empty');
-        if (emptySlots.length === 0) return;
+        if (emptySlots.length < SESSION_SIZE) return;
 
-        // Randomly spawn 1 to 4 bottles at once (bisa langsung 3 atau 4)
-        const maxSpawn = Math.min(emptySlots.length, 4);
-        const spawnCount = Math.floor(Math.random() * maxSpawn) + 1;
-        
-        for (let i = 0; i < spawnCount; i++) {
-            const randomIndex = Math.floor(Math.random() * emptySlots.length);
-            const slot = emptySlots.splice(randomIndex, 1)[0];
-            this.spawnBottle(slot);
+        // Fisher-Yates over a copy, so each wave lands on a different set of graves.
+        for (let i = emptySlots.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [emptySlots[i], emptySlots[j]] = [emptySlots[j], emptySlots[i]];
         }
+
+        const wave = emptySlots.slice(0, SESSION_SIZE);
+        wave.forEach((slot, i) => this.spawnBottle(slot, i < SESSION_THREATS));
     }
 
-    spawnBottle(slot) {
-        if (slot.attackTimeout) clearTimeout(slot.attackTimeout);
-        if (slot.stealTimeout) clearTimeout(slot.stealTimeout);
+    // `isThreat` is decided by the wave, not per bottle: only that one gets Suzzanna's hand.
+    // Every other bottle just stands there until tapped, so the player still has to clear
+    // the whole wave, but without being punished for the ones they reach last.
+    spawnBottle(slot, isThreat = false) {
+        clearTimeout(slot.attackTimeout);
+        clearTimeout(slot.stealTimeout);
+        slot.attackTimeout = null;
+        slot.stealTimeout = null;
 
         slot.status = 'bottle';
         slot.flavor = BOTTLE_FLAVORS[Math.floor(Math.random() * BOTTLE_FLAVORS.length)];
         this.setSlotClass(slot, 'active-bottle', 'popping');
         window.soundManager.playSfx('rockCracks');
 
-        // A share of bottles are "safe": Suzzanna never grabs them, so missing one costs
-        // nothing. No attack timeout is scheduled at all, so it just sits there (tappable,
-        // occupying its slot) until the player gets to it -- easier, not disappearing.
-        // Looks identical to a normal bottle, so the player still reacts to everything.
-        if (Math.random() < SAFE_BOTTLE_CHANCE) {
-            return;
-        }
+        if (!isThreat) return;
 
-        // If bottle is not tapped after 1 second, Suzzanna's hand appears to try to grab it!
+        // If the marked bottle is not tapped in time, Suzzanna's hand comes out for it.
         slot.attackTimeout = setTimeout(() => {
             if (slot.status === 'bottle' && this.gameState === 'PLAYING') {
                 this.transitionToSuzzannaAttack(slot);
             }
-        }, 1000);
+        }, ATTACK_DELAY_MS);
     }
 
     transitionToSuzzannaAttack(slot) {
@@ -733,6 +851,8 @@ class FantaHorrorGame {
         clearInterval(this.timerInterval);
         clearInterval(this.spawnerInterval);
         clearInterval(this.stingerInterval);
+        clearTimeout(this.sessionTimeout);
+        this.sessionPending = false;
         this.clearAllSlots();
 
         setTimeout(() => {

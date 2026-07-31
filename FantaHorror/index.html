@@ -6,7 +6,7 @@
   <title>FANTA Horror Gamification - Gebuk Suzzanna, Amankan Fantamu!</title>
   <meta name="description" content="Mainkan game FANTA Horror! Lindungi botol Fanta dari cegatan tangan Suzzanna selama 30 detik untuk memenangkan voucher nonton bioskop eksklusif!">
   
-  <link rel="stylesheet" href="index.css?v=20260730-full-hand-grip">
+  <link rel="stylesheet" href="index.css?v=20260731-coupon-button-assets">
 </head>
 <body>
 
@@ -28,12 +28,19 @@
         <img src="assets/crop_lp_header.png" alt="Yakali Gamau Pilih? FANTA Horror Game">
       </div>
 
+      <!--
+        One set of buttons for both landing variants.
+        In the full desktop view these are invisible hotspots (opacity 0) sitting on top of
+        the pink/blue cards already painted into the background artwork. Only the compact
+        view (mobile / any reload) reveals them, and there they are pill-shaped -- hence the
+        pill artwork below rather than the square cards.
+      -->
       <div class="lp-actions">
         <button id="btn-main-game" class="img-btn">
-          <img src="assets/Button-Main Game-Medium.png" alt="Main Game / Main Demi Voucher">
+          <img src="assets/Button-Main Game-Medium.png" alt="Main Game">
         </button>
         <button id="btn-upload-struk" class="img-btn">
-          <img src="assets/Button-Upload struk.png" alt="Upload Struk Demi Voucher">
+          <img src="assets/Button-Upload struk.png" alt="Upload Struk &amp; Ambil Vouchernya">
         </button>
       </div>
 
@@ -41,7 +48,7 @@
         <button id="btn-cara-bermain" class="btn-link">
           <img src="assets/Button-Cara bermain-Medium.png" alt="Cara Bermain">
         </button>
-        <p class="tnc-text">*syarat & ketentuan berlaku</p>
+        <p class="tnc-text">*syarat &amp; ketentuan berlaku</p>
       </div>
     </section>
 
@@ -89,10 +96,12 @@
       <div class="result-actions">
         <div class="result-row-btn">
           <button class="img-btn btn-share">
-            <img src="assets/Button-Share.png" alt="Share">
+            <img class="normal-result-art" src="assets/Button-Share.png" alt="Share">
+            <img class="coupon-out-action-art" src="assets/SHARE.png" alt="Share">
           </button>
           <button class="img-btn btn-main-lagi">
-            <img src="assets/Button-Main Lagi-Medium.png" alt="Main Lagi">
+            <img class="normal-result-art" src="assets/Button-Main Lagi-Medium.png" alt="Main Lagi">
+            <img class="coupon-out-action-art" src="assets/MAIN LAGI.png" alt="Main Lagi">
           </button>
         </div>
         <button class="img-btn btn-ambil-voucher btn-ambil-voucher-win">
@@ -110,10 +119,12 @@
       <div class="result-actions">
         <div class="result-row-btn">
           <button class="img-btn btn-share">
-            <img src="assets/crop_btn_share_lose.png" alt="Share">
+            <img class="normal-result-art" src="assets/crop_btn_share_lose.png" alt="Share">
+            <img class="coupon-out-action-art" src="assets/SHARE.png" alt="Share">
           </button>
           <button class="img-btn btn-main-lagi">
-            <img src="assets/Button-Main Lagi-Medium-Red.png" alt="Main Lagi">
+            <img class="normal-result-art" src="assets/Button-Main Lagi-Medium-Red.png" alt="Main Lagi">
+            <img class="coupon-out-action-art" src="assets/MAIN LAGI.png" alt="Main Lagi">
           </button>
         </div>
         <button class="img-btn btn-ambil-voucher btn-ambil-voucher-lose">
@@ -133,6 +144,6 @@
   </div>
 
   <script src="js/sound.js"></script>
-  <script src="js/game.js?v=20260730-full-hand-grip"></script>
+  <script src="js/game.js?v=20260731-yakali-restored"></script>
 </body>
 </html>

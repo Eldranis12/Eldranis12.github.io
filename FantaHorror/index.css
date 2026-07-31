@@ -58,6 +58,7 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
 }
 
@@ -66,8 +67,13 @@ body {
   position: relative;
   /* Every approved PSD is 1080 x 2340 (6:13).  Keeping this artboard ratio
      prevents the portrait artwork from being cropped on common phone sizes. */
+  /* iOS Chrome counts the retracting toolbar inside 100vh, which pushed the artboard
+     down and cut off the bottom (buttons / modal). dvh tracks the *visible* viewport,
+     so the frame always fits. vh first as a fallback for older browsers. */
   width: min(100vw, calc(100vh * 6 / 13));
   height: min(100vh, calc(100vw * 13 / 6));
+  width: min(100vw, calc(100dvh * 6 / 13));
+  height: min(100dvh, calc(100vw * 13 / 6));
   max-width: 540px;
   max-height: 1170px;
   aspect-ratio: 6 / 13;
@@ -632,13 +638,19 @@ body {
 }
 
 .grave-slot.freezing .suzzanna-stolen {
-  animation: freezeDragDown 0.72s cubic-bezier(0.36, 0, 0.66, 1) forwards;
+  animation: freezeVanish 0.72s cubic-bezier(0.36, 0, 0.66, 1) forwards;
 }
 
-@keyframes freezeDragDown {
+/*
+  The stolen bottle stays in front of its headstone and fades out there -- it is never
+  dragged down into the grave (per brief: "botol tidak masuk kedalam kubur, melainkan
+  hilang berada di depan kubur"). It only lifts slightly, as if snatched away.
+*/
+@keyframes freezeVanish {
   0% { opacity: 0; transform: translateY(-3%) scale(1); }
-  22% { opacity: 1; transform: translateY(3%) scale(0.99); }
-  100% { opacity: 0; transform: translateY(88%) scale(0.72); }
+  22% { opacity: 1; transform: translateY(-3%) scale(1); }
+  60% { opacity: 1; transform: translateY(-7%) scale(1.04); }
+  100% { opacity: 0; transform: translateY(-10%) scale(0.88); }
 }
 
 .grave-slot.freezing .tap-counter-badge {
@@ -740,12 +752,14 @@ body {
 /* ====================================
    COUPON-OUT VARIANTS (Brief Kupon Habis)
 ==================================== */
-#screen-lp.coupon-out {
+#screen-lp.coupon-out,
+#screen-lp.lp-compact-mode {
   background-image: url('assets/clean_lp_bg.png');
   background-size: auto 100%;
 }
 
-#screen-lp.coupon-out .lp-header {
+#screen-lp.coupon-out .lp-header,
+#screen-lp.lp-compact-mode .lp-header {
   position: absolute;
   top: 4%;
   left: 0;
@@ -754,35 +768,45 @@ body {
   opacity: 1;
 }
 
-#screen-lp.coupon-out .lp-header img {
+#screen-lp.coupon-out .lp-header img,
+#screen-lp.lp-compact-mode .lp-header img {
   width: 61%;
   max-width: none;
 }
 
 #screen-lp.coupon-out .lp-actions,
-#screen-lp.coupon-out .lp-footer {
+#screen-lp.coupon-out .lp-footer,
+#screen-lp.lp-compact-mode .lp-actions,
+#screen-lp.lp-compact-mode .lp-footer {
   pointer-events: none;
 }
 
 #screen-lp.coupon-out #btn-main-game,
-#screen-lp.coupon-out .lp-footer .btn-link {
+#screen-lp.coupon-out .lp-footer .btn-link,
+#screen-lp.lp-compact-mode #btn-main-game,
+#screen-lp.lp-compact-mode .lp-footer .btn-link {
   top: 73%;
   width: 40.74%;
   height: 8.21%;
   pointer-events: auto;
 }
 
-#screen-lp.coupon-out #btn-main-game {
+#screen-lp.coupon-out #btn-main-game,
+#screen-lp.lp-compact-mode #btn-main-game {
   left: 50.93%;
   opacity: 1;
 }
 
-#screen-lp.coupon-out .lp-footer .btn-link {
+#screen-lp.coupon-out .lp-footer .btn-link,
+#screen-lp.lp-compact-mode .lp-footer .btn-link {
   left: 8.33%;
   opacity: 1;
 }
 
-#screen-lp.coupon-out .tnc-text {
+#screen-lp.lp-compact-mode #btn-upload-struk { display: none; }
+
+#screen-lp.coupon-out .tnc-text,
+#screen-lp.lp-compact-mode .tnc-text {
   position: absolute;
   top: 82%;
   left: 0;
@@ -798,8 +822,10 @@ body {
   background-position: center;
 }
 
-#screen-win.coupon-out { background-image: url('assets/coupon_out_winner_full.png'); }
-#screen-lose.coupon-out { background-image: url('assets/coupon_out_lose_full.png'); }
+#screen-win.coupon-out { background-image: url('assets/coupon_out_winner_full.png?v=20260731-clean'); }
+#screen-lose.coupon-out { background-image: url('assets/coupon_out_lose_full.png?v=20260731-clean'); }
+
+.coupon-out-action-art { display: none !important; }
 
 #screen-win.coupon-out .result-header,
 #screen-lose.coupon-out .result-header {
@@ -812,16 +838,38 @@ body {
 #screen-lose.coupon-out .result-actions .btn-share,
 #screen-lose.coupon-out .result-actions .btn-main-lagi {
   top: 84.15%;
-  width: 37.32%;
-  height: 6.63%;
-  opacity: 0;
+  width: 40.74%;
+  height: 8.21%;
+  opacity: 1;
 }
 
 #screen-win.coupon-out .btn-share,
-#screen-lose.coupon-out .btn-share { left: 10.83%; }
+#screen-lose.coupon-out .btn-share { left: 8.33%; }
 
 #screen-win.coupon-out .btn-main-lagi,
-#screen-lose.coupon-out .btn-main-lagi { right: 10%; }
+#screen-lose.coupon-out .btn-main-lagi { right: 8.33%; }
+
+#screen-win.coupon-out .normal-result-art,
+#screen-lose.coupon-out .normal-result-art { display: none; }
+
+#screen-win.coupon-out .coupon-out-action-art,
+#screen-lose.coupon-out .coupon-out-action-art { display: block !important; }
+
+/* Voucher Fanta habis uses a dedicated PSD export with the YAKALI CTA baked in. */
+#screen-win.voucher-out {
+  background-image: url('assets/voucher_out_winner_full.png');
+}
+
+#screen-lose.voucher-out {
+  background-image: url('assets/voucher_out_lose_full.png');
+}
+
+#screen-win.voucher-out .btn-ambil-voucher,
+#screen-lose.voucher-out .btn-ambil-voucher {
+  opacity: 0;
+  pointer-events: none;
+  cursor: default;
+}
 
 .result-header {
   width: 100%;
@@ -909,6 +957,7 @@ body {
   display: block;
   width: 100%;
   max-height: 92vh;
+  max-height: 92dvh;
   object-fit: contain;
 }
 
