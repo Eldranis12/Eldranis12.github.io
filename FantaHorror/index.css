@@ -27,6 +27,15 @@
   font-display: swap;
 }
 
+/* Narrower than Expanded -- the brief calls for it on the countdown only. */
+@font-face {
+  font-family: 'Bebas Neue Pro SemiExpanded';
+  src: url('assets/fonts/Bebas-Neue-Pro-SemiExpanded-ExtraBold-BF66cf3d787da5a.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --fanta-orange: #FF6600;
   --fanta-dark-orange: #CC4400;
@@ -38,6 +47,7 @@
   --text-muted: #D1C4E9;
   --font-primary: 'Bebas Neue Pro', 'Arial Narrow', sans-serif;
   --font-expanded: 'Bebas Neue Pro Expanded', 'Arial Narrow', sans-serif;
+  --font-semiexpanded: 'Bebas Neue Pro SemiExpanded', 'Arial Narrow', sans-serif;
   --font-horror: 'Bebas Neue Pro Expanded', 'Arial Narrow', sans-serif;
 }
 
@@ -382,7 +392,8 @@ body {
 }
 
 .timer-val {
-  font-family: var(--font-expanded);
+  /* Brief: countdown uses SemiExpanded ExtraBold; TAP 3X keeps the wider Expanded. */
+  font-family: var(--font-semiexpanded);
   font-size: 2.3rem;
   font-weight: 900;
   color: #05020A;
@@ -599,17 +610,29 @@ body {
   100% { transform: scale(1) rotate(0deg); }
 }
 
-/* Saved animation */
+/*
+  PLAYER RESCUES THE BOTTLE: it is lifted clear and fades out *in front of* the headstone.
+  It must never travel downwards -- sinking is reserved for what Suzzanna drags under.
+*/
 .grave-slot.saved .fanta-bottle,
-.grave-slot.suzzanna-defeated .fanta-bottle,
-.grave-slot.suzzanna-defeated .suzzanna-hand {
-  animation: savePop 0.35s ease-out forwards;
+.grave-slot.suzzanna-defeated .fanta-bottle {
+  animation: bottleRescued 0.35s ease-out forwards;
 }
 
-@keyframes savePop {
+@keyframes bottleRescued {
   0% { transform: translateY(-3%) scale(1); opacity: 1; }
-  50% { transform: translateY(-14%) scale(1.15); opacity: 0.8; }
-  100% { transform: translateY(18%) scale(0.4); opacity: 0; }
+  45% { transform: translateY(-11%) scale(1.14); opacity: 0.9; }
+  100% { transform: translateY(-15%) scale(1); opacity: 0; }
+}
+
+/* ...and the beaten hand withdraws down into its grave, empty. */
+.grave-slot.suzzanna-defeated .suzzanna-hand {
+  animation: handRetreats 0.45s ease-in forwards;
+}
+
+@keyframes handRetreats {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(80%) scale(0.8); opacity: 0; }
 }
 
 /*
@@ -638,19 +661,18 @@ body {
 }
 
 .grave-slot.freezing .suzzanna-stolen {
-  animation: freezeVanish 0.72s cubic-bezier(0.36, 0, 0.66, 1) forwards;
+  animation: stolenIntoGrave 0.72s cubic-bezier(0.36, 0, 0.66, 1) forwards;
 }
 
 /*
-  The stolen bottle stays in front of its headstone and fades out there -- it is never
-  dragged down into the grave (per brief: "botol tidak masuk kedalam kubur, melainkan
-  hilang berada di depan kubur"). It only lifts slightly, as if snatched away.
+  SUZZANNA STEALS IT: the frozen bottle is hauled down under the headstone. It briefly
+  resists (a small lift) and then sinks out of sight -- the opposite of a rescue.
 */
-@keyframes freezeVanish {
+@keyframes stolenIntoGrave {
   0% { opacity: 0; transform: translateY(-3%) scale(1); }
-  22% { opacity: 1; transform: translateY(-3%) scale(1); }
-  60% { opacity: 1; transform: translateY(-7%) scale(1.04); }
-  100% { opacity: 0; transform: translateY(-10%) scale(0.88); }
+  22% { opacity: 1; transform: translateY(-6%) scale(1.02); }
+  45% { opacity: 1; transform: translateY(6%) scale(0.97); }
+  100% { opacity: 0; transform: translateY(88%) scale(0.72); }
 }
 
 .grave-slot.freezing .tap-counter-badge {
@@ -664,8 +686,13 @@ body {
   background-image: url('assets/Fanta-Horor-Winner_full.png');
 }
 
+/*
+  Every lose variant shares this artwork. Unlike the other composites it has an empty
+  strip under the illustration instead of buttons painted in, so the lose CTAs below are
+  real overlay images (opacity 1) rather than the invisible hotspots used elsewhere.
+*/
 #screen-lose {
-  background-image: url('assets/Fanta-Horor-Lose_full.png');
+  background-image: url('assets/Kupon habis.jpg?v=20260731-kuponhabis');
 }
 
 /*
@@ -823,9 +850,22 @@ body {
 }
 
 #screen-win.coupon-out { background-image: url('assets/coupon_out_winner_full.png?v=20260731-clean'); }
-#screen-lose.coupon-out { background-image: url('assets/coupon_out_lose_full.png?v=20260731-clean'); }
+/* Kupon habis lose art: headline baked in, CTA strip left empty for the overlay buttons. */
+#screen-lose.coupon-out { background-image: url('assets/Kupon habis.jpg?v=20260731-kuponhabis'); }
 
 .coupon-out-action-art { display: none !important; }
+
+/* `.img-btn img` sets display:block, so this needs equal reach to stay hidden by default. */
+.img-btn img.voucher-out-art { display: none; }
+
+/*
+  Lose CTAs are always real artwork. The other screens hide their buttons because the
+  composite already paints them, but "Kupon habis.jpg" deliberately leaves that strip
+  empty, so hiding them here would leave the screen with no controls at all.
+*/
+#screen-lose .result-actions .img-btn { opacity: 1; }
+
+#screen-lose .result-header { opacity: 0; }
 
 #screen-win.coupon-out .result-header,
 #screen-lose.coupon-out .result-header {
@@ -855,21 +895,29 @@ body {
 #screen-win.coupon-out .coupon-out-action-art,
 #screen-lose.coupon-out .coupon-out-action-art { display: block !important; }
 
-/* Voucher Fanta habis uses a dedicated PSD export with the YAKALI CTA baked in. */
+/* Voucher Fanta habis: the winner screen has the YAKALI CTA baked into its own export. */
 #screen-win.voucher-out {
   background-image: url('assets/voucher_out_winner_full.png');
 }
 
-#screen-lose.voucher-out {
-  background-image: url('assets/voucher_out_lose_full.png');
-}
-
-#screen-win.voucher-out .btn-ambil-voucher,
-#screen-lose.voucher-out .btn-ambil-voucher {
+#screen-win.voucher-out .btn-ambil-voucher {
   opacity: 0;
   pointer-events: none;
   cursor: default;
 }
+
+/*
+  The lose screen keeps the shared "Kupon habis" artwork in every state, so its greyed
+  CTA cannot come from the background -- it is drawn as an overlay instead.
+*/
+#screen-lose.voucher-out .btn-ambil-voucher {
+  opacity: 1;
+  pointer-events: none;
+  cursor: default;
+}
+
+#screen-lose.voucher-out .btn-ambil-voucher > img.normal-result-art { display: none; }
+#screen-lose.voucher-out .btn-ambil-voucher > img.voucher-out-art { display: block; }
 
 .result-header {
   width: 100%;
