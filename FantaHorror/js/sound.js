@@ -9,19 +9,25 @@ class SoundManager {
         this.isInitialized = false;
 
         this.sounds = {
-            darkAmbiance: new Audio('assets/sounds/Dark Ambiance.wav'),
-            nightAmbience: new Audio('assets/sounds/Night Ambience.wav'),
-            horrorStinger: new Audio('assets/sounds/LDj_Audio - Horror Stinger (Wav).wav'),
-            rockCracks: new Audio('assets/sounds/Rocks_Cracks_Rock_Cracks_Series_SDGWATT_53937.wav'),
-            punch: new Audio('assets/sounds/Fights_Punches_Beefy_Punch_SDCOLLA_50830.wav'),
-            witchLaugh: new Audio('assets/sounds/Witch Laugh 1.wav'),
-            iceFreeze: new Audio('assets/sounds/Ice.wav'),
-            femaleScream: new Audio('assets/sounds/Female Scream 1.wav'),
-            gameOver: new Audio('assets/sounds/30974 Magic midnight game over-full.wav'),
-            winPiano: new Audio('assets/sounds/dark tragic piano.wav'),
-            countdownClock: new Audio('assets/sounds/Rising Creepy Horror Countdown Clock.wav'),
-            buttonClick: new Audio('assets/sounds/Clicked Button Mystery.wav')
+            darkAmbiance: new Audio('assets/sounds/Dark Ambiance.mp3'),
+            nightAmbience: new Audio('assets/sounds/Night Ambience.mp3'),
+            horrorStinger: new Audio('assets/sounds/LDj_Audio - Horror Stinger (Wav).mp3'),
+            rockCracks: new Audio('assets/sounds/Rocks_Cracks_Rock_Cracks_Series_SDGWATT_53937.mp3'),
+            punch: new Audio('assets/sounds/Fights_Punches_Beefy_Punch_SDCOLLA_50830.mp3'),
+            witchLaugh: new Audio('assets/sounds/Witch Laugh 1.mp3'),
+            iceFreeze: new Audio('assets/sounds/Ice.mp3'),
+            femaleScream: new Audio('assets/sounds/Female Scream 1.mp3'),
+            gameOver: new Audio('assets/sounds/30974 Magic midnight game over-full.mp3'),
+            winPiano: new Audio('assets/sounds/dark tragic piano.mp3'),
+            countdownClock: new Audio('assets/sounds/Rising Creepy Horror Countdown Clock.mp3'),
+            buttonClick: new Audio('assets/sounds/Clicked Button Mystery.mp3')
         };
+
+        // Nothing is fetched on page load -- otherwise every track downloads
+        // before the landing page can paint. init() warms them on first tap.
+        for (let key in this.sounds) {
+            this.sounds[key].preload = 'none';
+        }
 
         // Configure loops & volumes
         this.sounds.darkAmbiance.loop = true;
@@ -49,6 +55,12 @@ class SoundManager {
         this.isInitialized = true;
 
         const enableAudio = () => {
+            // First tap is our cue to actually fetch the clips, so an SFX that
+            // fires mid-game is already buffered rather than starting cold.
+            for (let key in this.sounds) {
+                this.sounds[key].preload = 'auto';
+                this.sounds[key].load();
+            }
             if (this.currentBgm) {
                 this.currentBgm.play().catch(() => {});
             }
@@ -70,8 +82,17 @@ class SoundManager {
 
         if (this.sounds[key]) {
             this.currentBgm = this.sounds[key];
-            // Brief: Dark Ambiance track skips its first 5 seconds
-            this.currentBgm.currentTime = key === 'darkAmbiance' ? 5 : 0;
+            // Brief: Dark Ambiance track skips its first 5 seconds.
+            // Seeking is a no-op until metadata lands, so defer when it hasn't.
+            const track = this.currentBgm;
+            const offset = key === 'darkAmbiance' ? 5 : 0;
+            if (track.readyState >= 1) {
+                track.currentTime = offset;
+            } else if (offset) {
+                track.addEventListener('loadedmetadata', () => {
+                    track.currentTime = offset;
+                }, { once: true });
+            }
             this.currentBgm.play().catch(e => {
                 console.log('BGM playback pending user interaction:', e);
             });

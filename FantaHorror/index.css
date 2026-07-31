@@ -182,7 +182,7 @@ body {
    1. LANDING PAGE (LP)
 ==================================== */
 #screen-lp {
-  background-image: url('assets/Fanta-Horor-LP Game_full.png');
+  background-image: url('assets/Fanta-Horor-LP Game_full.webp');
 }
 
 .lp-header {
@@ -275,7 +275,7 @@ body {
    2. VOUCHER SELECTION SCREEN
 ==================================== */
 #screen-voucher-select {
-  background-image: url('assets/Fanta-Horor-Select options_full.png');
+  background-image: url('assets/Fanta-Horor-Select options_full.webp');
 }
 
 .voucher-header {
@@ -339,7 +339,7 @@ body {
   out from under the artboard coordinates the bottle positions are derived from.
 */
 #screen-game {
-  background-image: url('assets/game_bg_artboard.png');
+  background-image: url('assets/game_bg_artboard.webp');
   padding: 16px 14px 16px;
 }
 
@@ -373,13 +373,13 @@ body {
 }
 
 .health-bottle.full {
-  background-image: url('assets/Nyawa.png');
+  background-image: url('assets/Nyawa.webp');
   opacity: 1;
   filter: drop-shadow(0 2px 6px rgba(0,255,102,0.4));
 }
 
 .health-bottle.empty {
-  background-image: url('assets/Nyawa hilang.png');
+  background-image: url('assets/Nyawa hilang.webp');
   opacity: 1;
   filter: none;
   transform: none;
@@ -506,24 +506,24 @@ body {
 
 /* Four approved FANTA packshots. The flavor class is assigned per grave slot. */
 .fanta-bottle {
-  background-image: url('assets/Packshots Orange.png');
+  background-image: url('assets/Packshots Orange.webp');
   z-index: 2;
 }
 
 .grave-slot.flavor-orange .fanta-bottle {
-  background-image: url('assets/Packshots Orange.png');
+  background-image: url('assets/Packshots Orange.webp');
 }
 
 .grave-slot.flavor-strawberry .fanta-bottle {
-  background-image: url('assets/Packshots Strawberry.png');
+  background-image: url('assets/Packshots Strawberry.webp');
 }
 
 .grave-slot.flavor-fruit-punch .fanta-bottle {
-  background-image: url('assets/Packshots Fruit Punch.png');
+  background-image: url('assets/Packshots Fruit Punch.webp');
 }
 
 .grave-slot.flavor-grape .fanta-bottle {
-  background-image: url('assets/Packshots Grape.png');
+  background-image: url('assets/Packshots Grape.webp');
 }
 
 /*
@@ -531,7 +531,7 @@ body {
   bottle's base, centre 7.5px right of the bottle's -- expressed against the bottle box.
 */
 .suzzanna-hand {
-  background-image: url('assets/crop_suzzanna_hand.png');
+  background-image: url('assets/crop_suzzanna_hand.webp');
   width: 203.968%;
   height: 77.882%;
   bottom: 15.765%;
@@ -547,26 +547,26 @@ body {
   so the bottle inside it lands exactly where the loose bottle was standing.
 */
 .suzzanna-stolen {
-  background-image: url('assets/BOTTLE-TAKE-BY-SUZZANA-Orange.png');
+  background-image: url('assets/BOTTLE-TAKE-BY-SUZZANA-Orange.webp');
   width: 152.381%;
   left: -28.1745%;  /* 50% - 1.984% - 76.1905% */
   z-index: 3;
 }
 
 .grave-slot.flavor-orange .suzzanna-stolen {
-  background-image: url('assets/BOTTLE-TAKE-BY-SUZZANA-Orange.png');
+  background-image: url('assets/BOTTLE-TAKE-BY-SUZZANA-Orange.webp');
 }
 
 .grave-slot.flavor-strawberry .suzzanna-stolen {
-  background-image: url('assets/BOTTLE-TAKE-BY-SUZZANA-Strawberry.png');
+  background-image: url('assets/BOTTLE-TAKE-BY-SUZZANA-Strawberry.webp');
 }
 
 .grave-slot.flavor-fruit-punch .suzzanna-stolen {
-  background-image: url('assets/BOTTLE-TAKE-BY-SUZZANA-Fruit punch.png');
+  background-image: url('assets/BOTTLE-TAKE-BY-SUZZANA-Fruit punch.webp');
 }
 
 .grave-slot.flavor-grape .suzzanna-stolen {
-  background-image: url('assets/BOTTLE-TAKE-BY-SUZZANA-Grape.png');
+  background-image: url('assets/BOTTLE-TAKE-BY-SUZZANA-Grape.webp');
 }
 
 /* Visual Debug Tap Badge - Positioned ABOVE the bottle cap */
@@ -683,7 +683,7 @@ body {
    4. WINNER & LOSE SCREENS
 ==================================== */
 #screen-win {
-  background-image: url('assets/Fanta-Horor-Winner_full.png');
+  background-image: url('assets/Fanta-Horor-Winner_full.webp');
 }
 
 /*
@@ -692,7 +692,7 @@ body {
   real overlay images (opacity 1) rather than the invisible hotspots used elsewhere.
 */
 #screen-lose {
-  background-image: url('assets/Kupon habis.jpg?v=20260731-kuponhabis');
+  background-image: url('assets/Kupon habis.webp?v=20260731-kuponhabis');
 }
 
 /*
@@ -781,7 +781,7 @@ body {
 ==================================== */
 #screen-lp.coupon-out,
 #screen-lp.lp-compact-mode {
-  background-image: url('assets/clean_lp_bg.png');
+  background-image: url('assets/clean_lp_bg.webp');
   background-size: auto 100%;
 }
 
@@ -849,9 +849,9 @@ body {
   background-position: center;
 }
 
-#screen-win.coupon-out { background-image: url('assets/coupon_out_winner_full.png?v=20260731-clean'); }
+#screen-win.coupon-out { background-image: url('assets/coupon_out_winner_full.webp?v=20260731-clean'); }
 /* Kupon habis lose art: headline baked in, CTA strip left empty for the overlay buttons. */
-#screen-lose.coupon-out { background-image: url('assets/Kupon habis.jpg?v=20260731-kuponhabis'); }
+#screen-lose.coupon-out { background-image: url('assets/Kupon habis.webp?v=20260731-kuponhabis'); }
 
 .coupon-out-action-art { display: none !important; }
 
@@ -897,7 +897,7 @@ body {
 
 /* Voucher Fanta habis: the winner screen has the YAKALI CTA baked into its own export. */
 #screen-win.voucher-out {
-  background-image: url('assets/voucher_out_winner_full.png');
+  background-image: url('assets/voucher_out_winner_full.webp');
 }
 
 #screen-win.voucher-out .btn-ambil-voucher {

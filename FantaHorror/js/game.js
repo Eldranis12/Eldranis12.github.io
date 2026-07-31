@@ -109,7 +109,7 @@ function triggerGrivyAction(action, campaignCode) {
 // SESSION_GAP_MS to slow the game down further.
 // Poster handed to the OS share sheet when the player taps SHARE.
 // (The source file really is double-extensioned: "...Share.jpg.jpeg".)
-const SHARE_IMAGE_URL = 'assets/Fanta-Horor-Share.jpg.jpeg';
+const SHARE_IMAGE_URL = 'assets/Fanta-Horor-Share.jpg.webp';
 const SHARE_IMAGE_FILENAME = 'fanta-horror-berani-coba.jpg';
 
 const SESSION_SIZE = 5;
@@ -602,7 +602,7 @@ class FantaHorrorGame {
 
             if (imgEl) {
                 const lowerType = vType.toLowerCase();
-                imgEl.src = isAvailable ? `assets/crop_voucher_${lowerType}_active.png` : `assets/crop_voucher_${lowerType}_habis.png`;
+                imgEl.src = isAvailable ? `assets/crop_voucher_${lowerType}_active.webp` : `assets/crop_voucher_${lowerType}_habis.webp`;
             }
         });
     }
