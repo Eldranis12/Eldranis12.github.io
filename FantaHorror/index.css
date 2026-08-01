@@ -265,7 +265,10 @@ body {
 }
 
 .tnc-text {
-  font-size: 0.7rem;
+  /* Matches the "*syarat & ketentuan berlaku" baked into the desktop LP artwork:
+     4.2% of the artboard width. Mirrors the #app-container width formula so the
+     live text tracks the artboard, not the browser viewport. */
+  font-size: calc(min(100vw, 100dvh * 6 / 13, 540px) * 0.042);
   color: var(--text-muted);
   font-weight: 600;
   text-shadow: 0 2px 4px rgba(0,0,0,0.9);
@@ -863,8 +866,16 @@ body {
   composite already paints them, but "Kupon habis.jpg" deliberately leaves that strip
   empty, so hiding them here would leave the screen with no controls at all.
 */
+/*
+  Neither result composite paints its CTAs -- verified: the winner and lose artwork both
+  leave the strip below the illustration empty. So these buttons are real overlay images,
+  unlike the LP/voucher screens where the artwork already draws them and the hotspot stays
+  invisible. Without this they render at opacity 0 over blank artwork and vanish.
+*/
+#screen-win .result-actions .img-btn,
 #screen-lose .result-actions .img-btn { opacity: 1; }
 
+#screen-win .result-header,
 #screen-lose .result-header { opacity: 0; }
 
 #screen-win.coupon-out .result-header,
@@ -895,16 +906,27 @@ body {
 #screen-win.coupon-out .coupon-out-action-art,
 #screen-lose.coupon-out .coupon-out-action-art { display: block !important; }
 
+/*
+  The lose side keeps its red SHARE artwork in every state -- the green SHARE.webp is a
+  winner-screen asset. Higher specificity than the coupon-out swap above so it wins there.
+*/
+#screen-lose .btn-share > img.normal-result-art { display: block; }
+#screen-lose .btn-share > img.coupon-out-action-art { display: none !important; }
+
 /* Voucher Fanta habis: the winner screen has the YAKALI CTA baked into its own export. */
 #screen-win.voucher-out {
   background-image: url('assets/voucher_out_winner_full.webp');
 }
 
+/* The winner artwork paints no CTA either, so the greyed state is an overlay here too. */
 #screen-win.voucher-out .btn-ambil-voucher {
-  opacity: 0;
+  opacity: 1;
   pointer-events: none;
   cursor: default;
 }
+
+#screen-win.voucher-out .btn-ambil-voucher > img.normal-result-art { display: none; }
+#screen-win.voucher-out .btn-ambil-voucher > img.voucher-out-art { display: block; }
 
 /*
   The lose screen keeps the shared "Kupon habis" artwork in every state, so its greyed
