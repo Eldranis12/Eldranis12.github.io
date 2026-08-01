@@ -267,12 +267,12 @@ body {
 .tnc-text {
   font-family: var(--font-primary);
   font-size: calc(min(100vw, 100dvh * 6 / 13, 540px) * 0.042);
-  color: var(--text-muted);
+  color: #FFFFFF;
   font-weight: 400;
   font-style: normal;
   text-transform: lowercase;
-  letter-spacing: 0.5px;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+  letter-spacing: 0.4px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95);
   line-height: 1.2;
 }
 
@@ -846,12 +846,12 @@ body {
   text-align: center;
   font-family: var(--font-primary);
   font-size: calc(min(100vw, 100dvh * 6 / 13, 540px) * 0.042);
-  color: var(--text-muted);
+  color: #FFFFFF;
   font-weight: 400;
   font-style: normal;
   text-transform: lowercase;
-  letter-spacing: 0.5px;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+  letter-spacing: 0.4px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95);
   opacity: 1;
   pointer-events: none;
 }
