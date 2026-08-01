@@ -265,13 +265,15 @@ body {
 }
 
 .tnc-text {
-  /* Matches the "*syarat & ketentuan berlaku" baked into the desktop LP artwork:
-     4.2% of the artboard width. Mirrors the #app-container width formula so the
-     live text tracks the artboard, not the browser viewport. */
-  font-size: calc(min(100vw, 100dvh * 6 / 13, 540px) * 0.042);
-  color: var(--text-muted);
-  font-weight: 600;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+  font-family: Arial, Helvetica, system-ui, -apple-system, sans-serif;
+  font-size: calc(min(100vw, 100dvh * 6 / 13, 540px) * 0.035);
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 400;
+  font-style: normal;
+  text-transform: lowercase;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  line-height: 1.2;
 }
 
 /* ====================================
@@ -838,10 +840,18 @@ body {
 #screen-lp.coupon-out .tnc-text,
 #screen-lp.lp-compact-mode .tnc-text {
   position: absolute;
-  top: 82%;
+  top: 82.5%;
   left: 0;
   width: 100%;
   text-align: center;
+  font-family: Arial, Helvetica, system-ui, -apple-system, sans-serif;
+  font-size: calc(min(100vw, 100dvh * 6 / 13, 540px) * 0.035);
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 400;
+  font-style: normal;
+  text-transform: lowercase;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
   opacity: 1;
   pointer-events: none;
 }
