@@ -266,13 +266,25 @@ body {
 
 .tnc-text {
   font-family: var(--font-primary);
-  font-size: calc(min(100vw, 100dvh * 6 / 13, 540px) * 0.042);
+  /*
+    Solved against the line the full artboard paints, matching BOTH axes: 1.71% of
+    the frame tall and 36.7% wide. Sizing on width alone lets the face sit visibly
+    shorter, which is what made the desktop and phone variants disagree.
+    Tracking is em, not px, so it keeps scaling with the fluid font-size.
+  */
+  font-size: calc(min(100vw, 100dvh * 6 / 13, 540px) * 0.04233);
   color: #FFFFFF;
   font-weight: 400;
   font-style: normal;
   text-transform: lowercase;
-  letter-spacing: 0.4px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95);
+  letter-spacing: 0.004em;
+  /*
+    Light-on-dark text picks up stem darkening from subpixel AA, which left this line
+    ~21% heavier than the identical Book weight Photoshop baked into the artboard.
+    Grayscale AA thins it back to match. The artboard paints no shadow either.
+  */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   line-height: 1.2;
 }
 
@@ -837,21 +849,17 @@ body {
 
 #screen-lp.lp-compact-mode #btn-upload-struk { display: none; }
 
+/*
+  Sized and placed to match the line the full artboard already paints, so the two
+  landing variants read identically: 36.7% of the frame wide, centred at 87.5% down.
+*/
 #screen-lp.coupon-out .tnc-text,
 #screen-lp.lp-compact-mode .tnc-text {
   position: absolute;
-  top: 82.5%;
+  top: 86.32%;
   left: 0;
   width: 100%;
   text-align: center;
-  font-family: var(--font-primary);
-  font-size: calc(min(100vw, 100dvh * 6 / 13, 540px) * 0.042);
-  color: #FFFFFF;
-  font-weight: 400;
-  font-style: normal;
-  text-transform: lowercase;
-  letter-spacing: 0.4px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95);
   opacity: 1;
   pointer-events: none;
 }
