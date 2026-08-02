@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "fanta-horror",
-      "runtimeExecutable": "python",
+      "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8661"],
       "port": 8661
     }
