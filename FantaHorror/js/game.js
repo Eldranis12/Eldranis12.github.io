@@ -179,7 +179,6 @@ class FantaHorrorGame {
                 timerText: document.getElementById('timer-display'),
                 healthContainer: document.getElementById('health-bar'),
                 gravesGrid: document.getElementById('graves-grid'),
-                quotaToggleBtn: document.getElementById('quota-toggle-btn'),
                 audioToggleBtn: document.getElementById('audio-toggle-btn'),
                 selectedVoucherWin: document.getElementById('selected-voucher-win-text'),
                 selectedVoucherLose: document.getElementById('selected-voucher-lose-text')
@@ -187,7 +186,6 @@ class FantaHorrorGame {
 
             this.bindEvents();
             this.renderGraveGrid();
-            this.applyLandingVariant();
             this.preloadShareImage();
             this.switchScreen('LP');
             this.checkCouponQuota();
@@ -195,10 +193,9 @@ class FantaHorrorGame {
     }
 
     /*
-     * Grivy "campaigns-check-active" API. Availability for each main page is aggregated
-     * from its child campaigns. A main page stays available when at least one child is
-     * active and still has coupons. Until child public codes are injected, this falls
-     * back to the main campaign code so existing environments remain testable.
+     * Grivy "campaigns-check-active" API.
+     * Evaluates campaign availability. If API returns [] or code is missing,
+     * it treats coupons as RUN OUT (State B).
      */
     async checkCouponQuota() {
         const params = new URLSearchParams(window.location.search);
@@ -214,7 +211,7 @@ class FantaHorrorGame {
             childCampaigns: GRIVY.childCampaigns
         });
 
-        // QA previews are deterministic and must not wait for the remote API.
+        // QA previews remain active for testing safeguards.
         if (couponPreview === 'out') {
             this.cinemaAvailable = false;
             this.fantaAvailable = false;
@@ -268,17 +265,13 @@ class FantaHorrorGame {
                     tip: 'Type "lastGrivyResponse" in console to view raw data'
                 });
 
-                /*
-                 * Only an explicit answer hides a CTA. A code the API does not report on at
-                 * all (unpublished campaign -> empty array) is "unknown", not "sold out", so
-                 * it stays available -- same fail-open stance as a network error. Otherwise
-                 * the whole game sits in Kupon Habis mode before the campaigns go live.
-                 */
+                // Treat [] empty array or unlisted public code as COUPON RUNS OUT (false)
                 const available = code => {
                     const c = data.find(item => item && item.public_code === code);
-                    if (!c) return true;
+                    if (!c) return false; // [] or not found = coupon runs out
                     return !!(c.campaign_active && !c.coupons_finished);
                 };
+
                 this.cinemaAvailable = cinemaCodes.some(available);
                 this.fantaAvailable = fantaCodes.some(available);
 
@@ -302,10 +295,12 @@ class FantaHorrorGame {
             } catch (err) {
                 window.lastGrivyResponse = null;
                 window.lastGrivyError = err.message || String(err);
+                // On network/CORS error while testing, default to fail-open so game is testable
+                this.cinemaAvailable = true;
+                this.fantaAvailable = true;
                 logGrivyDebug('Coupon Quota API Check Failed / Fallback Active', {
                     error: err.message || err,
-                    fallbackState: 'Keep CTAs visible (Fail Open)',
-                    tip: 'Type "lastGrivyError" in console for error details'
+                    fallbackState: 'Keep CTAs visible for testing (Fail Open)'
                 }, true);
             } finally {
                 clearTimeout(requestTimeout);
@@ -314,40 +309,11 @@ class FantaHorrorGame {
 
         this.applyQuotaUI();
 
-        const screenPreview = params.get('screen');
-        if (screenPreview === 'win') this.switchScreen('WIN');
-        if (screenPreview === 'lose') this.switchScreen('LOSE');
-
         document.getElementById('app-container')?.classList.remove('quota-loading');
     }
 
     /*
-     * Landing variant (brief "Landing Page"): the upload-struk offer is a desktop-only,
-     * once-per-session view. Phones always get the compact CARA BERMAIN + MAIN GAME row,
-     * and so does any desktop reload -- the sessionStorage flag is what makes the second
-     * view "compact", so it survives reloads but resets for a genuinely new visit.
-     */
-    applyLandingVariant() {
-        const SEEN_KEY = 'fanta-lp-offer-seen';
-        const isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-        let seen = false;
-        try {
-            seen = sessionStorage.getItem(SEEN_KEY) === '1';
-            if (!isMobile) sessionStorage.setItem(SEEN_KEY, '1');
-        } catch (err) {
-            // Private mode / storage disabled: fall back to always showing the offer.
-        }
-
-        const compact = isMobile || seen;
-        this.screens.lp?.classList.toggle('lp-compact-mode', compact);
-    }
-
-    /*
      * Share sheet carries the campaign poster image, not just a link.
-     *
-     * The file is fetched ahead of time because iOS Safari drops the tap's transient
-     * activation while an await is pending -- by click time the File must already exist,
-     * so navigator.share() is reached without an intervening await.
      */
     preloadShareImage() {
         this.shareFilePromise = fetch(SHARE_IMAGE_URL)
@@ -360,7 +326,6 @@ class FantaHorrorGame {
                 console.warn('Share image unavailable, will share the link only:', err);
                 return null;
             });
-        // Resolve it eagerly so the click handler can read the settled value.
         this.shareFilePromise.then(file => { this.shareFile = file; });
     }
 
@@ -381,7 +346,6 @@ class FantaHorrorGame {
             return;
         }
 
-        // Desktop browsers without the Web Share API: hand over the poster as a download.
         if (this.shareFile) {
             const href = URL.createObjectURL(this.shareFile);
             const a = document.createElement('a');
@@ -395,30 +359,23 @@ class FantaHorrorGame {
         alert('Salin Link Game: ' + window.location.href);
     }
 
-    // Re-applies coupon-dependent CTA visibility to whichever screen is showing.
+    // Re-applies coupon-dependent CTA visibility:
+    // State A (hasCoupons = true): 3 buttons on LP, Win, and Lose
+    // State B (hasCoupons = false): 2 buttons on LP, Win, and Lose
     applyQuotaUI() {
         const lpScreen = document.getElementById('screen-lp');
         const winScreen = document.getElementById('screen-win');
         const loseScreen = document.getElementById('screen-lose');
 
-        /*
-         * normal      : voucher Fanta tersedia.
-         * voucher-out : voucher Fanta habis, tetapi kupon cinema masih tersedia.
-         * coupon-out  : semua kupon habis; CTA hilang dan SHARE / MAIN LAGI turun.
-         */
-        const couponOut = !this.fantaAvailable && !this.cinemaAvailable;
-        const voucherOut = !this.fantaAvailable && !couponOut;
+        const hasCoupons = this.cinemaAvailable || this.fantaAvailable;
 
-        lpScreen?.classList.toggle('coupon-out', !this.cinemaAvailable);
+        lpScreen?.classList.toggle('coupon-out', !hasCoupons);
+        winScreen?.classList.toggle('coupon-out', !hasCoupons);
+        loseScreen?.classList.toggle('coupon-out', !hasCoupons);
 
-        [winScreen, loseScreen].forEach(screen => {
-            screen?.classList.toggle('coupon-out', couponOut);
-            screen?.classList.toggle('voucher-out', voucherOut);
-        });
-
-        document.getElementById('btn-upload-struk')?.classList.toggle('hidden', !this.cinemaAvailable);
-        document.querySelector('.btn-ambil-voucher-win')?.classList.toggle('hidden', couponOut);
-        document.querySelector('.btn-ambil-voucher-lose')?.classList.toggle('hidden', couponOut);
+        document.getElementById('btn-upload-struk')?.classList.toggle('hidden', !hasCoupons);
+        document.querySelector('.btn-ambil-voucher-win')?.classList.toggle('hidden', !hasCoupons);
+        document.querySelector('.btn-ambil-voucher-lose')?.classList.toggle('hidden', !hasCoupons);
     }
 
     bindEvents() {
@@ -427,14 +384,6 @@ class FantaHorrorGame {
             const isMuted = window.soundManager.toggleMute();
             this.ui.audioToggleBtn.classList.toggle('muted', isMuted);
             this.ui.audioToggleBtn.setAttribute('aria-label', isMuted ? 'Unmute Audio' : 'Mute Audio');
-        });
-
-        // Quota toggle for testing: simulates the "Kupon Habis" state without touching the API
-        this.ui.quotaToggleBtn?.addEventListener('click', () => {
-            window.soundManager.playSfx('buttonClick');
-            this.cinemaAvailable = !this.cinemaAvailable;
-            this.fantaAvailable = !this.fantaAvailable;
-            this.applyQuotaUI();
         });
 
         // LP "MAIN GAME" -- the same hotspot in both landing variants, only re-placed by CSS.
