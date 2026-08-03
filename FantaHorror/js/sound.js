@@ -20,7 +20,12 @@ class SoundManager {
             gameOver: new Audio('assets/sounds/30974 Magic midnight game over-full.mp3'),
             winPiano: new Audio('assets/sounds/dark tragic piano.mp3'),
             countdownClock: new Audio('assets/sounds/Rising Creepy Horror Countdown Clock.mp3'),
-            buttonClick: new Audio('assets/sounds/Clicked Button Mystery.mp3')
+            buttonClick: new Audio('assets/sounds/Clicked Button Mystery.mp3'),
+
+            // Supplied per the "Sound baru" delivery; keys follow the source filenames.
+            tapBottlePlain: new Audio('assets/sounds/Tap botol fanta tanpa tangan.mp3'),
+            tapBottleGrabbed: new Audio('assets/sounds/Tap botol fanta yang ada tangan Suzzana.mp3'),
+            suzzannaReaction: new Audio('assets/sounds/Reaksi Suzzana.mp3')
         };
 
         // Nothing is fetched on page load -- otherwise every track downloads
@@ -46,6 +51,10 @@ class SoundManager {
         this.sounds.winPiano.volume = 0.8;
         this.sounds.countdownClock.volume = 0.85;
         this.sounds.buttonClick.volume = 0.6;
+
+        this.sounds.tapBottlePlain.volume = 0.7;
+        this.sounds.tapBottleGrabbed.volume = 0.7;
+        this.sounds.suzzannaReaction.volume = 0.7;
 
         this.currentBgm = null;
     }

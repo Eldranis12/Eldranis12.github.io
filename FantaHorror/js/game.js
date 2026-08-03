@@ -186,6 +186,7 @@ class FantaHorrorGame {
 
             this.bindEvents();
             this.renderGraveGrid();
+            this.applyLandingVariant();
             this.preloadShareImage();
             this.switchScreen('LP');
             this.checkCouponQuota();
@@ -295,12 +296,18 @@ class FantaHorrorGame {
             } catch (err) {
                 window.lastGrivyResponse = null;
                 window.lastGrivyError = err.message || String(err);
-                // On network/CORS error while testing, default to fail-open so game is testable
-                this.cinemaAvailable = true;
-                this.fantaAvailable = true;
+                /*
+                 * Fail closed, same stance as an unlisted public_code: nothing is offered
+                 * until the API actually confirms it. A network error, a CORS block or a
+                 * timeout is not a "yes" -- it is simply no answer yet. Use ?coupon=active
+                 * to force the CTAs on while testing without a reachable API.
+                 */
+                this.cinemaAvailable = false;
+                this.fantaAvailable = false;
                 logGrivyDebug('Coupon Quota API Check Failed / Fallback Active', {
                     error: err.message || err,
-                    fallbackState: 'Keep CTAs visible for testing (Fail Open)'
+                    fallbackState: 'Kupon Habis until the API answers (Fail Closed)',
+                    tip: 'Append ?coupon=active to override while testing locally'
                 }, true);
             } finally {
                 clearTimeout(requestTimeout);
@@ -310,6 +317,27 @@ class FantaHorrorGame {
         this.applyQuotaUI();
 
         document.getElementById('app-container')?.classList.remove('quota-loading');
+    }
+
+    /*
+     * Landing variant (brief "Landing Page"): the upload-struk offer is a desktop-only,
+     * once-per-session view. Phones always get the compact CARA BERMAIN + MAIN GAME row,
+     * and so does any desktop reload -- the sessionStorage flag is what makes the second
+     * view "compact", so it survives reloads but resets for a genuinely new visit.
+     */
+    applyLandingVariant() {
+        const SEEN_KEY = 'fanta-lp-offer-seen';
+        const isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        let seen = false;
+        try {
+            seen = sessionStorage.getItem(SEEN_KEY) === '1';
+            if (!isMobile) sessionStorage.setItem(SEEN_KEY, '1');
+        } catch (err) {
+            // Private mode / storage disabled: fall back to always showing the offer.
+        }
+
+        const compact = isMobile || seen;
+        this.screens.lp?.classList.toggle('lp-compact-mode', compact);
     }
 
     /*
@@ -367,15 +395,24 @@ class FantaHorrorGame {
         const winScreen = document.getElementById('screen-win');
         const loseScreen = document.getElementById('screen-lose');
 
-        const hasCoupons = this.cinemaAvailable || this.fantaAvailable;
+        /*
+         * normal      : voucher Fanta tersedia.
+         * voucher-out : voucher Fanta habis, tetapi kupon cinema masih tersedia.
+         * coupon-out  : semua kupon habis; CTA hilang dan SHARE / MAIN LAGI turun.
+         */
+        const couponOut = !this.fantaAvailable && !this.cinemaAvailable;
+        const voucherOut = !this.fantaAvailable && !couponOut;
 
-        lpScreen?.classList.toggle('coupon-out', !hasCoupons);
-        winScreen?.classList.toggle('coupon-out', !hasCoupons);
-        loseScreen?.classList.toggle('coupon-out', !hasCoupons);
+        lpScreen?.classList.toggle('coupon-out', !this.cinemaAvailable);
 
-        document.getElementById('btn-upload-struk')?.classList.toggle('hidden', !hasCoupons);
-        document.querySelector('.btn-ambil-voucher-win')?.classList.toggle('hidden', !hasCoupons);
-        document.querySelector('.btn-ambil-voucher-lose')?.classList.toggle('hidden', !hasCoupons);
+        [winScreen, loseScreen].forEach(screen => {
+            screen?.classList.toggle('coupon-out', couponOut);
+            screen?.classList.toggle('voucher-out', voucherOut);
+        });
+
+        document.getElementById('btn-upload-struk')?.classList.toggle('hidden', !this.cinemaAvailable);
+        document.querySelector('.btn-ambil-voucher-win')?.classList.toggle('hidden', couponOut);
+        document.querySelector('.btn-ambil-voucher-lose')?.classList.toggle('hidden', couponOut);
     }
 
     bindEvents() {
@@ -791,14 +828,14 @@ class FantaHorrorGame {
             slot.attackTimeout = null;
             slot.status = 'saved';
             this.setSlotClass(slot, 'saved');
-            window.soundManager.playSfx('punch');
+            window.soundManager.playSfx('tapBottlePlain');
 
             setTimeout(() => this.releaseSlot(slot), 350);
 
         } else if (slot.status === 'suzzanna') {
             // User is multi-tapping Suzzanna's hand to shoo her away!
             slot.tapsLeft--;
-            window.soundManager.playSfx('punch');
+            window.soundManager.playSfx('tapBottleGrabbed');
 
             const tapBadge = slot.el.querySelector('.tap-counter-badge');
             if (tapBadge) {
@@ -813,7 +850,7 @@ class FantaHorrorGame {
                 slot.stealTimeout = null;
                 slot.status = 'saved';
                 this.setSlotClass(slot, 'suzzanna-defeated');
-                window.soundManager.playSfx('femaleScream');
+                window.soundManager.playSfx('suzzannaReaction');
 
                 setTimeout(() => this.releaseSlot(slot), 450);
             }
