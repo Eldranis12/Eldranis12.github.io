@@ -111,6 +111,7 @@ function triggerGrivyAction(action, campaignCode) {
 // (The source file really is double-extensioned: "...Share.jpg.jpeg".)
 const SHARE_IMAGE_URL = 'assets/Fanta-Horor-Share.jpg.webp';
 const SHARE_IMAGE_FILENAME = 'fanta-horror-berani-coba.jpg';
+const SHARE_LINK_URL = 'https://fantaurl.com/q/REF26';
 
 const SESSION_SIZE = 5;
 const SESSION_THREATS = 1;
@@ -361,7 +362,7 @@ class FantaHorrorGame {
         const payload = {
             title: 'FANTA Horror Game',
             text: 'Berani coba??? Amankan Fanta dari gentayangan Suzzanna!',
-            url: window.location.href
+            url: SHARE_LINK_URL
         };
 
         if (this.shareFile && navigator.canShare?.({ files: [this.shareFile] })) {
@@ -384,7 +385,7 @@ class FantaHorrorGame {
             return;
         }
 
-        alert('Salin Link Game: ' + window.location.href);
+        alert('Salin Link Game: ' + SHARE_LINK_URL);
     }
 
     // Re-applies coupon-dependent CTA visibility:
