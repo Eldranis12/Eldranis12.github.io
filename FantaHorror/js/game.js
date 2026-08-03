@@ -650,7 +650,12 @@ class FantaHorrorGame {
         // so clearing bottles is what drives the pace rather than a fixed timer.
         this.spawnSession();
         this.spawnerInterval = setInterval(() => {
-            if (this.gameState !== 'PLAYING' || this.sessionPending) return;
+            if (this.gameState !== 'PLAYING') return;
+            // Runs regardless of whether a wave is due -- a board too full to spawn a
+            // wave is exactly the case that used to leave the player with nothing to do.
+            this.ensureThreat();
+
+            if (this.sessionPending) return;
             const free = this.slots.filter(s => s.status === 'empty').length;
             if (free < SESSION_SIZE) return;
 
@@ -752,15 +757,63 @@ class FantaHorrorGame {
 
         if (!isThreat) return;
 
-        // If the marked bottle is not tapped in time, Suzzanna's hand comes out for it.
+        this.armThreat(slot);
+    }
+
+    /*
+     * Schedules Suzzanna's hand for one bottle. The handle is nulled as it fires so
+     * `attackTimeout` only ever reads truthy while an attack is genuinely pending --
+     * ensureThreat() relies on that to tell "armed" from "already spent".
+     */
+    armThreat(slot) {
+        clearTimeout(slot.attackTimeout);
         slot.attackTimeout = setTimeout(() => {
+            slot.attackTimeout = null;
             if (slot.status === 'bottle' && this.gameState === 'PLAYING') {
                 this.transitionToSuzzannaAttack(slot);
             }
         }, ATTACK_DELAY_MS);
     }
 
+    /*
+     * Keeps the game from stalling. Threats used to be handed out only when a wave
+     * spawned, and a wave needs SESSION_SIZE free graves -- so once enough untapped
+     * bottles piled up, no wave could form, no hand could appear, and an idle player
+     * ran the clock out untouched. The hand is now owned by the board rather than by
+     * the wave: whenever no attack is live, any bottle already standing can be picked.
+     */
+    /*
+     * Returns a slot to the pool. Cancelling a timer leaves its handle behind, and a
+     * leftover handle still reads as "an attack is pending here" -- which would make
+     * ensureThreat() skip arming a new one and stall the board all over again.
+     */
+    releaseSlot(slot) {
+        clearTimeout(slot.attackTimeout);
+        clearTimeout(slot.stealTimeout);
+        clearTimeout(slot.timeoutId);
+        slot.attackTimeout = null;
+        slot.stealTimeout = null;
+        slot.timeoutId = null;
+        slot.status = 'empty';
+        slot.tapsLeft = 0;
+        slot.flavor = null;
+        if (slot.el) slot.el.className = 'grave-slot';
+    }
+
+    ensureThreat() {
+        if (this.gameState !== 'PLAYING') return;
+        const threatLive = this.slots.some(s => s.status === 'suzzanna' || s.attackTimeout);
+        if (threatLive) return;
+
+        const candidates = this.slots.filter(s => s.status === 'bottle');
+        if (!candidates.length) return;
+
+        this.armThreat(candidates[Math.floor(Math.random() * candidates.length)]);
+    }
+
     transitionToSuzzannaAttack(slot) {
+        clearTimeout(slot.attackTimeout);
+        slot.attackTimeout = null;
         slot.status = 'suzzanna';
         slot.tapsLeft = 3;
         this.setSlotClass(slot, 'active-suzzanna', 'popping');
@@ -785,16 +838,13 @@ class FantaHorrorGame {
 
         if (slot.status === 'bottle') {
             // User saved the standard bottle before Suzzanna appeared!
-            if (slot.attackTimeout) clearTimeout(slot.attackTimeout);
+            clearTimeout(slot.attackTimeout);
+            slot.attackTimeout = null;
             slot.status = 'saved';
             this.setSlotClass(slot, 'saved');
             window.soundManager.playSfx('punch');
 
-            setTimeout(() => {
-                slot.status = 'empty';
-                slot.flavor = null;
-                slot.el.className = 'grave-slot';
-            }, 350);
+            setTimeout(() => this.releaseSlot(slot), 350);
 
         } else if (slot.status === 'suzzanna') {
             // User is multi-tapping Suzzanna's hand to shoo her away!
@@ -810,16 +860,13 @@ class FantaHorrorGame {
 
             if (slot.tapsLeft <= 0) {
                 // Successfully shooed Suzzanna away!
-                if (slot.stealTimeout) clearTimeout(slot.stealTimeout);
+                clearTimeout(slot.stealTimeout);
+                slot.stealTimeout = null;
                 slot.status = 'saved';
                 this.setSlotClass(slot, 'suzzanna-defeated');
                 window.soundManager.playSfx('femaleScream');
 
-                setTimeout(() => {
-                    slot.status = 'empty';
-                    slot.flavor = null;
-                    slot.el.className = 'grave-slot';
-                }, 450);
+                setTimeout(() => this.releaseSlot(slot), 450);
             }
         }
     }
@@ -828,6 +875,7 @@ class FantaHorrorGame {
         // The grab and the drag are one motion: the grip composite cross-fades in over the
         // loose bottle as it is pulled under, so the bottle freezes on the way down rather
         // than sitting frozen in place first.
+        slot.stealTimeout = null;   // this runs from that timer; the handle is spent
         slot.status = 'frozen';
         this.setSlotClass(slot, 'stolen', 'freezing');
         window.soundManager.playSfx('iceFreeze');
@@ -841,9 +889,7 @@ class FantaHorrorGame {
                 return;
             }
 
-            slot.status = 'empty';
-            slot.flavor = null;
-            slot.el.className = 'grave-slot';
+            this.releaseSlot(slot);
         }, 720);
     }
 

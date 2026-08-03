@@ -482,6 +482,14 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /*
+    The headstones live in the background artwork, so nothing can be layered behind
+    them -- anything "entering the grave" has to be cut off at the ground instead.
+    This clips only below the box's base (the bottle's standing line, which is where
+    the dirt is); the sides and everything above stay free, so the hand can still be
+    wider than the box and the bottle can still pop up above it.
+  */
+  clip-path: inset(-200% -200% 0 -200%);
 }
 
 /*
@@ -647,9 +655,14 @@ body {
   animation: handRetreats 0.45s ease-in forwards;
 }
 
+/*
+  It withdraws *under the ground*, not into thin air: the slot's bottom clip is what
+  hides it, so it stays fully opaque the whole way down. 125% of its own height clears
+  the base line completely (the hand stands 93.6% of the box tall, from bottom: 15.8%).
+*/
 @keyframes handRetreats {
   0% { transform: translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateY(80%) scale(0.8); opacity: 0; }
+  100% { transform: translateY(125%) scale(0.92); opacity: 1; }
 }
 
 /*
@@ -689,7 +702,9 @@ body {
   0% { opacity: 0; transform: translateY(-3%) scale(1); }
   22% { opacity: 1; transform: translateY(-6%) scale(1.02); }
   45% { opacity: 1; transform: translateY(6%) scale(0.97); }
-  100% { opacity: 0; transform: translateY(88%) scale(0.72); }
+  /* Stays opaque: the slot's bottom clip swallows it, so hand and bottle really do
+     go under the headstone together instead of dissolving in front of it. */
+  100% { opacity: 1; transform: translateY(105%) scale(0.86); }
 }
 
 .grave-slot.freezing .tap-counter-badge {
