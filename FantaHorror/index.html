@@ -6,18 +6,11 @@
   <title>FANTA Horror Gamification - Gebuk Suzzanna, Amankan Fantamu!</title>
   <meta name="description" content="Mainkan game FANTA Horror! Lindungi botol Fanta dari cegatan tangan Suzzanna selama 30 detik untuk memenangkan voucher nonton bioskop eksklusif!">
   
-  <link rel="stylesheet" href="index.css?v=20260801-gamefix">
+  <link rel="stylesheet" href="index.css?v=20260804-hud">
 </head>
 <body>
 
   <div id="app-container" class="quota-loading">
-
-    <!-- Floating Top Control Bar -->
-    <div class="top-controls-bar">
-      <button id="audio-toggle-btn" class="icon-btn" aria-label="Mute / Unmute Audio">
-        🔊 MUSIK & SFX
-      </button>
-    </div>
 
     <!-- 1. LANDING PAGE (LP) -->
     <section id="screen-lp" class="screen">
@@ -74,7 +67,13 @@
         <div id="health-bar" class="health-bar-container">
           <!-- Render 5 health bottle icons dynamically -->
         </div>
+        <!-- Audio toggle sits above the countdown; the countdown's baseline lines up
+             with the bottom of the health bottles (see .game-header-panel). -->
         <div class="timer-box">
+          <button id="audio-toggle-btn" class="btn-audio" aria-label="Mute Audio">
+            <img class="audio-art-on" src="assets/Audio - On.png" alt="">
+            <img class="audio-art-mute" src="assets/Audio - Mute.png" alt="">
+          </button>
           <span id="timer-display" class="timer-val">30s</span>
         </div>
       </div>
@@ -144,7 +143,7 @@
 
   </div>
 
-  <script src="js/sound.js?v=20260803-soundbaru"></script>
-  <script src="js/game.js?v=20260803-soundbaru"></script>
+  <script src="js/sound.js?v=20260804-soundv02"></script>
+  <script src="js/game.js?v=20260804-soundv02"></script>
 </body>
 </html>

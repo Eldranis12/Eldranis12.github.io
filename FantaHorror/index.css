@@ -123,44 +123,27 @@ body {
   display: none !important;
 }
 
-/* Floating Audio & Dev Controls (Hidden in production UI, kept for debug) */
-.top-controls-bar {
-  display: none;
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
-  justify-content: space-between;
-  align-items: center;
-  z-index: 100;
-}
-
-.icon-btn {
-  background: rgba(26, 11, 46, 0.88);
-  border: 1.5px solid var(--fanta-orange);
-  color: var(--fanta-yellow);
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-weight: 700;
-  font-size: 0.75rem;
+/* Audio toggle -- lives in the game HUD, above the countdown. */
+.btn-audio {
+  background: none;
+  border: 0;
+  padding: 0;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-  backdrop-filter: blur(4px);
-  transition: transform 0.15s ease, background-color 0.2s ease;
+  line-height: 0;
+  transition: transform 0.15s ease, filter 0.2s ease;
 }
 
-.icon-btn:active {
-  transform: scale(0.92);
+.btn-audio img {
+  width: 34px;
+  height: auto;
+  display: block;
 }
 
-.icon-btn.muted {
-  border-color: #888;
-  color: #aaa;
-  background: rgba(40,40,40,0.85);
-}
+.btn-audio:active { transform: scale(0.92); }
+
+.btn-audio .audio-art-mute,
+.btn-audio.muted .audio-art-on { display: none; }
+.btn-audio.muted .audio-art-mute { display: block; }
 
 /* Screens Base */
 .screen {
@@ -365,7 +348,8 @@ body {
   width: 100%;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  /* Brief: countdown baseline sits level with the bottom of the health bottles. */
+  align-items: flex-end;
   padding: 10px 4px 0;
   background: transparent;
   border: none;
@@ -404,8 +388,9 @@ body {
 
 .timer-box {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
 }
 
 .timer-val {
@@ -606,10 +591,10 @@ body {
   transform: scale(0.9);
   background: #FF2244;
   color: #FFF;
-  font-size: 0.72rem;
+  font-size: 1.08rem; /* 0.72rem +50% per brief */
   font-weight: 900;
-  padding: 3px 8px;
-  border-radius: 12px;
+  padding: 4px 12px;
+  border-radius: 16px;
   border: 2px solid #FFF;
   box-shadow: 0 4px 10px rgba(0,0,0,0.8);
   opacity: 0;

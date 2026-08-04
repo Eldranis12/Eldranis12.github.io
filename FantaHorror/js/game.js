@@ -128,7 +128,6 @@ class FantaHorrorGame {
         this.spawnerInterval = null;
         this.sessionPending = false;
         this.sessionTimeout = null;
-        this.stingerInterval = null;
         this.health = 5;
         this.maxHealth = 5;
         this.selectedVoucher = null; // 'CGV', 'CINEPOLIS', 'XXI'
@@ -552,14 +551,14 @@ class FantaHorrorGame {
 
         if (screenName === 'LP') {
             this.screens.lp?.classList.remove('hidden');
-            window.soundManager.playBgm('darkAmbiance');
+            window.soundManager.playBgm('bgm');
         } else if (screenName === 'VOUCHER_SELECT') {
             this.updateVoucherUI();
             this.screens.voucherSelect?.classList.remove('hidden');
-            window.soundManager.playBgm('darkAmbiance');
+            window.soundManager.playBgm('bgm');
         } else if (screenName === 'PLAYING') {
             this.screens.game?.classList.remove('hidden');
-            window.soundManager.playBgm('nightAmbience');
+            window.soundManager.playBgm('bgm');
         } else if (screenName === 'WIN') {
             this.screens.win?.classList.remove('hidden');
             if (this.ui.selectedVoucherWin) {
@@ -567,7 +566,7 @@ class FantaHorrorGame {
             }
             this.applyQuotaUI();
             window.soundManager.stopBgm();
-            window.soundManager.playSfx('winPiano');
+            window.soundManager.playSequence('winA', 'winB');
         } else if (screenName === 'LOSE') {
             this.screens.lose?.classList.remove('hidden');
             if (this.ui.selectedVoucherLose) {
@@ -575,7 +574,7 @@ class FantaHorrorGame {
             }
             this.applyQuotaUI();
             window.soundManager.stopBgm();
-            window.soundManager.playSfx('gameOver');
+            window.soundManager.playSequence('loseA', 'loseB');
         }
     }
 
@@ -606,6 +605,21 @@ class FantaHorrorGame {
         }
     }
 
+    /*
+     * A screen's background art is only fetched once its section un-hides, so the win/lose
+     * artwork used to download *after* the switch -- one blank frame at game over. Warming
+     * it during the 30s round removes that gap. Keep this list in sync with the
+     * #screen-win / #screen-lose background-image rules in index.css.
+     */
+    preloadResultArt() {
+        [
+            'Fanta-Horor-Winner_full.webp',
+            'coupon_out_winner_full.webp?v=20260731-clean',
+            'voucher_out_winner_full.webp',
+            'Kupon habis.webp?v=20260731-kuponhabis'
+        ].forEach(file => { new Image().src = 'assets/' + file; });
+    }
+
     startGame() {
         this.health = 5;
         this.timer = 30;
@@ -617,14 +631,15 @@ class FantaHorrorGame {
         this.updateTimerUI();
 
         this.switchScreen('PLAYING');
+        this.preloadResultArt();
 
         // Start countdown loop
         this.timerInterval = setInterval(() => {
             this.timer--;
             this.updateTimerUI();
 
-            if (this.timer === 7) {
-                window.soundManager.playSfx('countdownClock');
+            if (this.timer === 5) {
+                window.soundManager.playSfx('heartbeat');
             }
 
             if (this.timer <= 0) {
@@ -653,12 +668,6 @@ class FantaHorrorGame {
             }, SESSION_GAP_MS);
         }, 250);
 
-        // Ambient horror stinger overlay
-        this.stingerInterval = setInterval(() => {
-            if (this.gameState === 'PLAYING' && Math.random() < 0.4) {
-                window.soundManager.playSfx('horrorStinger');
-            }
-        }, 6000);
     }
 
     clearAllSlots() {
@@ -810,7 +819,7 @@ class FantaHorrorGame {
             tapBadge.textContent = 'TAP 3X!';
         }
         
-        window.soundManager.playSfx('witchLaugh');
+        window.soundManager.playSfx('handAppears');
 
         // Gives player 3 seconds to tap Suzzanna's hand 3 times to shoo her away!
         slot.stealTimeout = setTimeout(() => {
@@ -836,11 +845,11 @@ class FantaHorrorGame {
         } else if (slot.status === 'suzzanna') {
             // User is multi-tapping Suzzanna's hand to shoo her away!
             slot.tapsLeft--;
-            window.soundManager.playSfx('tapBottleGrabbed');
+            window.soundManager.playSfx('punch'); window.soundManager.playSfx('punchHurt');
 
             const tapBadge = slot.el.querySelector('.tap-counter-badge');
             if (tapBadge) {
-                tapBadge.textContent = slot.tapsLeft > 0 ? `TAP ${slot.tapsLeft}X!` : `DEFENDED!`;
+                tapBadge.textContent = slot.tapsLeft > 0 ? `TAP ${slot.tapsLeft}X!` : `FANTA AMAN!`;
                 tapBadge.classList.add('hit-shake');
                 setTimeout(() => tapBadge.classList.remove('hit-shake'), 150);
             }
@@ -865,7 +874,7 @@ class FantaHorrorGame {
         slot.stealTimeout = null;   // this runs from that timer; the handle is spent
         slot.status = 'frozen';
         this.setSlotClass(slot, 'stolen', 'freezing');
-        window.soundManager.playSfx('iceFreeze');
+        window.soundManager.playSfx('steal'); window.soundManager.playSfx('stealGiggle');
 
         this.health = Math.max(0, this.health - 1);
         this.updateHealthUI();
@@ -883,7 +892,6 @@ class FantaHorrorGame {
     endGame(isWin) {
         clearInterval(this.timerInterval);
         clearInterval(this.spawnerInterval);
-        clearInterval(this.stingerInterval);
         clearTimeout(this.sessionTimeout);
         this.sessionPending = false;
         this.clearAllSlots();

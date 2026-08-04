@@ -133,7 +133,6 @@ const actions = {
     const g = game();
     g.startGame();
     win().clearInterval(g.timerInterval);
-    win().clearInterval(g.stingerInterval);
     win().clearInterval(g.spawnerInterval);
     g.clearAllSlots();
     g.spawnSession();
@@ -142,7 +141,6 @@ const actions = {
     const g = game();
     g.startGame();
     win().clearInterval(g.timerInterval);
-    win().clearInterval(g.stingerInterval);
     win().clearInterval(g.spawnerInterval);
     g.clearAllSlots();
     const s = g.slots[4];

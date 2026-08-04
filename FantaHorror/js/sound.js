@@ -1,6 +1,8 @@
 /**
  * FANTA Horror Game - Sound Manager
- * Handles background ambiance, stingers, and gameplay sound effects
+ *
+ * Clips come from the "Sound v.02" delivery (assets/Sound v.02/*.wav), transcoded to
+ * mp3 in assets/sounds/ -- the raw wavs are up to 17 MB, far too heavy to stream.
  */
 
 class SoundManager {
@@ -8,24 +10,36 @@ class SoundManager {
         this.isMuted = false;
         this.isInitialized = false;
 
-        this.sounds = {
-            darkAmbiance: new Audio('assets/sounds/Dark Ambiance.mp3'),
-            nightAmbience: new Audio('assets/sounds/Night Ambience.mp3'),
-            horrorStinger: new Audio('assets/sounds/LDj_Audio - Horror Stinger (Wav).mp3'),
-            rockCracks: new Audio('assets/sounds/Rocks_Cracks_Rock_Cracks_Series_SDGWATT_53937.mp3'),
-            punch: new Audio('assets/sounds/Fights_Punches_Beefy_Punch_SDCOLLA_50830.mp3'),
-            witchLaugh: new Audio('assets/sounds/Witch Laugh 1.mp3'),
-            iceFreeze: new Audio('assets/sounds/Ice.mp3'),
-            femaleScream: new Audio('assets/sounds/Female Scream 1.mp3'),
-            gameOver: new Audio('assets/sounds/30974 Magic midnight game over-full.mp3'),
-            winPiano: new Audio('assets/sounds/dark tragic piano.mp3'),
-            countdownClock: new Audio('assets/sounds/Rising Creepy Horror Countdown Clock.mp3'),
-            buttonClick: new Audio('assets/sounds/Clicked Button Mystery.mp3'),
+        const clip = file => new Audio('assets/sounds/' + file + '.mp3');
 
-            // Supplied per the "Sound baru" delivery; keys follow the source filenames.
-            tapBottlePlain: new Audio('assets/sounds/Tap botol fanta tanpa tangan.mp3'),
-            tapBottleGrabbed: new Audio('assets/sounds/Tap botol fanta yang ada tangan Suzzana.mp3'),
-            suzzannaReaction: new Audio('assets/sounds/Reaksi Suzzana.mp3')
+        this.sounds = {
+            // Background: one track from the landing page through the round.
+            // Deliberately NOT played on win/lose -- those screens get their own cue.
+            bgm: clip('awesome_music_funny-halloween-monsters-skeletons-dance_main'),
+
+            buttonClick: clip('Clicked Button Mystery'),
+            tapBottlePlain: clip('pop-01'),
+            heartbeat: clip('Heartbeat 2'),
+            rockCracks: clip('Rocks_Cracks_Rock_Cracks_Series_SDGWATT_53937'),
+            handAppears: clip('18677 spooky cartoon ghost-full'),
+
+            // Suzzanna gets the bottle: freeze + her giggle, layered.
+            steal: clip('Ice'),
+            stealGiggle: clip('Female Giggle 1 1'),
+
+            // Punching her hand: impact + her hurt vocal, layered.
+            punch: clip('slap punch'),
+            punchHurt: clip('female voice hurt (edit 3)'),
+
+            /* TODO(sound): the brief's "after tap 3x" cue, 65 HUMAN-SCREAM_GEN-HDF-15265.wav,
+               was not in the Sound v.02 folder. Still the previous delivery's clip. */
+            suzzannaReaction: clip('Reaksi Suzzana'),
+
+            // Result screens: each is two clips back to back (see playSequence).
+            loseA: clip('sad-trombone'),
+            loseB: clip('Witch Evil Cackle Laugh Voice'),
+            winA: clip('Scary Fun Halloween Ending'),
+            winB: clip('Female Mixed Age Crying Long Whine Cough Multiple')
         };
 
         // Nothing is fetched on page load -- otherwise every track downloads
@@ -34,27 +48,23 @@ class SoundManager {
             this.sounds[key].preload = 'none';
         }
 
-        // Configure loops & volumes
-        this.sounds.darkAmbiance.loop = true;
-        this.sounds.darkAmbiance.volume = 0.45;
+        this.sounds.bgm.loop = true;
+        this.sounds.bgm.volume = 0.4;
 
-        this.sounds.nightAmbience.loop = true;
-        this.sounds.nightAmbience.volume = 0.35;
-
-        this.sounds.horrorStinger.volume = 0.5;
-        this.sounds.rockCracks.volume = 0.6;
-        this.sounds.punch.volume = 0.7;
-        this.sounds.witchLaugh.volume = 0.7;
-        this.sounds.iceFreeze.volume = 0.8;
-        this.sounds.femaleScream.volume = 0.7;
-        this.sounds.gameOver.volume = 0.8;
-        this.sounds.winPiano.volume = 0.8;
-        this.sounds.countdownClock.volume = 0.85;
         this.sounds.buttonClick.volume = 0.6;
-
         this.sounds.tapBottlePlain.volume = 0.7;
-        this.sounds.tapBottleGrabbed.volume = 0.7;
+        this.sounds.heartbeat.volume = 0.85;
+        this.sounds.rockCracks.volume = 0.6;
+        this.sounds.handAppears.volume = 0.7;
+        this.sounds.steal.volume = 0.8;
+        this.sounds.stealGiggle.volume = 0.7;
+        this.sounds.punch.volume = 0.7;
+        this.sounds.punchHurt.volume = 0.7;
         this.sounds.suzzannaReaction.volume = 0.7;
+        this.sounds.loseA.volume = 0.8;
+        this.sounds.loseB.volume = 0.8;
+        this.sounds.winA.volume = 0.8;
+        this.sounds.winB.volume = 0.8;
 
         this.currentBgm = null;
     }
@@ -83,7 +93,11 @@ class SoundManager {
 
     playBgm(key) {
         if (this.isMuted) return;
-        
+
+        // Brief: one continuous track from the landing page into the round. Screen
+        // switches must not restart it -- only stopBgm (win/lose) ends it.
+        if (this.currentBgm === this.sounds[key] && !this.currentBgm.paused) return;
+
         if (this.currentBgm) {
             this.currentBgm.pause();
             this.currentBgm.currentTime = 0;
@@ -91,10 +105,10 @@ class SoundManager {
 
         if (this.sounds[key]) {
             this.currentBgm = this.sounds[key];
-            // Brief: Dark Ambiance track skips its first 5 seconds.
+            // Brief: the halloween track starts at 0:10.
             // Seeking is a no-op until metadata lands, so defer when it hasn't.
             const track = this.currentBgm;
-            const offset = key === 'darkAmbiance' ? 5 : 0;
+            const offset = key === 'bgm' ? 10 : 0;
             if (track.readyState >= 1) {
                 track.currentTime = offset;
             } else if (offset) {
@@ -114,7 +128,7 @@ class SoundManager {
             this.currentBgm.currentTime = 0;
             this.currentBgm = null;
         }
-        this.stopSfx('countdownClock');
+        this.stopSfx('heartbeat');
     }
 
     playSfx(key, restart = true) {
@@ -130,6 +144,14 @@ class SoundManager {
                 console.error(err);
             }
         }
+    }
+
+    /* Brief: on win/lose the second clip starts once the first has finished. */
+    playSequence(firstKey, secondKey) {
+        const first = this.sounds[firstKey];
+        if (!first) return;
+        first.addEventListener('ended', () => this.playSfx(secondKey), { once: true });
+        this.playSfx(firstKey);
     }
 
     stopSfx(key) {
