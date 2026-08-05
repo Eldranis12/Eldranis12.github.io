@@ -609,6 +609,28 @@ body {
   transform: scale(1);
 }
 
+/*
+  At the enlarged type size "FANTA AMAN!" is ~3x wider than a grave slot, so when it is
+  centred on an outer column it runs past the artboard and #app-container clips it.
+  The outer columns are anchored to their slot edge and allowed to lean outward by
+  ~40% of a slot -- enough to stay near the bottle, never enough to leave the frame.
+*/
+.grave-slot[data-id="0"] .tap-counter-badge,
+.grave-slot[data-id="3"] .tap-counter-badge,
+.grave-slot[data-id="6"] .tap-counter-badge {
+  left: -40%;
+  right: auto;
+  margin-inline: 0;
+}
+
+.grave-slot[data-id="2"] .tap-counter-badge,
+.grave-slot[data-id="5"] .tap-counter-badge,
+.grave-slot[data-id="8"] .tap-counter-badge {
+  left: auto;
+  right: -40%;
+  margin-inline: 0;
+}
+
 .tap-counter-badge.hit-shake {
   animation: badgeShake 0.15s ease-in-out;
 }

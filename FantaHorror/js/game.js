@@ -566,7 +566,7 @@ class FantaHorrorGame {
             }
             this.applyQuotaUI();
             window.soundManager.stopBgm();
-            window.soundManager.playSequence('winA', 'winB');
+            window.soundManager.playSequence('winA', 'winB', 2);
         } else if (screenName === 'LOSE') {
             this.screens.lose?.classList.remove('hidden');
             if (this.ui.selectedVoucherLose) {
@@ -574,7 +574,7 @@ class FantaHorrorGame {
             }
             this.applyQuotaUI();
             window.soundManager.stopBgm();
-            window.soundManager.playSequence('loseA', 'loseB');
+            window.soundManager.playSequence('loseA', 'loseB', 5);
         }
     }
 

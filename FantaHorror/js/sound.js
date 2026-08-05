@@ -128,7 +128,9 @@ class SoundManager {
             this.currentBgm.currentTime = 0;
             this.currentBgm = null;
         }
-        this.stopSfx('heartbeat');
+        // Long in-game clips (rockCracks runs 11s) otherwise bleed into the result screen
+        // and fight its cue. Ending the round silences the arena outright.
+        ['heartbeat', 'rockCracks', 'handAppears', 'steal', 'stealGiggle'].forEach(k => this.stopSfx(k));
     }
 
     playSfx(key, restart = true) {
@@ -146,12 +148,32 @@ class SoundManager {
         }
     }
 
-    /* Brief: on win/lose the second clip starts once the first has finished. */
-    playSequence(firstKey, secondKey) {
+    /*
+     * Win/lose cue: two clips back to back. Both first clips trail off into near-silence,
+     * so waiting for 'ended' left an audible dead gap -- the hand-off happens at
+     * cutoffSec instead, and the first clip is faded out rather than cut hard.
+     */
+    playSequence(firstKey, secondKey, cutoffSec) {
         const first = this.sounds[firstKey];
         if (!first) return;
-        first.addEventListener('ended', () => this.playSfx(secondKey), { once: true });
+
+        clearTimeout(this.sequenceTimeout);
+        clearInterval(this.fadeInterval);
+        const fullVolume = first.volume;
         this.playSfx(firstKey);
+
+        this.sequenceTimeout = setTimeout(() => {
+            this.playSfx(secondKey);
+            this.fadeInterval = setInterval(() => {
+                first.volume = Math.max(0, first.volume - fullVolume / 8);
+                if (first.volume === 0) {
+                    clearInterval(this.fadeInterval);
+                    first.pause();
+                    first.currentTime = 0;
+                    first.volume = fullVolume;
+                }
+            }, 50);
+        }, cutoffSec * 1000);
     }
 
     stopSfx(key) {
