@@ -1112,11 +1112,16 @@ body {
   font-weight: 400;
 }
 
+/*
+  Invisible hotspot over the TUTUP pill painted into the popup artwork. Measured off
+  POP-UP-CARA BERMAIN.png (814x1086): the pill sits at x 223-590, y 909-1001, and these
+  figures add a small tap margin around it. Re-measure if the artwork is replaced.
+*/
 .btn-tutup-green {
   position: absolute;
-  left: 24%;
-  bottom: 5.5%;
-  width: 52%;
+  left: 26%;
+  bottom: 7%;
+  width: 48%;
   height: 10%;
   max-width: none;
   margin: 0;
