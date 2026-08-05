@@ -431,23 +431,31 @@ img {
 }
 
 
-/* feedback 07 Jul: tombol lebih besar, jarak antar tombol lebih rapat */
+/* layout baru: kiri/kanan berpasangan di kiri-atas dengan turun di
+   bawahnya (tersentral), putar di kanan-atas dengan jatuhkan di
+   bawahnya -- sesuai referensi mockup */
 .game-controls {
   position: absolute;
-  top: 1685px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 28px;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2; /* render di atas .swoosh supaya tombol besar tidak "tertutup" gelombang dekoratif */
 }
 .btn-ctl {
+  position: absolute;
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
+  pointer-events: auto;
 }
-.btn-ctl img { width: 175px; height: 175px; display: block; }
+.btn-ctl img { width: 220px; height: 220px; display: block; }
 .btn-ctl:active img { transform: scale(0.9); }
+
+#ctl-left   { left: 125px; top: 1635px; }
+#ctl-right  { left: 345px; top: 1635px; }
+#ctl-down   { left: 235px; top: 1830px; }
+#ctl-rotate { left: 750px; top: 1635px; }
+#ctl-drop   { left: 590px; top: 1830px; }
 
 .swoosh {
   position: absolute;
