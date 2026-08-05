@@ -353,6 +353,11 @@ body {
   padding: 10px 4px 0;
   background: transparent;
   border: none;
+  position: relative;
+  /* .graves-grid-container is position:absolute; inset:0 -- it comes later in the DOM
+     and, without this, wins the stacking order and eats clicks on the audio button
+     even though it renders visually underneath. */
+  z-index: 10;
   box-shadow: none;
   backdrop-filter: none;
   margin-top: 10px;
