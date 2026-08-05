@@ -440,22 +440,30 @@ img {
   pointer-events: none;
   z-index: 2; /* render di atas .swoosh supaya tombol besar tidak "tertutup" gelombang dekoratif */
 }
+/* PNG tombol punya bingkai transparan 20px di tiap sisi (gambar 220px,
+   isi gambar cuma 180px di tengah). Kotak tombol dibuat seukuran isi
+   gambar saja, lalu <img> dilebarkan keluar pakai margin negatif --
+   tampilan tetap sama persis, tapi area tap tidak lagi tumpang tindih
+   antar tombol (dulu bagian bawah kiri/kanan malah men-trigger turun). */
 .btn-ctl {
   position: absolute;
+  width: 180px;
+  height: 180px;
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
   pointer-events: auto;
 }
-.btn-ctl img { width: 220px; height: 220px; display: block; }
+.btn-ctl img { width: 220px; height: 220px; margin: -20px; display: block; }
 .btn-ctl:active img { transform: scale(0.9); }
 
-#ctl-left   { left: 125px; top: 1635px; }
-#ctl-right  { left: 345px; top: 1635px; }
-#ctl-down   { left: 235px; top: 1830px; }
-#ctl-rotate { left: 750px; top: 1635px; }
-#ctl-drop   { left: 590px; top: 1830px; }
+/* koordinat = posisi isi gambar tombol (sudah termasuk offset 20px di atas) */
+#ctl-left   { left: 145px; top: 1655px; }
+#ctl-right  { left: 365px; top: 1655px; }
+#ctl-down   { left: 255px; top: 1850px; }
+#ctl-rotate { left: 770px; top: 1655px; }
+#ctl-drop   { left: 610px; top: 1850px; }
 
 .swoosh {
   position: absolute;
