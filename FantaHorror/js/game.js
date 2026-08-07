@@ -126,6 +126,7 @@ class FantaHorrorGame {
         this.timer = 30;
         this.timerInterval = null;
         this.spawnerInterval = null;
+        this.ambientInterval = null;
         this.sessionPending = false;
         this.sessionTimeout = null;
         this.health = 5;
@@ -668,6 +669,12 @@ class FantaHorrorGame {
             }, SESSION_GAP_MS);
         }, 250);
 
+        // Ambient ghost cue, not a per-hand jump-scare: brief asked for it "taken out"
+        // of every hand spawn and moved to a background loop so it plays less often.
+        this.ambientInterval = setInterval(() => {
+            if (this.gameState === 'PLAYING') window.soundManager.playSfx('handAppears');
+        }, 7000);
+
     }
 
     clearAllSlots() {
@@ -818,8 +825,6 @@ class FantaHorrorGame {
         if (tapBadge) {
             tapBadge.textContent = 'TAP 3X!';
         }
-        
-        window.soundManager.playSfx('handAppears');
 
         // Gives player 3 seconds to tap Suzzanna's hand 3 times to shoo her away!
         slot.stealTimeout = setTimeout(() => {
@@ -898,6 +903,7 @@ class FantaHorrorGame {
     endGame(isWin) {
         clearInterval(this.timerInterval);
         clearInterval(this.spawnerInterval);
+        clearInterval(this.ambientInterval);
         clearTimeout(this.sessionTimeout);
         this.sessionPending = false;
         this.clearAllSlots();
