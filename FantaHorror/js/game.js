@@ -859,10 +859,16 @@ class FantaHorrorGame {
                 clearTimeout(slot.stealTimeout);
                 slot.stealTimeout = null;
                 slot.status = 'saved';
-                this.setSlotClass(slot, 'suzzanna-defeated');
+                // Keep active-suzzanna a beat longer so "FANTA AMAN!" -- which only
+                // paints while that class is on -- has time to read before the bottle
+                // rescue animation (tied to suzzanna-defeated) takes over.
+                this.setSlotClass(slot, 'active-suzzanna', 'suzzanna-defeated');
                 window.soundManager.playSfx('suzzannaReaction');
 
-                setTimeout(() => this.releaseSlot(slot), 450);
+                setTimeout(() => {
+                    this.setSlotClass(slot, 'suzzanna-defeated');
+                    this.releaseSlot(slot);
+                }, 3000);
             }
         }
     }
