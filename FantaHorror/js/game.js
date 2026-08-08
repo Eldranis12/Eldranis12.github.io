@@ -136,8 +136,8 @@ function triggerGrivyAction(action, campaignCode) {
 // SESSION_GAP_MS to slow the game down further.
 // Poster handed to the OS share sheet when the player taps SHARE.
 // (The source file really is double-extensioned: "...Share.jpg.jpeg".)
-const SHARE_IMAGE_URL = 'assets/Fanta-Horor-Share.jpg.webp';
-const SHARE_IMAGE_FILENAME = 'fanta-horror-berani-coba.jpg';
+const SHARE_IMAGE_URL = 'assets/fanta_horror_poster_share.jpg';
+const SHARE_IMAGE_FILENAME = 'fanta-horror-enak-rebutan.jpg';
 const SHARE_LINK_URL = 'https://fantaurl.com/q/REF26';
 
 // Warning banners for the closing lives; anything not listed shows nothing.
