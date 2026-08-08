@@ -664,7 +664,8 @@ class FantaHorrorGame {
             'Fanta-Horor-Winner_full.webp',
             'coupon_out_winner_full.webp?v=20260731-clean',
             'voucher_out_winner_full.webp',
-            'Kupon habis.webp?v=20260731-kuponhabis'
+            'lose_psd_normal.webp?v=20260809-psd3',
+            'lose_psd_voucher_out.webp?v=20260809-psd3'
         ].forEach(file => { new Image().src = 'assets/' + file; });
     }
 
@@ -777,6 +778,7 @@ class FantaHorrorGame {
 
         clearTimeout(this.lifeNotifTimeout);
         box.querySelector('img').src = art;
+        box.classList.toggle('life-empty', lives === 0);
         box.classList.remove('hidden');
         // Reflow between the two class writes so a banner that is already up replays its
         // pop instead of sitting still. A rAF would read better but never fires while the
@@ -799,6 +801,7 @@ class FantaHorrorGame {
         this.lifeNotifTimeout = null;
         if (!this.ui.lifeNotif) return;
         this.ui.lifeNotif.classList.remove('showing');
+        this.ui.lifeNotif.classList.remove('life-empty');
         this.ui.lifeNotif.classList.add('hidden');
     }
 

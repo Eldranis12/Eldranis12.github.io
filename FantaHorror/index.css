@@ -359,10 +359,16 @@ body {
 .game-header-panel {
   width: 100%;
   display: flex;
-  justify-content: space-between;
+  /*
+    space-between let flex hand the health bar whatever room was left between the audio
+    button and the timer, which floated it toward the centre instead of next to the
+    button. flex-start plus the timer's own margin-left:auto below keeps the button and
+    lives pinned together on the left, timer on the right.
+  */
+  justify-content: flex-start;
   /* Brief: the audio button, the lives and the countdown all sit on one line. */
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 10px 4px 0;
   background: transparent;
   border: none;
@@ -378,8 +384,10 @@ body {
 
 .health-bar-container {
   display: flex;
+  flex: 0 0 auto;
   gap: 6px;
   align-items: center;
+  margin: 0;
 }
 
 .health-bottle {
@@ -407,6 +415,7 @@ body {
 .timer-box {
   display: flex;
   align-items: center;
+  margin-left: auto;
 }
 
 /*
@@ -434,6 +443,28 @@ body {
 .life-notif.showing {
   opacity: 1;
   transform: translateX(-50%) scale(1);
+}
+
+/* The last-life state is a game-over hand-off, not a regular warning. */
+.life-notif.life-empty {
+  top: 50%;
+  width: 82.6%;
+  transform: translate(-50%, -50%) scale(0.86);
+}
+
+.life-notif.life-empty.showing {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Keep the board visible underneath, but make the final alert the focal point. */
+.life-notif.life-empty::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgba(0, 0, 0, 0.66);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 
 .timer-val {
@@ -633,20 +664,21 @@ body {
   font-family: var(--font-expanded);
   position: absolute;
   top: -28px;
-  /*
-    The pill is wider than its grave, so on the outer columns a centred one ran past
-    the artboard, which clips. Those columns hang it inward off the slot edge instead.
-    The offset is a variable because the shake keyframes have to carry it too.
-  */
   --badge-x: -50%;
   left: 50%;
   width: max-content;
   background: #FF2244;
   color: #FFF;
-  font-size: 1.08rem; /* 0.72rem +50% per brief */
+  /*
+    -10% from the earlier +50% pass: at the old size, two adjacent slots showing a
+    badge at once (e.g. a session's threat defeated just as the next one lands) were
+    wide enough to cover each other's rounded corner -- reading as "cut off, not
+    centred" even though each badge was correctly centred on its own slot.
+  */
+  font-size: 0.972rem;
   font-weight: 900;
-  padding: 4px 12px;
-  border-radius: 16px;
+  padding: 3.6px 10.8px;
+  border-radius: 14.4px;
   border: 2px solid #FFF;
   box-shadow: 0 4px 10px rgba(0,0,0,0.8);
   opacity: 0;
@@ -655,16 +687,8 @@ body {
   z-index: 10;
   pointer-events: none;
   white-space: nowrap;
+  text-align: center;
 }
-
-/* Left column: pill starts at the slot's left edge. Right column: ends at its right. */
-.grave-slot[data-id="0"] .tap-counter-badge,
-.grave-slot[data-id="3"] .tap-counter-badge,
-.grave-slot[data-id="6"] .tap-counter-badge { left: 0;    --badge-x: 0%; }
-
-.grave-slot[data-id="2"] .tap-counter-badge,
-.grave-slot[data-id="5"] .tap-counter-badge,
-.grave-slot[data-id="8"] .tap-counter-badge { left: 100%; --badge-x: -100%; }
 
 .grave-slot.active-suzzanna .tap-counter-badge {
   opacity: 1;
@@ -765,13 +789,9 @@ body {
   background-image: url('assets/Fanta-Horor-Winner_full.webp');
 }
 
-/*
-  KV Rev: every lose variant shares this clean plate. It paints no headline, lockup or
-  buttons, so all of those are real overlay layers below, placed from the
-  "Fanta-Horor-Lose" artboard.
-*/
+/* Approved composite exported from "Fanta-Horor-Lose (1) 3.psd". */
 #screen-lose {
-  background-image: url('assets/lose_rev_bg.webp');
+  background-image: url('assets/lose_psd_normal.webp?v=20260809-psd3');
 }
 
 /*
@@ -933,7 +953,7 @@ body {
   top: 68.120%;
   width: 25.926%;
   height: 3.889%;
-  display: block;
+  display: none;
   pointer-events: none;
   z-index: 3;
 }
@@ -1000,8 +1020,10 @@ body {
 }
 
 #screen-win.coupon-out { background-image: url('assets/coupon_out_winner_full.webp?v=20260731-clean'); }
-/* Kupon habis lose art: headline baked in, CTA strip left empty for the overlay buttons. */
-#screen-lose.coupon-out { background-image: url('assets/Kupon habis.webp?v=20260731-kuponhabis'); }
+/* Kupon habis shares the approved two-button artboard from the supplied Lose PSD. */
+#screen-lose.coupon-out {
+  background-image: url('assets/lose_psd_voucher_out.webp?v=20260809-psd3');
+}
 
 /*
   The artboard's "Voucher habis" board drops the AMBIL VOUCHER row and slides the two
@@ -1026,21 +1048,20 @@ body {
   unlike the LP/voucher screens where the artwork already draws them and the hotspot stays
   invisible. Without this they render at opacity 0 over blank artwork and vanish.
 */
-#screen-win .result-actions .img-btn,
-#screen-lose .result-actions .img-btn { opacity: 1; }
+#screen-win .result-actions .img-btn { opacity: 1; }
 
 #screen-win .result-header { opacity: 0; }
 
-/* The lose plate paints no headline of its own, so this one has to show. */
+/* The approved composite already contains the headline. */
 #screen-lose .result-header {
   position: absolute;
   inset: auto;
-  left: 10.556%;
-  top:  8.291%;
-  width: 80.185%;
-  height: 16.838%;
+  left: 9.168%;
+  top:  7.608%;
+  width: 82.960%;
+  height: 18.227%;
   margin: 0;
-  opacity: 1;
+  opacity: 0;
   pointer-events: none;
   z-index: 3;
 }
@@ -1065,6 +1086,12 @@ body {
   width: 40.74%;
   height: 8.21%;
   opacity: 1;
+}
+
+/* The Lose composite already paints both CTA buttons; keep only invisible hotspots. */
+#screen-lose.coupon-out .result-actions .btn-share,
+#screen-lose.coupon-out .result-actions .btn-main-lagi {
+  opacity: 0;
 }
 
 #screen-win.coupon-out .btn-share,
@@ -1101,18 +1128,25 @@ body {
 #screen-win.voucher-out .btn-ambil-voucher > img.normal-result-art { display: none; }
 #screen-win.voucher-out .btn-ambil-voucher > img.voucher-out-art { display: block; }
 
-/*
-  The lose screen keeps the shared "Kupon habis" artwork in every state, so its greyed
-  CTA cannot come from the background -- it is drawn as an overlay instead.
-*/
-#screen-lose.voucher-out .btn-ambil-voucher {
-  opacity: 1;
-  pointer-events: none;
-  cursor: default;
+/* The PSD's second artboard is the two-button Voucher-habis state. */
+#screen-lose.voucher-out {
+  background-image: url('assets/lose_psd_voucher_out.webp?v=20260809-psd3');
 }
 
-#screen-lose.voucher-out .btn-ambil-voucher > img.normal-result-art { display: none; }
-#screen-lose.voucher-out .btn-ambil-voucher > img.voucher-out-art { display: block; }
+#screen-lose.voucher-out .btn-share,
+#screen-lose.voucher-out .btn-main-lagi {
+  top: 84.15%;
+  width: 40.74%;
+  height: 8.21%;
+  opacity: 0;
+}
+
+#screen-lose.voucher-out .btn-share { left: 8.33%; }
+#screen-lose.voucher-out .btn-main-lagi { right: 8.33%; }
+
+#screen-lose.voucher-out .btn-ambil-voucher {
+  display: none;
+}
 
 .result-header {
   width: 100%;
