@@ -6,7 +6,7 @@
   <title>FANTA Horror Gamification - Gebuk Suzzanna, Amankan Fantamu!</title>
   <meta name="description" content="Mainkan game FANTA Horror! Lindungi botol Fanta dari cegatan tangan Suzzanna selama 30 detik untuk memenangkan voucher nonton bioskop eksklusif!">
   
-  <link rel="stylesheet" href="index.css?v=20260805-truecenter">
+  <link rel="stylesheet" href="index.css?v=20260808-lose">
 </head>
 <body>
 
@@ -14,20 +14,25 @@
 
     <!-- 1. LANDING PAGE (LP) -->
     <section id="screen-lp" class="screen">
+      <!--
+        KV Rev 1 ships the landing as separate layers over a clean plate, so the logos,
+        headline and buttons are real elements now rather than pixels baked into one
+        composite. Every position comes from the "Fanta-Horor-LP Game" artboard.
+      -->
       <div class="lp-header">
-        <img src="assets/crop_lp_header.webp" alt="Yakali Gamau Pilih? FANTA Horror Game">
+        <img class="lp-logo-fanta" src="assets/lp_rev1_logo_fanta.webp" alt="FANTA">
+        <img class="lp-logo-suzzanna" src="assets/lp_rev1_logo_suzzanna.webp" alt="Suzzanna">
+        <img class="lp-headline" src="assets/lp_rev1_headline.webp" alt="Yakali Gak Mau Pilih?">
       </div>
 
       <!--
-        One set of buttons for both landing variants.
-        In the full desktop view these are invisible hotspots (opacity 0) sitting on top of
-        the pink/blue cards already painted into the background artwork. Only the compact
-        view (mobile / any reload) reveals them, and there they are pill-shaped -- hence the
-        pill artwork below rather than the square cards.
+        One set of buttons for both landing variants: square cards in the full view,
+        pills in the compact one. Each variant swaps the artwork and the geometry.
       -->
       <div class="lp-actions">
         <button id="btn-main-game" class="img-btn">
-          <img src="assets/Button-Main Game-Medium.webp" alt="Main Game">
+          <img class="lp-full-art" src="assets/lp_rev1_btn_main_game.webp" alt="Main Game">
+          <img class="lp-compact-art" src="assets/Button-Main Game-Medium.webp" alt="Main Game">
         </button>
         <button id="btn-upload-struk" class="img-btn">
           <img src="assets/Button-Upload struk.webp" alt="Upload Struk &amp; Ambil Vouchernya">
@@ -36,7 +41,8 @@
 
       <div class="lp-footer">
         <button id="btn-cara-bermain" class="btn-link">
-          <img src="assets/Button-Cara bermain-Medium.webp" alt="Cara Bermain">
+          <img class="lp-full-art" src="assets/lp_rev1_btn_cara_bermain.webp" alt="Cara Bermain">
+          <img class="lp-compact-art" src="assets/Button-Cara bermain-Medium.webp" alt="Cara Bermain">
         </button>
         <p class="tnc-text">*syarat &amp; ketentuan berlaku</p>
       </div>
@@ -63,19 +69,23 @@
 
     <!-- 3. GAME ARENA SCREEN -->
     <section id="screen-game" class="screen hidden">
+      <!-- Audio toggle, lives and countdown share one row, in that order. -->
       <div class="game-header-panel">
+        <button id="audio-toggle-btn" class="btn-audio" aria-label="Mute Audio">
+          <img class="audio-art-on" src="assets/Audio - On.png" alt="">
+          <img class="audio-art-mute" src="assets/Audio - Mute.png" alt="">
+        </button>
         <div id="health-bar" class="health-bar-container">
           <!-- Render 5 health bottle icons dynamically -->
         </div>
-        <!-- Audio toggle sits above the countdown; the countdown's baseline lines up
-             with the bottom of the health bottles (see .game-header-panel). -->
         <div class="timer-box">
-          <button id="audio-toggle-btn" class="btn-audio" aria-label="Mute Audio">
-            <img class="audio-art-on" src="assets/Audio - On.png" alt="">
-            <img class="audio-art-mute" src="assets/Audio - Mute.png" alt="">
-          </button>
           <span id="timer-display" class="timer-val">30s</span>
         </div>
+      </div>
+
+      <!-- Warning banner; the artwork swaps with how many lives are left. -->
+      <div id="life-notif" class="life-notif hidden">
+        <img src="" alt="">
       </div>
 
       <div id="graves-grid" class="graves-grid-container">
@@ -110,9 +120,11 @@
 
     <!-- 5. LOSE SCREEN -->
     <section id="screen-lose" class="screen hidden">
+      <!-- KV Rev: clean plate, so the headline and the Suzzanna lockup are real layers. -->
       <div class="result-header">
-        <img src="assets/crop_lose_header.webp" alt="Haussss... Yah Fantanya Udah Habis!">
+        <img src="assets/lose_rev_headline.webp" alt="Yah Fantanya Udah Habis!">
       </div>
+      <img class="lose-logo-suzzanna" src="assets/lose_rev_logo_suzzanna.webp" alt="Suzzanna">
 
       <div class="result-actions">
         <div class="result-row-btn">
@@ -136,7 +148,7 @@
     <!-- MODAL: CARA BERMAIN -->
     <div id="modal-cara-bermain" class="modal-overlay hidden">
       <div class="modal-cara-bermain-box">
-        <img class="cara-bermain-popup-img" src="assets/POP-UP-CARA BERMAIN.webp?v=20260805-revisi" alt="Cara bermain FANTA Horror Game">
+        <img class="cara-bermain-popup-img" src="assets/POP-UP-CARA BERMAIN.webp?v=20260807-caramain" alt="Cara bermain FANTA Horror Game">
         <button id="btn-close-cara-bermain" class="btn-tutup-green" aria-label="Tutup cara bermain"></button>
       </div>
     </div>
@@ -144,6 +156,6 @@
   </div>
 
   <script src="js/sound.js?v=20260804-seq"></script>
-  <script src="js/game.js?v=20260805-ambientsound"></script>
+  <script src="js/game.js?v=20260808-events2"></script>
 </body>
 </html>

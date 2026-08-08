@@ -76,8 +76,35 @@ function logGrivyDebug(title, data, isError = false) {
     }
 }
 
+// Human-readable names Grivy listens for on the redirect actions.
+const GRIVY_EVENT_NAMES = {
+    getPrize: 'Get Prize',
+    getVoucher: 'Get Voucher'
+};
+
+/*
+ * Journey/analytics events for the Grivy host.
+ *
+ * Shape is the one Grivy asked for -- { eventName } -- with context alongside it, so a
+ * listener reading only eventName is unaffected. Unlike triggerGrivyAction these are
+ * pure notifications: they never redirect, because they fire during normal play rather
+ * than in response to a CTA.
+ */
+function emitGameEvent(eventName, extra = {}) {
+    const payload = { eventName, source: 'fanta-horror-game', ...extra };
+
+    logGrivyDebug(`Event Sent: ${eventName}`, payload);
+
+    window.dispatchEvent(new CustomEvent(`fanta-horror:${eventName}`, { detail: payload }));
+
+    if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, GRIVY.appOrigin || '*');
+    }
+}
+
 function triggerGrivyAction(action, campaignCode) {
     const payload = {
+        eventName: GRIVY_EVENT_NAMES[action],
         source: 'fanta-horror-game',
         type: GRIVY_ACTIONS[action],
         action,
@@ -113,6 +140,15 @@ const SHARE_IMAGE_URL = 'assets/Fanta-Horor-Share.jpg.webp';
 const SHARE_IMAGE_FILENAME = 'fanta-horror-berani-coba.jpg';
 const SHARE_LINK_URL = 'https://fantaurl.com/q/REF26';
 
+// Warning banners for the closing lives; anything not listed shows nothing.
+const LIFE_NOTIF_ART = {
+    3: 'assets/notif_3_nyawa.webp',
+    2: 'assets/notif_2_nyawa.webp',
+    1: 'assets/notif_1_nyawa.webp',
+    0: 'assets/notif_nyawa_habis.webp'
+};
+const LIFE_NOTIF_MS = 1600;
+
 const SESSION_SIZE = 5;
 const SESSION_THREATS = 1;
 const SESSION_GAP_MS = 700;
@@ -127,6 +163,7 @@ class FantaHorrorGame {
         this.timerInterval = null;
         this.spawnerInterval = null;
         this.ambientInterval = null;
+        this.lifeNotifTimeout = null;
         this.sessionPending = false;
         this.sessionTimeout = null;
         this.health = 5;
@@ -180,6 +217,7 @@ class FantaHorrorGame {
                 timerText: document.getElementById('timer-display'),
                 healthContainer: document.getElementById('health-bar'),
                 gravesGrid: document.getElementById('graves-grid'),
+                lifeNotif: document.getElementById('life-notif'),
                 audioToggleBtn: document.getElementById('audio-toggle-btn'),
                 selectedVoucherWin: document.getElementById('selected-voucher-win-text'),
                 selectedVoucherLose: document.getElementById('selected-voucher-lose-text')
@@ -318,6 +356,13 @@ class FantaHorrorGame {
         this.applyQuotaUI();
 
         document.getElementById('app-container')?.classList.remove('quota-loading');
+
+        // Fired here, not on DOMContentLoaded: until the quota resolves the landing page
+        // is still behind the loading veil, so this is the first moment it is really up.
+        emitGameEvent('game_loaded', {
+            cinemaAvailable: this.cinemaAvailable,
+            fantaAvailable: this.fantaAvailable
+        });
     }
 
     /*
@@ -434,6 +479,7 @@ class FantaHorrorGame {
         // LP Button 2: "UPLOAD STRUK & AMBIL VOUCHERNYA" -> Grivy cinema-voucher campaign page
         document.getElementById('btn-upload-struk')?.addEventListener('click', () => {
             window.soundManager.playSfx('buttonClick');
+            emitGameEvent('upload_receipt', { campaignCode: GRIVY.cinemaMain });
             triggerGrivyAction('getVoucher', GRIVY.cinemaMain);
         });
 
@@ -490,6 +536,7 @@ class FantaHorrorGame {
         document.querySelectorAll('.btn-ambil-voucher').forEach(btn => {
             btn.addEventListener('click', () => {
                 window.soundManager.playSfx('buttonClick');
+                emitGameEvent('get_voucher', { campaignCode: GRIVY.fantaMain });
                 triggerGrivyAction('getPrize', GRIVY.fantaMain);
             });
         });
@@ -622,12 +669,15 @@ class FantaHorrorGame {
     }
 
     startGame() {
+        emitGameEvent('game_started', { entryMode: this.entryMode });
+
         this.health = 5;
         this.timer = 30;
         // A wave scheduled by a previous round must not fire into this one.
         clearTimeout(this.sessionTimeout);
         this.sessionPending = false;
         this.clearAllSlots();
+        this.hideLifeNotif();
         this.updateHealthUI();
         this.updateTimerUI();
 
@@ -711,6 +761,45 @@ class FantaHorrorGame {
             bottleIcon.className = `health-bottle ${i < this.health ? 'full' : 'empty'}`;
             this.ui.healthContainer.appendChild(bottleIcon);
         }
+    }
+
+    /*
+     * Warning banner for the last three lives. Keyed off the life count rather than a
+     * "lost a life" event so it cannot fire twice for the same threshold, and so a
+     * banner is never shown for a count the player never actually sat on.
+     */
+    showLifeNotif(lives) {
+        const art = LIFE_NOTIF_ART[lives];
+        if (!art) return;
+
+        const box = this.ui.lifeNotif;
+        if (!box) return;
+
+        clearTimeout(this.lifeNotifTimeout);
+        box.querySelector('img').src = art;
+        box.classList.remove('hidden');
+        // Reflow between the two class writes so a banner that is already up replays its
+        // pop instead of sitting still. A rAF would read better but never fires while the
+        // tab is hidden, which would leave the banner stuck invisible.
+        box.classList.remove('showing');
+        void box.offsetWidth;
+        box.classList.add('showing');
+
+        // The final banner rides out the game-over switch instead of self-hiding.
+        if (lives === 0) return;
+
+        this.lifeNotifTimeout = setTimeout(() => {
+            box.classList.remove('showing');
+            this.lifeNotifTimeout = setTimeout(() => box.classList.add('hidden'), 250);
+        }, LIFE_NOTIF_MS);
+    }
+
+    hideLifeNotif() {
+        clearTimeout(this.lifeNotifTimeout);
+        this.lifeNotifTimeout = null;
+        if (!this.ui.lifeNotif) return;
+        this.ui.lifeNotif.classList.remove('showing');
+        this.ui.lifeNotif.classList.add('hidden');
     }
 
     updateTimerUI() {
@@ -889,6 +978,7 @@ class FantaHorrorGame {
 
         this.health = Math.max(0, this.health - 1);
         this.updateHealthUI();
+        this.showLifeNotif(this.health);
 
         slot.timeoutId = setTimeout(() => {
             if (this.health <= 0) {
@@ -902,6 +992,9 @@ class FantaHorrorGame {
 
     endGame(isWin) {
         clearInterval(this.timerInterval);
+        // The "nyawa habis" banner is left on screen for the hand-off, then cleared
+        // as the result screen takes over so a replay never starts with it showing.
+        clearTimeout(this.lifeNotifTimeout);
         clearInterval(this.spawnerInterval);
         clearInterval(this.ambientInterval);
         clearTimeout(this.sessionTimeout);
@@ -909,7 +1002,12 @@ class FantaHorrorGame {
         this.clearAllSlots();
 
         setTimeout(() => {
+            this.hideLifeNotif();
             if (isWin && this.health > 0) {
+                emitGameEvent('game_completed', {
+                    livesLeft: this.health,
+                    selectedVoucher: this.selectedVoucher
+                });
                 this.switchScreen('WIN');
             } else {
                 this.switchScreen('LOSE');

@@ -164,9 +164,21 @@ body {
 /* ====================================
    1. LANDING PAGE (LP)
 ==================================== */
+/* KV Rev 1: a clean plate -- logos, headline and buttons ride on top as real layers. */
 #screen-lp {
-  background-image: url('assets/Fanta-Horor-LP Game_full.webp');
+  background-image: url('assets/lp_rev1_bg.webp');
 }
+
+/*
+  Square cards in the full view, pills in the compact one. `.img-btn img` already sets
+  display:block, so these need an id in the selector to outrank it -- same trap the
+  voucher-out artwork hit.
+*/
+#screen-lp .lp-compact-art { display: none; }
+#screen-lp.coupon-out .lp-full-art,
+#screen-lp.lp-compact-mode .lp-full-art { display: none; }
+#screen-lp.coupon-out .lp-compact-art,
+#screen-lp.lp-compact-mode .lp-compact-art { display: block; }
 
 .lp-header {
   width: 100%;
@@ -348,8 +360,9 @@ body {
   width: 100%;
   display: flex;
   justify-content: space-between;
-  /* Brief: countdown baseline sits level with the bottom of the health bottles. */
-  align-items: flex-end;
+  /* Brief: the audio button, the lives and the countdown all sit on one line. */
+  align-items: center;
+  gap: 8px;
   padding: 10px 4px 0;
   background: transparent;
   border: none;
@@ -393,9 +406,34 @@ body {
 
 .timer-box {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+  align-items: center;
+}
+
+/*
+  Life warning banner. The art is one wide plate (892 x 162, and 892 x 276 for the
+  final one), so it is sized by width and left to keep its own ratio.
+*/
+.life-notif {
+  position: absolute;
+  top: 13.5%;
+  left: 50%;
+  width: 82.6%;               /* 892 of the 1080 artboard */
+  transform: translateX(-50%) scale(0.86);
+  opacity: 0;
+  z-index: 20;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.life-notif img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.life-notif.showing {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
 }
 
 .timer-val {
@@ -595,6 +633,12 @@ body {
   font-family: var(--font-expanded);
   position: absolute;
   top: -28px;
+  /*
+    The pill is wider than its grave, so on the outer columns a centred one ran past
+    the artboard, which clips. Those columns hang it inward off the slot edge instead.
+    The offset is a variable because the shake keyframes have to carry it too.
+  */
+  --badge-x: -50%;
   left: 50%;
   width: max-content;
   background: #FF2244;
@@ -606,16 +650,25 @@ body {
   border: 2px solid #FFF;
   box-shadow: 0 4px 10px rgba(0,0,0,0.8);
   opacity: 0;
-  transform: translateX(-50%) scale(0.9);
+  transform: translateX(var(--badge-x)) scale(0.9);
   transition: opacity 0.2s ease, transform 0.2s ease;
   z-index: 10;
   pointer-events: none;
   white-space: nowrap;
 }
 
+/* Left column: pill starts at the slot's left edge. Right column: ends at its right. */
+.grave-slot[data-id="0"] .tap-counter-badge,
+.grave-slot[data-id="3"] .tap-counter-badge,
+.grave-slot[data-id="6"] .tap-counter-badge { left: 0;    --badge-x: 0%; }
+
+.grave-slot[data-id="2"] .tap-counter-badge,
+.grave-slot[data-id="5"] .tap-counter-badge,
+.grave-slot[data-id="8"] .tap-counter-badge { left: 100%; --badge-x: -100%; }
+
 .grave-slot.active-suzzanna .tap-counter-badge {
   opacity: 1;
-  transform: translateX(-50%) scale(1);
+  transform: translateX(var(--badge-x)) scale(1);
 }
 
 .tap-counter-badge.hit-shake {
@@ -623,10 +676,10 @@ body {
 }
 
 @keyframes badgeShake {
-  0% { transform: translateX(-50%) scale(1.2) rotate(0deg); }
-  25% { transform: translateX(-50%) scale(1.3) rotate(-8deg); }
-  75% { transform: translateX(-50%) scale(1.3) rotate(8deg); }
-  100% { transform: translateX(-50%) scale(1) rotate(0deg); }
+  0% { transform: translateX(var(--badge-x)) scale(1.2) rotate(0deg); }
+  25% { transform: translateX(var(--badge-x)) scale(1.3) rotate(-8deg); }
+  75% { transform: translateX(var(--badge-x)) scale(1.3) rotate(8deg); }
+  100% { transform: translateX(var(--badge-x)) scale(1) rotate(0deg); }
 }
 
 /*
@@ -713,12 +766,12 @@ body {
 }
 
 /*
-  Every lose variant shares this artwork. Unlike the other composites it has an empty
-  strip under the illustration instead of buttons painted in, so the lose CTAs below are
-  real overlay images (opacity 1) rather than the invisible hotspots used elsewhere.
+  KV Rev: every lose variant shares this clean plate. It paints no headline, lockup or
+  buttons, so all of those are real overlay layers below, placed from the
+  "Fanta-Horor-Lose" artboard.
 */
 #screen-lose {
-  background-image: url('assets/Kupon habis.webp?v=20260731-kuponhabis');
+  background-image: url('assets/lose_rev_bg.webp');
 }
 
 /*
@@ -735,8 +788,42 @@ body {
   background-position: center;
 }
 
-#screen-lp .lp-header,
-#screen-lp .tnc-text,
+/*
+  KV Rev 1: the landing plate is clean art, so its header layers stay visible and are
+  placed from the artboard instead of being hidden behind a baked-in composite. The
+  other screens still ride on composites, hence the split.
+*/
+#screen-lp .lp-header {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: block;
+  pointer-events: none;
+}
+
+#screen-lp .lp-header img {
+  position: absolute;
+  display: block;
+  width: auto;
+  max-width: none;
+  filter: none;
+}
+
+/*
+  Percentages are the element's own box on the 1080 x 2340 artboard. Where the export
+  carries a glow margin the box is grown and shifted so the *solid* part still lands on
+  the artboard rectangle -- otherwise the glow would push the artwork off its mark.
+*/
+#screen-lp .lp-logo-fanta    { left:  9.167%; top:  6.838%; width: 18.889%; height:  7.692%; }
+#screen-lp .lp-logo-suzzanna { left: 61.479%; top:  7.350%; width: 31.021%; height:  4.614%; }
+/*
+  The approved headline reads "GAMAU", the artboard's layer reads "GAK MAU", so their
+  blocks are different widths and matching the block would have set the type 14% too
+  large. Scaled on the shared first line instead -- "YAKALI" lands at its artboard
+  size of 324px, and the shorter second line is simply shorter.
+*/
+#screen-lp .lp-headline      { left: 19.313%; top: 18.510%; width: 62.018%; height: 11.390%; }
+
 #screen-voucher-select .voucher-header,
 #screen-win .result-header,
 #screen-lose .result-header {
@@ -766,8 +853,17 @@ body {
   display: block;
   max-width: none;
   margin: 0;
-  opacity: 0;
   pointer-events: auto;
+}
+
+/*
+  Only the composite-backed screens still hide their controls; the landing plate paints
+  no buttons of its own, so its artwork has to show.
+*/
+#screen-voucher-select .voucher-card,
+#screen-win .result-actions .img-btn,
+#screen-lose .result-actions .img-btn {
+  opacity: 0;
 }
 
 #screen-lp .lp-actions .img-btn img,
@@ -779,10 +875,29 @@ body {
   height: 100%;
 }
 
-/* Landing actions: original x/y coordinates from the 1080 x 2340 artboard. */
-#screen-lp #btn-main-game { left: 7%; top: 65%; width: 40%; height: 16%; }
-#screen-lp #btn-upload-struk { right: 7%; top: 65%; width: 40%; height: 16%; }
-#screen-lp .lp-footer .btn-link { left: 30%; top: 82%; width: 40%; height: 7%; }
+/*
+  Landing actions, full view: boxes taken from the "Fanta-Horor-LP Game" artboard.
+  The two square cards carry a glow margin in their export, so their box is grown and
+  nudged to keep the *card* on the artboard rectangle (161/548, 1417, 371 square).
+  CARA BERMAIN is a flat 370 x 95 plate with no margin, so it maps one to one.
+*/
+#screen-lp #btn-main-game       { left: 13.446%; top: 59.839%; width: 37.275%; height: 17.204%; }
+#screen-lp #btn-upload-struk    { left: 49.279%; top: 59.839%; width: 37.275%; height: 17.204%; }
+#screen-lp .lp-footer .btn-link { left: 32.870%; top: 80.726%; width: 34.259%; height:  4.060%; }
+
+/*
+  The plate no longer paints this line, so it shows in every landing variant now.
+  Geometry is unchanged: 36.7% of the frame wide, centred 87.5% down.
+*/
+#screen-lp .tnc-text {
+  position: absolute;
+  top: 86.32%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  opacity: 1;
+  pointer-events: none;
+}
 
 /* Voucher cards. */
 #screen-voucher-select .voucher-card { top: 34%; width: 31%; height: 17%; }
@@ -798,34 +913,45 @@ body {
   width: auto;
   max-width: none;
 }
-#screen-win .btn-share, #screen-lose .btn-share { left: 10%; top: 76%; width: 38%; height: 8%; }
-#screen-win .btn-main-lagi, #screen-lose .btn-main-lagi { right: 10%; top: 76%; width: 38%; height: 8%; }
-#screen-win .btn-ambil-voucher, #screen-lose .btn-ambil-voucher { left: 10%; top: 85%; width: 80%; height: 8%; }
+#screen-win .btn-share { left: 10%; top: 76%; width: 38%; height: 8%; }
+#screen-win .btn-main-lagi { right: 10%; top: 76%; width: 38%; height: 8%; }
+#screen-win .btn-ambil-voucher { left: 10%; top: 85%; width: 80%; height: 8%; }
+
+/*
+  Lose CTAs, from the "Fanta-Horor-Lose" artboard. The exports carry a glow margin,
+  so each box is grown and nudged to land the button body on the artboard rectangle
+  (117/569 at 1761, 403 x 155; the wide one 117 at 1969, 855 x 155).
+*/
+#screen-lose .btn-share         { left:  9.370%; top: 74.539%; width: 40.241%; height: 8.105%; }
+#screen-lose .btn-main-lagi     { left: 51.222%; top: 74.539%; width: 40.241%; height: 8.105%; }
+#screen-lose .btn-ambil-voucher { left:  9.360%; top: 83.423%; width: 82.112%; height: 8.157%; }
+
+/* Suzzanna lockup + packshots, new in this KV. */
+#screen-lose .lose-logo-suzzanna {
+  position: absolute;
+  left: 63.981%;
+  top: 68.120%;
+  width: 25.926%;
+  height: 3.889%;
+  display: block;
+  pointer-events: none;
+  z-index: 3;
+}
 
 /* ====================================
    COUPON-OUT VARIANTS (Brief Kupon Habis)
 ==================================== */
-#screen-lp.coupon-out,
-#screen-lp.lp-compact-mode {
-  background-image: url('assets/clean_lp_bg.webp');
-  background-size: auto 100%;
-}
-
-#screen-lp.coupon-out .lp-header,
-#screen-lp.lp-compact-mode .lp-header {
-  position: absolute;
-  top: 4%;
-  left: 0;
-  width: 100%;
-  margin: 0;
-  opacity: 1;
-}
-
-#screen-lp.coupon-out .lp-header img,
-#screen-lp.lp-compact-mode .lp-header img {
-  width: 61%;
-  max-width: none;
-}
+/*
+  Same KV plate as the full view -- the compact layout is its own artboard
+  ("Fanta-Horor-LP Game-vc habis"), which only shifts the header a touch left and
+  swaps the two square cards for a row of pills.
+*/
+#screen-lp.coupon-out .lp-logo-fanta,
+#screen-lp.lp-compact-mode .lp-logo-fanta    { left:  8.611%; }
+#screen-lp.coupon-out .lp-logo-suzzanna,
+#screen-lp.lp-compact-mode .lp-logo-suzzanna { left: 60.923%; }
+#screen-lp.coupon-out .lp-headline,
+#screen-lp.lp-compact-mode .lp-headline      { left: 18.757%; }
 
 #screen-lp.coupon-out .lp-actions,
 #screen-lp.coupon-out .lp-footer,
@@ -838,23 +964,17 @@ body {
 #screen-lp.coupon-out .lp-footer .btn-link,
 #screen-lp.lp-compact-mode #btn-main-game,
 #screen-lp.lp-compact-mode .lp-footer .btn-link {
-  top: 73%;
-  width: 40.74%;
-  height: 8.21%;
+  top: 75.094%;
+  width: 40.241%;
+  height: 8.105%;
   pointer-events: auto;
 }
 
 #screen-lp.coupon-out #btn-main-game,
-#screen-lp.lp-compact-mode #btn-main-game {
-  left: 50.93%;
-  opacity: 1;
-}
+#screen-lp.lp-compact-mode #btn-main-game { left: 51.222%; }
 
 #screen-lp.coupon-out .lp-footer .btn-link,
-#screen-lp.lp-compact-mode .lp-footer .btn-link {
-  left: 8.33%;
-  opacity: 1;
-}
+#screen-lp.lp-compact-mode .lp-footer .btn-link { left: 9.370%; }
 
 #screen-lp.lp-compact-mode #btn-upload-struk { display: none; }
 
@@ -883,6 +1003,13 @@ body {
 /* Kupon habis lose art: headline baked in, CTA strip left empty for the overlay buttons. */
 #screen-lose.coupon-out { background-image: url('assets/Kupon habis.webp?v=20260731-kuponhabis'); }
 
+/*
+  The artboard's "Voucher habis" board drops the AMBIL VOUCHER row and slides the two
+  CTAs down into it, but this state keeps that row and greys it out to "Yakali gak mau
+  FANTA" instead (the PSD carries that as a separate, hidden AMBIL VOUCHER-INACTIVE
+  group). Moving the CTAs down here would bury them under it, so they stay put.
+*/
+
 .coupon-out-action-art { display: none !important; }
 
 /* `.img-btn img` sets display:block, so this needs equal reach to stay hidden by default. */
@@ -902,8 +1029,27 @@ body {
 #screen-win .result-actions .img-btn,
 #screen-lose .result-actions .img-btn { opacity: 1; }
 
-#screen-win .result-header,
-#screen-lose .result-header { opacity: 0; }
+#screen-win .result-header { opacity: 0; }
+
+/* The lose plate paints no headline of its own, so this one has to show. */
+#screen-lose .result-header {
+  position: absolute;
+  inset: auto;
+  left: 10.556%;
+  top:  8.291%;
+  width: 80.185%;
+  height: 16.838%;
+  margin: 0;
+  opacity: 1;
+  pointer-events: none;
+  z-index: 3;
+}
+
+#screen-lose .result-header img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
 
 #screen-win.coupon-out .result-header,
 #screen-lose.coupon-out .result-header {
