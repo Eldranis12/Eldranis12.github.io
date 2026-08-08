@@ -962,7 +962,7 @@ class FantaHorrorGame {
                 setTimeout(() => {
                     this.setSlotClass(slot, 'suzzanna-defeated');
                     this.releaseSlot(slot);
-                }, 1000);
+                }, 500);
             }
         }
     }
