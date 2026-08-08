@@ -1,0 +1,37 @@
+# macOS / Windows junk
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Design sources.
+#
+# GitHub hard-rejects any single file over 100MB, and the push fails for the whole
+# commit -- by which point the blob is already in history and only a rewrite gets it
+# out. The Rev 1 landing and lose sources were 243MB and 222MB, so they stay local
+# and only their PNG/WebP exports are committed.
+#
+# The PSDs already tracked under "Fanta Horror_Q3_26/RAW FILE" are unaffected: an
+# ignore rule never applies to a file git is already tracking.
+#
+# Need to commit a small one anyway? Force it: git add -f path/to/file.psd
+*.psd
+
+# Stray copy of the "Sound baru" delivery that landed outside the project folder;
+# the real one lives in FantaHorror/Fanta Horror_Q3_26/Sound baru/.
+/Sound baru/
