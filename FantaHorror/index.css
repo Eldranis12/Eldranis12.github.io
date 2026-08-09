@@ -675,10 +675,10 @@ body {
     wide enough to cover each other's rounded corner -- reading as "cut off, not
     centred" even though each badge was correctly centred on its own slot.
   */
-  font-size: 0.972rem;
+  font-size: 0.923rem;
   font-weight: 900;
-  padding: 3.6px 10.8px;
-  border-radius: 14.4px;
+  padding: 3.4px 10.2px;
+  border-radius: 13.6px;
   border: 2px solid #FFF;
   box-shadow: 0 4px 10px rgba(0,0,0,0.8);
   opacity: 0;
