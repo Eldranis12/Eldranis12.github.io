@@ -447,27 +447,22 @@ body {
 
 /* The last-life state is a game-over hand-off, not a regular warning. */
 .life-notif.life-empty {
-  top: 50%;
-  width: 82.6%;
-  transform: translate(-50%, -50%) scale(0.86);
+  inset: 0;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  transform: scale(0.98);
+  background: rgba(0, 0, 0, 0.70);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .life-notif.life-empty.showing {
-  transform: translate(-50%, -50%) scale(1);
+  transform: scale(1);
 }
 
-/* Dark background overlay between the game and NYAWA HABIS layer: black with 85% opacity */
-.life-notif.life-empty::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 3000px;
-  height: 3000px;
-  transform: translate(-50%, -50%);
-  z-index: -1;
-  background: rgba(0, 0, 0, 0.85);
-  pointer-events: none;
+.life-notif.life-empty img {
+  width: 82.6%;
 }
 
 .timer-val {

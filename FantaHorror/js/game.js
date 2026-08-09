@@ -667,6 +667,10 @@ class FantaHorrorGame {
             'lose_psd_normal.webp?v=20260809-psd3',
             'lose_psd_voucher_out.webp?v=20260809-psd3'
         ].forEach(file => { new Image().src = 'assets/' + file; });
+
+        // Mobile connections may not finish loading the final warning during its short
+        // game-over hand-off, so warm every life banner during the round as well.
+        Object.values(LIFE_NOTIF_ART).forEach(file => { new Image().src = file; });
     }
 
     startGame() {
