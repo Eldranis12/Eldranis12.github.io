@@ -456,15 +456,18 @@ body {
   transform: translate(-50%, -50%) scale(1);
 }
 
-/* Keep the board visible underneath, but make the final alert the focal point. */
+/* Dark background overlay between the game and NYAWA HABIS layer: black with 85% opacity */
 .life-notif.life-empty::before {
   content: '';
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3000px;
+  height: 3000px;
+  transform: translate(-50%, -50%);
   z-index: -1;
-  background: rgba(0, 0, 0, 0.66);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, 0.85);
+  pointer-events: none;
 }
 
 .timer-val {
