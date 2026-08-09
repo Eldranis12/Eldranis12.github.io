@@ -96,6 +96,33 @@ body {
   flex-direction: column;
 }
 
+/*
+  On phones the browser's usable viewport can be slightly wider or taller than the
+  6:13 PSD ratio, especially after Android's browser bars collapse. Filling both axes
+  keeps the experience edge-to-edge; every game coordinate is percentage based, so the
+  artwork and its interactive layers stretch together and remain aligned.
+*/
+@media (max-width: 767px) and (orientation: portrait) {
+  body {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  #app-container {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    aspect-ratio: auto;
+  }
+
+  #app-container .screen {
+    background-size: 100% 100%;
+  }
+}
+
 #app-container.quota-loading .screen,
 #app-container.quota-loading .modal-overlay {
   visibility: hidden;

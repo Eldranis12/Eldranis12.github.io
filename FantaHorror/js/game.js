@@ -599,11 +599,9 @@ class FantaHorrorGame {
 
         if (screenName === 'LP') {
             this.screens.lp?.classList.remove('hidden');
-            window.soundManager.playBgm('bgm');
         } else if (screenName === 'VOUCHER_SELECT') {
             this.updateVoucherUI();
             this.screens.voucherSelect?.classList.remove('hidden');
-            window.soundManager.playBgm('bgm');
         } else if (screenName === 'PLAYING') {
             this.screens.game?.classList.remove('hidden');
             window.soundManager.playBgm('bgm');
