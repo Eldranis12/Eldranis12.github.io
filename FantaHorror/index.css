@@ -1231,6 +1231,7 @@ body {
   border: none;
   padding: 0;
   box-shadow: none;
+  transform: translateY(-18%);
 }
 
 .cara-bermain-popup-img {
