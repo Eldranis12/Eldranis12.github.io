@@ -118,8 +118,20 @@ body {
   }
 
   #app-container {
-    --fit-h: min(max(100dvh, 100vw * 13 / 6), 100dvh * 1.15);
-    --fit-crop: max(0px, (var(--fit-h) - 100dvh) / 2);
+    /*
+      The UI band runs 2% (winner headline) to 93% (AMBIL VOUCHER) of the artboard, so
+      the artboard may only outgrow the viewport while 91% of it still fits: the cap is
+      1/0.91, trimmed to 1.08 for margin.
+    */
+    --fit-h: min(max(100dvh, 100vw * 13 / 6), 100dvh * 1.08);
+    --fit-over: max(0px, var(--fit-h) - 100dvh);
+    /*
+      That band is not centred in the artboard -- 2% of slack above, 7% below -- so
+      splitting the overflow evenly ate the winner headline (-34px on a 360x658 screen).
+      The crop is dealt out in the same 2:7 proportion as the slack instead, which is
+      what --fit-crop (the hidden slice at the top) and the nudge below encode.
+    */
+    --fit-crop: calc(var(--fit-over) * 2 / 9);
     width: max(100vw, calc(100vh * 6 / 13));
     height: max(100vh, calc(100vw * 13 / 6));
     width: calc(var(--fit-h) * 6 / 13);
@@ -127,10 +139,44 @@ body {
     max-width: none;
     max-height: none;
     aspect-ratio: 6 / 13;
+    /* Undo flex centring's even split, down to the 2:7 offset. */
+    position: relative;
+    top: calc(var(--fit-over) / 2 - var(--fit-crop));
   }
 
   #app-container .screen {
     background-size: cover;
+  }
+
+  /*
+    Fills the pillarbox strips the cap above leaves on 16:9 phones.
+
+    The strips can't be closed by widening #app-container: the UI band runs from 2% of
+    the artboard (winner headline) to 93% (AMBIL VOUCHER), and at full-bleed width on a
+    0.55-ratio screen that 91% band works out taller than the viewport, so something
+    would have to be cut. Instead the artwork alone is allowed past the box -- a fixed,
+    viewport-sized copy of the same background, which `overflow: hidden` cannot clip
+    because plain overflow is not a containing block for fixed positioning. z-index -1
+    keeps it under #app-container's own opaque plate, so it only ever shows in the
+    strips, and `background-image: inherit` means each screen brings its own artwork.
+  */
+  .screen::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-image: inherit;
+    background-size: cover;
+    background-position: center;
+    pointer-events: none;
+    /*
+      This copy has to zoom past the artboard to reach the screen edges, so its crop
+      cannot line up with the sharp plate on top -- unblurred, that mismatch reads as a
+      broken seam down each side. Blurring it turns the strips into the usual letterbox
+      glow, and the scale keeps the blur's soft edge off screen.
+    */
+    filter: blur(18px) brightness(0.55);
+    transform: scale(1.12);
   }
 }
 
