@@ -96,6 +96,90 @@ body {
   flex-direction: column;
 }
 
+/*
+  On phones the browser's usable viewport can be slightly wider or taller than the
+  6:13 PSD ratio, especially after Android's browser bars collapse. Cover the viewport
+  with the original artboard ratio, cropping only a small edge when necessary instead
+  of stretching the artwork.
+
+  The crop has to be bounded, though. The artboard is centred, so a viewport squarer
+  than 6:13 loses half the overflow off each end -- and the lowest CTA ("AMBIL VOUCHER")
+  sits at 93% of the artboard. Uncapped cover on 16:9 hardware (320x568) overflowed by
+  125px and cut 14px off that button. Capping the height at 1.15x the viewport keeps the
+  whole 0-93% band on screen at every phone ratio; the leftover is a few percent of
+  pillarboxing on the squarest devices, against the artboard's own near-black plate.
+  --fit-crop is what each end loses, and the HUD padding below reads it back.
+*/
+@media (max-width: 767px) and (orientation: portrait) {
+  body {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  #app-container {
+    /*
+      The UI band runs 2% (winner headline) to 93% (AMBIL VOUCHER) of the artboard, so
+      the artboard may only outgrow the viewport while 91% of it still fits: the cap is
+      1/0.91, trimmed to 1.08 for margin.
+    */
+    --fit-h: min(max(100dvh, 100vw * 13 / 6), 100dvh * 1.08);
+    --fit-over: max(0px, var(--fit-h) - 100dvh);
+    /*
+      That band is not centred in the artboard -- 2% of slack above, 7% below -- so
+      splitting the overflow evenly ate the winner headline (-34px on a 360x658 screen).
+      The crop is dealt out in the same 2:7 proportion as the slack instead, which is
+      what --fit-crop (the hidden slice at the top) and the nudge below encode.
+    */
+    --fit-crop: calc(var(--fit-over) * 2 / 9);
+    width: max(100vw, calc(100vh * 6 / 13));
+    height: max(100vh, calc(100vw * 13 / 6));
+    width: calc(var(--fit-h) * 6 / 13);
+    height: var(--fit-h);
+    max-width: none;
+    max-height: none;
+    aspect-ratio: 6 / 13;
+    /* Undo flex centring's even split, down to the 2:7 offset. */
+    position: relative;
+    top: calc(var(--fit-over) / 2 - var(--fit-crop));
+  }
+
+  #app-container .screen {
+    background-size: cover;
+  }
+
+  /*
+    Fills the pillarbox strips the cap above leaves on 16:9 phones.
+
+    The strips can't be closed by widening #app-container: the UI band runs from 2% of
+    the artboard (winner headline) to 93% (AMBIL VOUCHER), and at full-bleed width on a
+    0.55-ratio screen that 91% band works out taller than the viewport, so something
+    would have to be cut. Instead the artwork alone is allowed past the box -- a fixed,
+    viewport-sized copy of the same background, which `overflow: hidden` cannot clip
+    because plain overflow is not a containing block for fixed positioning. z-index -1
+    keeps it under #app-container's own opaque plate, so it only ever shows in the
+    strips, and `background-image: inherit` means each screen brings its own artwork.
+  */
+  .screen::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-image: inherit;
+    background-size: cover;
+    background-position: center;
+    pointer-events: none;
+    /*
+      This copy has to zoom past the artboard to reach the screen edges, so its crop
+      cannot line up with the sharp plate on top -- unblurred, that mismatch reads as a
+      broken seam down each side. Blurring it turns the strips into the usual letterbox
+      glow, and the scale keeps the blur's soft edge off screen.
+    */
+    filter: blur(18px) brightness(0.55);
+    transform: scale(1.12);
+  }
+}
+
 #app-container.quota-loading .screen,
 #app-container.quota-loading .modal-overlay {
   visibility: hidden;
@@ -355,6 +439,18 @@ body {
   padding: 16px 14px 16px;
 }
 
+/*
+  The HUD is a real control strip, not artwork, so it has to clear the slice the mobile
+  cover-fill hides off the top (--fit-crop, set on #app-container). The graves keep their
+  artboard coordinates and crop with the background by design. Must stay after the
+  shorthand `padding` above -- same specificity, so the later rule wins.
+*/
+@media (max-width: 767px) and (orientation: portrait) {
+  #screen-game {
+    padding-top: calc(16px + var(--fit-crop, 0px));
+  }
+}
+
 /* Header Panel (Clean floating nyawa + timer without border box) */
 .game-header-panel {
   width: 100%;
@@ -447,27 +543,22 @@ body {
 
 /* The last-life state is a game-over hand-off, not a regular warning. */
 .life-notif.life-empty {
-  top: 50%;
-  width: 82.6%;
-  transform: translate(-50%, -50%) scale(0.86);
+  inset: 0;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  transform: scale(0.98);
+  background: rgba(0, 0, 0, 0.70);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .life-notif.life-empty.showing {
-  transform: translate(-50%, -50%) scale(1);
+  transform: scale(1);
 }
 
-/* Dark background overlay between the game and NYAWA HABIS layer: black with 85% opacity */
-.life-notif.life-empty::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 3000px;
-  height: 3000px;
-  transform: translate(-50%, -50%);
-  z-index: -1;
-  background: rgba(0, 0, 0, 0.85);
-  pointer-events: none;
+.life-notif.life-empty img {
+  width: 82.6%;
 }
 
 .timer-val {
@@ -475,7 +566,7 @@ body {
   font-family: var(--font-semiexpanded);
   font-size: 2.3rem;
   font-weight: 900;
-  color: #05020A;
+  color: #0A5473;
   -webkit-text-stroke: 2.5px #2BFF22;
   text-shadow: 0 0 14px rgba(43, 255, 34, 0.9), 0 0 4px #2BFF22;
   letter-spacing: -0.5px;

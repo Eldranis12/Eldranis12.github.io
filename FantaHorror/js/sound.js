@@ -13,7 +13,7 @@ class SoundManager {
         const clip = file => new Audio('assets/sounds/' + file + '.mp3');
 
         this.sounds = {
-            // Background: one track from the landing page through the round.
+            // Background: starts only after MAIN GAME enters the gameplay round.
             // Deliberately NOT played on win/lose -- those screens get their own cue.
             bgm: clip('awesome_music_funny-halloween-monsters-skeletons-dance_main'),
 
@@ -94,8 +94,8 @@ class SoundManager {
     playBgm(key) {
         if (this.isMuted) return;
 
-        // Brief: one continuous track from the landing page into the round. Screen
-        // switches must not restart it -- only stopBgm (win/lose) ends it.
+        // One continuous track during the round. Screen switches must not restart it --
+        // only stopBgm (win/lose) ends it.
         if (this.currentBgm === this.sounds[key] && !this.currentBgm.paused) return;
 
         if (this.currentBgm) {
