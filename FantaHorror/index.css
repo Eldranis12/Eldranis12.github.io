@@ -101,6 +101,14 @@ body {
   6:13 PSD ratio, especially after Android's browser bars collapse. Cover the viewport
   with the original artboard ratio, cropping only a small edge when necessary instead
   of stretching the artwork.
+
+  The crop has to be bounded, though. The artboard is centred, so a viewport squarer
+  than 6:13 loses half the overflow off each end -- and the lowest CTA ("AMBIL VOUCHER")
+  sits at 93% of the artboard. Uncapped cover on 16:9 hardware (320x568) overflowed by
+  125px and cut 14px off that button. Capping the height at 1.15x the viewport keeps the
+  whole 0-93% band on screen at every phone ratio; the leftover is a few percent of
+  pillarboxing on the squarest devices, against the artboard's own near-black plate.
+  --fit-crop is what each end loses, and the HUD padding below reads it back.
 */
 @media (max-width: 767px) and (orientation: portrait) {
   body {
@@ -110,10 +118,12 @@ body {
   }
 
   #app-container {
+    --fit-h: min(max(100dvh, 100vw * 13 / 6), 100dvh * 1.15);
+    --fit-crop: max(0px, (var(--fit-h) - 100dvh) / 2);
     width: max(100vw, calc(100vh * 6 / 13));
     height: max(100vh, calc(100vw * 13 / 6));
-    width: max(100vw, calc(100dvh * 6 / 13));
-    height: max(100dvh, calc(100vw * 13 / 6));
+    width: calc(var(--fit-h) * 6 / 13);
+    height: var(--fit-h);
     max-width: none;
     max-height: none;
     aspect-ratio: 6 / 13;
@@ -381,6 +391,18 @@ body {
 #screen-game {
   background-image: url('assets/game_bg_artboard.webp');
   padding: 16px 14px 16px;
+}
+
+/*
+  The HUD is a real control strip, not artwork, so it has to clear the slice the mobile
+  cover-fill hides off the top (--fit-crop, set on #app-container). The graves keep their
+  artboard coordinates and crop with the background by design. Must stay after the
+  shorthand `padding` above -- same specificity, so the later rule wins.
+*/
+@media (max-width: 767px) and (orientation: portrait) {
+  #screen-game {
+    padding-top: calc(16px + var(--fit-crop, 0px));
+  }
 }
 
 /* Header Panel (Clean floating nyawa + timer without border box) */
