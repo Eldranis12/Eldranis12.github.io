@@ -250,7 +250,7 @@ body {
 ==================================== */
 /* KV Rev 1: a clean plate -- logos, headline and buttons ride on top as real layers. */
 #screen-lp {
-  background-image: url('assets/lp_rev1_bg.webp');
+  background-image: url('assets/bg_v2_lp.webp');
 }
 
 /*
@@ -435,7 +435,12 @@ body {
   out from under the artboard coordinates the bottle positions are derived from.
 */
 #screen-game {
-  background-image: url('assets/game_bg_artboard.webp');
+  /*
+    BG v2 plate. Its 950x1600 is a wider crop than the old 6:13 artboard, but once
+    `cover` fits it to the frame the nine fires land within 0.7% of where the old art
+    put them, so the grave slots below keep their coordinates untouched.
+  */
+  background-image: url('assets/bg_v2_ingame.webp');
   padding: 16px 14px 16px;
 }
 
@@ -879,8 +884,14 @@ body {
 /* ====================================
    4. WINNER & LOSE SCREENS
 ==================================== */
+/*
+  BG v2 plate: a clean sky, so the headline below is a real layer now instead of pixels
+  baked into the composite. Its 950x1600 is a wider crop than the 6:13 frame, so it has
+  to `cover` -- stretching it to 100% 100% like the old artboard would squeeze it 22%.
+*/
 #screen-win {
-  background-image: url('assets/Fanta-Horor-Winner_full.webp');
+  background-image: url('assets/bg_v2_win.webp');
+  background-size: cover;
 }
 
 /* Approved composite exported from "Fanta-Horor-Lose (1) 3.psd". */
@@ -939,7 +950,6 @@ body {
 #screen-lp .lp-headline      { left: 19.313%; top: 18.510%; width: 62.018%; height: 11.390%; }
 
 #screen-voucher-select .voucher-header,
-#screen-win .result-header,
 #screen-lose .result-header {
   opacity: 0;
   pointer-events: none;
@@ -1144,7 +1154,29 @@ body {
 */
 #screen-win .result-actions .img-btn { opacity: 1; }
 
-#screen-win .result-header { opacity: 0; }
+/*
+  Sized off the asset's own glow bounds so it lands where the old composite painted the
+  headline (67..1009 of the 1080 artboard). The gap between "FANTA" and "AMAN" is in the
+  artwork itself -- that is where the composite used to sit its bottle.
+*/
+#screen-win .result-header {
+  position: absolute;
+  inset: auto;
+  left:   5.839%;
+  top:    7.695%;
+  width: 88.045%;
+  height: 17.855%;
+  margin: 0;
+  opacity: 1;
+  pointer-events: none;
+  z-index: 3;
+}
+
+#screen-win .result-header img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
 
 /* The approved composite already contains the headline. */
 #screen-lose .result-header {
@@ -1166,7 +1198,13 @@ body {
   max-width: none;
 }
 
+/*
+  Only the normal winner runs on the clean BG v2 plate; the two sold-out states still
+  ride the old composites, which already have the headline painted in. Leaving the
+  layer on over those would print it twice.
+*/
 #screen-win.coupon-out .result-header,
+#screen-win.voucher-out .result-header,
 #screen-lose.coupon-out .result-header {
   opacity: 0;
   pointer-events: none;
