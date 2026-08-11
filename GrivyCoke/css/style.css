@@ -458,7 +458,8 @@ img {
 .btn-ctl img { width: 220px; height: 220px; margin: -20px; display: block; }
 .btn-ctl:active img { transform: scale(0.9); }
 
-/* koordinat = posisi isi gambar tombol (sudah termasuk offset 20px di atas) */
+/* koordinat = posisi isi gambar tombol (sudah termasuk offset di atas);
+   digeser +10px dari versi 200px supaya titik tengah tombol tidak pindah */
 #ctl-left   { left: 145px; top: 1655px; }
 #ctl-right  { left: 365px; top: 1655px; }
 #ctl-down   { left: 255px; top: 1850px; }
