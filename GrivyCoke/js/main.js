@@ -5,7 +5,7 @@
 
 import { CONFIG, PLAYER } from './config.js';
 import { Tetris, SHAPES } from './tetris.js';
-import { notifyGameStart, notifyGameEnd } from './kiosk.js';
+import { notifyGameStart, notifyGameEnd, notifyScoreUpdate, notifyGameExit } from './kiosk.js';
 import { playSfx } from './audio.js';
 import { createSession } from './session.js';
 
@@ -484,6 +484,7 @@ function placePiece(landMode = 'normal') {
   }
   updateHud();
   if (session && session.remote && game) session.syncScore(game.score);
+  notifyScoreUpdate(session && session.sessionId ? session.sessionId : '', game.score);
   if (game.topOut) endGame('topout');
 }
 
@@ -804,6 +805,7 @@ function handleExit() {
   if (running && !over && session && session.sessionId) {
     const currentScore = (game && typeof game.score === 'number') ? game.score : 0;
     session.submitScore(currentScore, true);
+    notifyGameExit(session.sessionId, currentScore);
   }
 }
 window.addEventListener('pagehide', handleExit);
