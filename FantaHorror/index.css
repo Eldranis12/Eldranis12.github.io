@@ -142,6 +142,12 @@ body {
     /* Undo flex centring's even split, down to the 2:7 offset. */
     position: relative;
     top: calc(var(--fit-over) / 2 - var(--fit-crop));
+    /*
+      The desktop framing glow casts 100px of near-black outside the box. Against the
+      old blurred strips that went unnoticed; over artwork meant to run edge to edge it
+      reads as a dark seam down both sides of the artboard.
+    */
+    box-shadow: none;
   }
 
   #app-container .screen {
@@ -177,6 +183,31 @@ body {
     */
     filter: blur(18px) brightness(0.55);
     transform: scale(1.12);
+  }
+
+  /*
+    The BG v2 plates are cut wider than 6:13 on purpose: the side bleed that `cover`
+    trims inside the artboard is exactly what the pillarbox strips need. So for those
+    screens the strip is not a blurred stand-in -- it is the same picture, continued.
+
+    Alignment is what makes the seam disappear. Inside the artboard the plate is fitted
+    by height (6:13 is narrower than the plate's 0.594), giving scale fit-h/1600. Pinning
+    this copy to the same height and the same centre reproduces that scale exactly, and
+    the artboard's own top edge sits at -fit-crop in the viewport, so it lines up
+    vertically too. `auto <height>` rather than `cover`, because cover would rescale to
+    fill a viewport wider than the plate and break the match.
+
+    Holds while the viewport is no wider than the plate (0.594); past that the plate
+    simply runs out and the strips fall back to the dark plate underneath.
+  */
+  #screen-game::before,
+  #screen-win::before {
+    inset: calc(-1 * var(--fit-crop)) 0 auto 0;
+    height: var(--fit-h);
+    background-size: auto var(--fit-h);
+    background-position: center top;
+    filter: none;
+    transform: none;
   }
 }
 

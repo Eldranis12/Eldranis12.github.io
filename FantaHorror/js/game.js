@@ -357,6 +357,25 @@ class FantaHorrorGame {
 
         document.getElementById('app-container')?.classList.remove('quota-loading');
 
+        /*
+         * QA shortcut: jump straight to one screen instead of playing a round to reach it.
+         * Runs after the quota resolves so the screen lands in whichever CTA state
+         * ?coupon= asked for. Aliases are accepted because the internal names are not
+         * what anyone types -- ?screen=voucher is friendlier than VOUCHER_SELECT.
+         */
+        const SCREEN_ALIASES = {
+            lp: 'LP',
+            voucher: 'VOUCHER_SELECT', voucher_select: 'VOUCHER_SELECT',
+            game: 'PLAYING', playing: 'PLAYING',
+            win: 'WIN',
+            lose: 'LOSE'
+        };
+        const screenPreview = SCREEN_ALIASES[String(params.get('screen') || '').toLowerCase()];
+        if (screenPreview) {
+            logGrivyDebug('QA Screen Preview', { requested: params.get('screen'), screen: screenPreview });
+            this.switchScreen(screenPreview);
+        }
+
         // Fired here, not on DOMContentLoaded: until the quota resolves the landing page
         // is still behind the loading veil, so this is the first moment it is really up.
         emitGameEvent('game_loaded', {
