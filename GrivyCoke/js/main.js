@@ -483,6 +483,7 @@ function placePiece(landMode = 'normal') {
     renderNext();
   }
   updateHud();
+  if (session && session.remote && game) session.syncScore(game.score);
   if (game.topOut) endGame('topout');
 }
 
@@ -798,6 +799,33 @@ async function endGame(reason = 'timeup') {
     notifyGameEnd(session && session.sessionId ? session.sessionId : '', fallback.map(({ nickname, score }) => ({ nickname, score })));
   }
 }
+
+function handleExit() {
+  if (running && !over && session && session.sessionId) {
+    const currentScore = (game && typeof game.score === 'number') ? game.score : 0;
+    session.submitScore(currentScore, true);
+  }
+}
+window.addEventListener('pagehide', handleExit);
+window.addEventListener('beforeunload', handleExit);
+
+async function refreshScoreboardOnFocus() {
+  const resultScreen = $('#screen-result');
+  if (resultScreen && !resultScreen.classList.contains('hidden') && session && session.fetchResults) {
+    const res = await session.fetchResults();
+    if (res && res.rows) {
+      renderResults(res.rows);
+    }
+  }
+}
+window.addEventListener('focus', refreshScoreboardOnFocus);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    handleExit();
+  } else if (document.visibilityState === 'visible') {
+    refreshScoreboardOnFocus();
+  }
+});
 
 $('#btn-start').addEventListener('click', () => { playSfx('start'); startGame(); });
 

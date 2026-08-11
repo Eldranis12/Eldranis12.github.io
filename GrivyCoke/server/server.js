@@ -41,13 +41,14 @@ const newId = () => crypto.randomBytes(6).toString('hex');
 // kunci grup: device_id (kiosk). Tanpa kiosk (uji tanpa device) -> solo per user.
 const deviceKeyOf = (deviceId, uid) => deviceId ? `dev:${deviceId}` : `u:${uid}`;
 
-function createSession(deviceKey) {
+function createSession(deviceKey, durationSec) {
   const now = Date.now();
   const s = {
     id: newId(),
     device: deviceKey,
     phase: 'waiting',                 // waiting | playing | ended
     createdAt: now,
+    durationMs: durationSec ? durationSec * 1000 : null,
     deadline: now + WINDOW_MS,        // batas window tunggu
     players: new Map(),               // user_id -> player
     roster: null,                     // array user_id (dibekukan saat mulai)
@@ -67,7 +68,8 @@ function advance(s) {
     s.phase = 'playing';
     s.roster = [...s.players.keys()];
     s.mode = s.roster.length > 1 ? 'multi' : 'single';
-    s.playDeadline = now + GAME_MS + RESULT_GRACE_MS;
+    const gameDuration = s.durationMs || GAME_MS;
+    s.playDeadline = now + gameDuration + RESULT_GRACE_MS;
   }
   if (s.phase === 'playing') {
     const allIn = s.roster.length > 0 &&
@@ -103,15 +105,17 @@ function publicState(s) {
 }
 
 function resultsPayload(s) {
+  const isEnded = s.phase === 'ended';
   const rows = (s.roster || [...s.players.keys()])
     .map(uid => {
       const p = s.players.get(uid);
       return { user_id: uid, nickname: p.nickname,
                whats_app_session_id: p.whatsAppSessionId || '',
-               score: p.score ?? 0, submitted: !!p.submitted };
+               score: p.score ?? 0,
+               submitted: isEnded ? true : !!p.submitted };
     })
     .sort((a, b) => b.score - a.score);
-  return { session_id: s.id, mode: s.mode, ready: s.phase === 'ended', results: rows };
+  return { session_id: s.id, mode: s.mode, ready: isEnded, results: rows };
 }
 
 // ---------- HTTP ----------
@@ -170,7 +174,9 @@ const server = http.createServer(async (req, res) => {
       if (activeId) { s = sessions.get(activeId); if (s) advance(s); }
       // tidak ada sesi waiting untuk kiosk ini (belum ada / yg lama sudah mulai)
       // -> buka sesi BARU (kiosk dipakai berurutan sepanjang hari)
-      if (!s || s.phase !== 'waiting') s = createSession(key);
+      const durSec = b.duration ? parseInt(b.duration, 10) : null;
+      if (!s || s.phase !== 'waiting') s = createSession(key, durSec);
+      else if (!s.durationMs && durSec) s.durationMs = durSec * 1000;
 
       if (!s.players.has(uid) && s.players.size < MAX_PLAYERS) {
         s.players.set(uid, {
@@ -202,7 +208,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, publicState(s));
     }
 
-    // --- score: kirim skor akhir ---
+    // --- score: kirim skor akhir atau live sync ---
     if (req.method === 'POST' && path === '/session/score') {
       const b = await readBody(req);
       const s = sessions.get(b.session_id);
@@ -210,8 +216,16 @@ const server = http.createServer(async (req, res) => {
       advance(s);
       const p = s.players.get(b.user_id);
       if (!p) return send(res, 404, { error: 'pemain tidak ada di sesi' });
-      if (!p.submitted) {                       // skor pertama = final (anti timpa)
-        p.score = Math.max(0, parseInt(b.score, 10) || 0);
+
+      const incomingScore = Math.max(0, parseInt(b.score, 10) || 0);
+      if (b.live) {
+        // live score sync selama bermain
+        if (!p.submitted) {
+          p.score = Math.max(p.score || 0, incomingScore);
+        }
+      } else {
+        // final score submission (game over, time up, or exit beacon)
+        p.score = Math.max(p.score || 0, incomingScore);
         p.submitted = true;
       }
       advance(s);

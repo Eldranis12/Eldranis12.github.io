@@ -38,6 +38,44 @@ function jpost(url, body) {
   });
 }
 
+// Web Worker timer untuk mencegah browser throttling pada background tab
+function createWorkerTimer(intervalMs, callback) {
+  if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined') {
+    const id = setInterval(callback, intervalMs);
+    return () => clearInterval(id);
+  }
+  let worker = null;
+  let blobUrl = null;
+  try {
+    const code = `
+      let timer = null;
+      onmessage = e => {
+        if (e.data === 'start') {
+          if (!timer) timer = setInterval(() => postMessage('tick'), ${intervalMs});
+        } else if (e.data === 'stop') {
+          if (timer) { clearInterval(timer); timer = null; }
+        }
+      };
+    `;
+    blobUrl = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
+    worker = new Worker(blobUrl);
+    worker.onmessage = () => callback();
+    worker.postMessage('start');
+    return () => {
+      try {
+        worker.postMessage('stop');
+        worker.terminate();
+      } catch (e) {}
+      if (blobUrl) {
+        try { URL.revokeObjectURL(blobUrl); } catch (e) {}
+      }
+    };
+  } catch (e) {
+    const id = setInterval(callback, intervalMs);
+    return () => clearInterval(id);
+  }
+}
+
 // ---------- REMOTE ----------
 class RemoteSession {
   constructor(base) {
@@ -50,6 +88,7 @@ class RemoteSession {
       user_id: PLAYER.userId,
       nickname: PLAYER.nickname,
       whats_app_session_id: PLAYER.whatsAppSessionId, // konteks per-user saja
+      duration: CONFIG.gameSeconds,
     };
   }
 
@@ -75,32 +114,120 @@ class RemoteSession {
     }
   }
 
-  submitScore(score) {
-    return jpost(this.base + '/session/score',
-      { session_id: this._sessionId, user_id: this._q.user_id, score }).catch(() => {});
+  // Live score sync (dipanggil saat skor bertambah selama bermain)
+  syncScore(score) {
+    if (!this._sessionId) return;
+    const body = JSON.stringify({
+      session_id: this._sessionId,
+      user_id: this._q.user_id,
+      score: score ?? 0,
+      live: true,
+    });
+    fetch(this.base + '/session/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      keepalive: true,
+    }).catch(() => {});
   }
 
-  // Polling ranking dengan UPDATE HIDUP: onUpdate(rows, ready) dipanggil tiap
-  // poll sampai server bilang ready (semua submit / grace habis) atau timeout.
-  // Ini yang bikin skor pemain yang selesai belakangan muncul di TY page pemain
-  // yang selesai duluan (tanpa tampak "nyangkut").
+  // Submit skor akhir (selesai main atau saat keluar/tutup tab)
+  submitScore(score, isExit = false) {
+    if (!this._sessionId) return;
+    const data = {
+      session_id: this._sessionId,
+      user_id: this._q.user_id,
+      score: score ?? 0,
+    };
+    const json = JSON.stringify(data);
+
+    if (isExit) {
+      if (typeof fetch === 'function') {
+        try {
+          fetch(this.base + '/session/score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: json,
+            keepalive: true,
+          }).catch(() => {});
+        } catch (e) {}
+      }
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        try {
+          const blob = new Blob([json], { type: 'text/plain;charset=UTF-8' });
+          navigator.sendBeacon(this.base + '/session/score', blob);
+        } catch (e) {}
+      }
+      return;
+    }
+
+    return jpost(this.base + '/session/score', data).catch(() => {});
+  }
+
+  // Ambil data ranking terkini dari server
+  async fetchResults() {
+    if (!this._sessionId) return null;
+    try {
+      const data = await jget(`${this.base}/session/results?session_id=${encodeURIComponent(this._sessionId)}`);
+      if (data && data.results) {
+        const rows = data.results.map(r => ({
+          nickname: r.nickname,
+          score: r.score,
+          me: r.user_id === this._q.user_id,
+          submitted: r.submitted,
+        }));
+        return { rows, ready: !!data.ready };
+      }
+    } catch {}
+    return null;
+  }
+
+  // Polling ranking dengan Web Worker timer (tetap update di background tab tanpa perlu refokus)
   async watchResults(onUpdate, timeoutMs) {
-    // default: tunggu sampai game pasti berakhir (durasi + grace) + buffer
-    const cap = timeoutMs ?? (CONFIG.gameSeconds * 1000 + 30000);
+    const cap = timeoutMs ?? Math.max(600_000, (CONFIG.gameSeconds + 180) * 1000);
     const until = Date.now() + cap;
     let rows = [];
-    for (;;) {
-      let data = null;
-      try { data = await jget(`${this.base}/session/results?session_id=${encodeURIComponent(this._sessionId)}`); } catch {}
-      if (data && data.results) {
-        rows = data.results.map(r => ({ nickname: r.nickname, score: r.score,
-          me: r.user_id === this._q.user_id, submitted: r.submitted }));
-        onUpdate(rows, !!data.ready);
-        if (data.ready) return rows;
-      }
-      if (Date.now() > until) return rows;
-      await sleep(RESULT_POLL_MS);
-    }
+
+    return new Promise(resolve => {
+      let active = true;
+      let stopWorker = null;
+
+      const finish = finalRows => {
+        if (!active) return;
+        active = false;
+        if (stopWorker) stopWorker();
+        if (typeof window !== 'undefined') window.removeEventListener('focus', tick);
+        if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', tick);
+        resolve(finalRows);
+      };
+
+      const tick = async () => {
+        if (!active) return;
+        if (Date.now() > until) {
+          finish(rows);
+          return;
+        }
+        const res = await this.fetchResults();
+        if (!active) return;
+        if (res) {
+          rows = res.rows;
+          onUpdate(rows, res.ready);
+          if (res.ready) {
+            finish(rows);
+            return;
+          }
+        }
+      };
+
+      // Poll pertama langsung
+      tick();
+
+      // Background unthrottled worker timer
+      stopWorker = createWorkerTimer(RESULT_POLL_MS, tick);
+
+      if (typeof window !== 'undefined') window.addEventListener('focus', tick);
+      if (typeof document !== 'undefined') document.addEventListener('visibilitychange', tick);
+    });
   }
 }
 
