@@ -22,3 +22,13 @@ yarn-error.log*
 # Heavy media / extracted frame assets
 video_audio.wav
 video_frames/
+
+# Design masters and raw audio. The browser only ever loads .webp and .mp3; the
+# PSD/WAV/PPTX originals live in the design team's Drive. Keeping them here once
+# cost 250 MB of repo for files no visitor could download.
+*.psd
+*.pptx
+assets/**/*.wav
+Fanta Horror_Q3_26/
+assets/Sound v.02/
+assets/Bahan Rev */
