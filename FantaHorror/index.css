@@ -105,7 +105,7 @@ body {
   The crop has to be bounded, though. The artboard is centred, so a viewport squarer
   than 6:13 loses half the overflow off each end -- and the lowest CTA ("AMBIL VOUCHER")
   sits at 93% of the artboard. Uncapped cover on 16:9 hardware (320x568) overflowed by
-  125px and cut 14px off that button. Capping the height at 1.15x the viewport keeps the
+  125px and cut 14px off that button. Capping the height at 1.10x the viewport keeps the
   whole 0-93% band on screen at every phone ratio; the leftover is a few percent of
   pillarboxing on the squarest devices, against the artboard's own near-black plate.
   --fit-crop is what each end loses, and the HUD padding below reads it back.
@@ -121,9 +121,10 @@ body {
     /*
       The UI band runs 2% (winner headline) to 93% (AMBIL VOUCHER) of the artboard, so
       the artboard may only outgrow the viewport while 91% of it still fits: the cap is
-      1/0.91, trimmed to 1.08 for margin.
+      1/0.91, rounded to 1.10. This modest extra width reduces the side strips without
+      distorting the artwork or pushing the CTA band outside the viewport.
     */
-    --fit-h: min(max(100dvh, 100vw * 13 / 6), 100dvh * 1.08);
+    --fit-h: min(max(100dvh, 100vw * 13 / 6), 100dvh * 1.10);
     --fit-over: max(0px, var(--fit-h) - 100dvh);
     /*
       That band is not centred in the artboard -- 2% of slack above, 7% below -- so
@@ -142,6 +143,7 @@ body {
     /* Undo flex centring's even split, down to the 2:7 offset. */
     position: relative;
     top: calc(var(--fit-over) / 2 - var(--fit-crop));
+    background-color: transparent;
     /*
       The desktop framing glow casts 100px of near-black outside the box. Against the
       old blurred strips that went unnoticed; over artwork meant to run edge to edge it
@@ -208,6 +210,60 @@ body {
     background-position: center top;
     filter: none;
     transform: none;
+  }
+
+  /*
+    `bg_v2_ingame.webp` is the 950x1600 BG Baru plate. Drawing it on the narrow 6:13
+    game section cropped its side bleed before the viewport layer could be seen. On
+    mobile the section itself is transparent and this fixed layer owns the complete
+    background; gameplay coordinates remain on the original 6:13 UI canvas above it.
+  */
+  #app-container #screen-game {
+    background-image: none;
+  }
+
+  #screen-game::before {
+    z-index: 0;
+    background-image: url('assets/bg_v2_ingame.webp');
+  }
+
+  #screen-game .graves-grid-container {
+    z-index: 1;
+  }
+
+  /*
+    The gameplay background now extends beyond the 6:13 UI canvas, so the final-life
+    veil must belong to the viewport too. Keeping it absolute confined the dark layer
+    to the centre canvas and left two bright, visibly "cut" strips at the sides.
+  */
+  #app-container .life-notif.life-empty {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 100;
+  }
+
+  #app-container .life-notif.life-empty img {
+    width: min(82.6vw, calc(82.6dvh * 6 / 13));
+  }
+
+  /*
+    Cara Bermain is a viewport modal, not part of the 6:13 artwork. Keeping the
+    overlay absolute clipped its dark veil to the centre canvas on wider phones.
+    The popup remains independently capped, so only the backdrop reaches the edges.
+  */
+  #app-container .modal-overlay {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  #app-container .modal-cara-bermain-box {
+    width: min(92vw, 407px);
   }
 }
 
@@ -1368,6 +1424,7 @@ body {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.88);
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   display: flex;
   justify-content: center;
