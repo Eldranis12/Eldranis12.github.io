@@ -140,6 +140,14 @@ body {
     max-width: none;
     max-height: none;
     aspect-ratio: 6 / 13;
+    /*
+      body is a flex container, so on a phone taller than 6:13 -- 412x915, 360x800, most
+      current Android -- the width above exceeds 100vw and the default flex-shrink:1
+      squeezed the artboard back to the viewport: 6:13 became 0.450, a 2.44% horizontal
+      squash carried by every percentage-positioned element on top of it. The overflow is
+      meant to be cropped by body's overflow:hidden, not absorbed by the box.
+    */
+    flex-shrink: 0;
     /* Undo flex centring's even split, down to the 2:7 offset. */
     position: relative;
     top: calc(var(--fit-over) / 2 - var(--fit-crop));
@@ -1303,8 +1311,15 @@ body {
 
 /*
   Sized off the asset's own glow bounds so it lands where the old composite painted the
-  headline (67..1009 of the 1080 artboard). The gap between "FANTA" and "AMAN" is in the
-  artwork itself -- that is where the composite used to sit its bottle.
+  headline (67..1009 of the 1080 artboard).
+
+  The child img is stretched to this box (width/height 100%, no object-fit), so the box
+  has to carry the asset's aspect ratio or the artwork skews. Height therefore follows
+  from the width: 88.045% * (509/965) * 6/13 = 21.434%. The bottle now sits inside the
+  artwork -- it used to be a separate layer filling the gap between "FANTA" and "AMAN" --
+  which is what made the plate 965x509 instead of 965x424. The text block is untouched
+  (ink still spans y 114..408 of the source), so `top` stays put and only the bottle
+  extends further down.
 */
 #screen-win .result-header {
   position: absolute;
@@ -1312,7 +1327,7 @@ body {
   left:   5.839%;
   top:    7.695%;
   width: 88.045%;
-  height: 17.855%;
+  height: 21.434%;
   margin: 0;
   opacity: 1;
   pointer-events: none;
