@@ -176,6 +176,13 @@ body {
     background-image: inherit;
     background-size: cover;
     background-position: center;
+    /*
+      Never tile. This rule's own `cover` can't under-fill, but the height-fitted
+      overrides below can: their plate is only 0.594 as wide as it is tall, so any
+      viewport squarer than that leaves horizontal room, and the initial value
+      (`repeat`) filled it by stamping the artwork again down both edges.
+    */
+    background-repeat: no-repeat;
     pointer-events: none;
     /*
       This copy has to zoom past the artboard to reach the screen edges, so its crop
@@ -224,6 +231,9 @@ body {
   #screen-game::before {
     z-index: 0;
     background-image: url('assets/bg_v2_ingame.webp');
+    /* Sampled from the plate's own left/right columns, so where the artwork runs out
+       on a viewport squarer than 0.594 the remainder reads as more night, not a band. */
+    background-color: #26383F;
   }
 
   #screen-game .graves-grid-container {
@@ -250,6 +260,8 @@ body {
     background-image: url('assets/bg_v2_win.webp?v=20260812-cover');
     background-size: auto var(--fit-h);
     background-position: center top;
+    /* Same idea as gameplay, sampled from this plate's own edges. */
+    background-color: #150F27;
     filter: none;
     transform: none;
   }
