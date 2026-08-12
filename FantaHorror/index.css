@@ -249,43 +249,44 @@ body {
   }
 
   /*
-    Winner runs the same height-fitted plate as gameplay, and for the same reason:
-    `bg_v2_win.webp` is the 950x1600 BG Baru cut, so its side bleed is what the strips
-    want. It previously fitted the plate by *width* instead, to keep all 950 source
-    pixels -- but that only reached 657 of 844 screen px on a 390-wide phone, and the
-    remaining 22% was papered over with a second copy of the same file at 1.28x. Two
-    zoom levels of one picture on one screen is what read as "cropped, not the real
-    artwork". Fitting by height puts the whole screen on a single continuous scale.
+    Winner runs the same height-fitted plate as gameplay:
+    `win.jpeg` is the 950x1600 BG Baru cut, so its side bleed is what the pillarbox strips
+    want. Fitting by height puts the whole screen on a single continuous scale edge to edge.
   */
-  #app-container #screen-win:not(.voucher-out) {
+  #app-container #screen-win,
+  #app-container #screen-win.coupon-out,
+  #app-container #screen-win.voucher-out {
     background-image: none;
   }
 
-  #screen-win:not(.voucher-out)::before {
+  #screen-win::before,
+  #screen-win.coupon-out::before,
+  #screen-win.voucher-out::before {
     inset: calc(-1 * var(--fit-crop)) 0 auto 0;
     height: var(--fit-h);
     z-index: 0;
-    background-image: url('assets/bg_v2_win.webp?v=20260812-cover');
+    background-image: url('assets/BG Baru/win.jpeg?v=20260812-all-result-states');
     background-size: auto var(--fit-h);
     background-position: center top;
-    /* Same idea as gameplay, sampled from this plate's own edges. */
+    /* Sampled from this plate's own edges. */
     background-color: #150F27;
     filter: none;
     transform: none;
+    display: block;
   }
 
   /*
-    LP and the normal Lose state share the 1390x2340 BG Baru plate, also 0.594, so they
-    take the same height-fitted treatment. The two sold-out Lose states are excluded:
-    they still ride 6:13 composites, which the generic blurred rule above suits.
+    LP and Lose state share the 1390x2340 BG Baru plate, also 0.594, so they
+    take the same height-fitted treatment across the entire viewport.
   */
   #app-container #screen-lp,
-  #app-container #screen-lose:not(.coupon-out):not(.voucher-out) {
+  #app-container #screen-lose,
+  #app-container #screen-lose.coupon-out,
+  #app-container #screen-lose.voucher-out {
     background-image: none;
   }
 
-  #screen-lp::before,
-  #screen-lose:not(.coupon-out):not(.voucher-out)::before {
+  #screen-lp::before {
     inset: calc(-1 * var(--fit-crop)) 0 auto 0;
     height: var(--fit-h);
     z-index: 0;
@@ -298,21 +299,34 @@ body {
     transform: none;
   }
 
-  /* Keep every layer of those two screens above their viewport-owned plate. */
+  #screen-lose::before,
+  #screen-lose.coupon-out::before,
+  #screen-lose.voucher-out::before {
+    inset: calc(-1 * var(--fit-crop)) 0 auto 0;
+    height: var(--fit-h);
+    z-index: 0;
+    background-image: url('assets/BG Baru/LPLose.jpeg?v=20260812-all-result-states');
+    background-size: auto var(--fit-h);
+    background-position: center top;
+    /* Sampled from this plate's own edge columns. */
+    background-color: #14182E;
+    filter: none;
+    transform: none;
+    display: block;
+  }
+
+  /* Keep every layer of those screens above their viewport-owned plate. */
   #screen-lp .lp-header,
   #screen-lp .lp-actions,
   #screen-lp .lp-footer,
+  #screen-win .result-header,
+  #screen-win .result-actions,
   #screen-lose .result-header,
   #screen-lose .result-actions,
   #screen-lose .lose-logo-suzzanna {
     z-index: 1;
   }
 
-  /*
-    Keep the CTAs above that plate. .result-actions is a static flex child, and static
-    content paints *below* positioned boxes -- so without a position here the fixed
-    plate at z-index 0 would bury the buttons. (.result-header is already absolute.)
-  */
   #screen-win .result-actions {
     position: relative;
     z-index: 1;
@@ -1314,6 +1328,7 @@ body {
 #screen-lp.coupon-out .lp-footer .btn-link,
 #screen-lp.lp-compact-mode .lp-footer .btn-link { left: 9.370%; }
 
+#screen-lp.coupon-out #btn-upload-struk,
 #screen-lp.lp-compact-mode #btn-upload-struk { display: none; }
 
 /*
@@ -1699,26 +1714,44 @@ body {
   transform: scale(0.95);
 }
 
-/* All Winner/Lose variants now use the supplied BG Baru assets. */
+/* All Winner/Lose variants now use the supplied BG Baru assets on desktop canvas. */
 #app-container #screen-win,
 #app-container #screen-win.coupon-out,
 #app-container #screen-win.voucher-out {
-  background-image: url('assets/BG Baru/win.jpeg?v=20260812-all-result-states') !important;
-  background-size: cover !important;
-  background-position: center !important;
+  background-image: url('assets/BG Baru/win.jpeg?v=20260812-all-result-states');
+  background-size: cover;
+  background-position: center;
 }
 
 #app-container #screen-lose,
 #app-container #screen-lose.coupon-out,
 #app-container #screen-lose.voucher-out {
-  background-image: url('assets/BG Baru/LPLose.jpeg?v=20260812-all-result-states') !important;
-  background-size: cover !important;
-  background-position: center !important;
+  background-image: url('assets/BG Baru/LPLose.jpeg?v=20260812-all-result-states');
+  background-size: cover;
+  background-position: center;
 }
 
-#screen-win::before,
-#screen-lose::before {
-  display: none !important;
+@media (max-width: 767px) and (orientation: portrait) {
+  #app-container #screen-win,
+  #app-container #screen-win.coupon-out,
+  #app-container #screen-win.voucher-out,
+  #app-container #screen-lose,
+  #app-container #screen-lose.coupon-out,
+  #app-container #screen-lose.voucher-out {
+    background-image: none !important;
+  }
+
+  #screen-win::before,
+  #screen-win.coupon-out::before,
+  #screen-win.voucher-out::before {
+    display: block !important;
+  }
+
+  #screen-lose::before,
+  #screen-lose.coupon-out::before,
+  #screen-lose.voucher-out::before {
+    display: block !important;
+  }
 }
 
 /* Use EMANG PALING GERCEP, FANTA AMAN_ for every Winner quota state. */
@@ -1765,21 +1798,10 @@ body {
   top: 80% !important;
 }
 
-#screen-lose .btn-share,
-#screen-lose .btn-main-lagi,
-#screen-lose.coupon-out .btn-share,
-#screen-lose.coupon-out .btn-main-lagi,
-#screen-lose.voucher-out .btn-share,
-#screen-lose.voucher-out .btn-main-lagi {
-  top: 70% !important;
-}
-
-/* One identical two-button layout for every Winner and Lose quota state. */
+/* Result CTA layout: normal and voucher-out states (when 3 buttons or Yakali CTA are present) */
 #screen-win .btn-share,
-#screen-win.coupon-out .btn-share,
 #screen-win.voucher-out .btn-share,
 #screen-lose .btn-share,
-#screen-lose.coupon-out .btn-share,
 #screen-lose.voucher-out .btn-share {
   left: 10% !important;
   right: auto !important;
@@ -1789,14 +1811,31 @@ body {
 }
 
 #screen-win .btn-main-lagi,
-#screen-win.coupon-out .btn-main-lagi,
 #screen-win.voucher-out .btn-main-lagi,
 #screen-lose .btn-main-lagi,
-#screen-lose.coupon-out .btn-main-lagi,
 #screen-lose.voucher-out .btn-main-lagi {
   left: auto !important;
   right: 10% !important;
   top: 70% !important;
+  width: 38% !important;
+  height: 8% !important;
+}
+
+/* Coupon-out state: Ambil Voucher is hidden, so Share & Main Lagi shift down to its position (top: 80%) */
+#screen-win.coupon-out .btn-share,
+#screen-lose.coupon-out .btn-share {
+  left: 10% !important;
+  right: auto !important;
+  top: 80% !important;
+  width: 38% !important;
+  height: 8% !important;
+}
+
+#screen-win.coupon-out .btn-main-lagi,
+#screen-lose.coupon-out .btn-main-lagi {
+  left: auto !important;
+  right: 10% !important;
+  top: 80% !important;
   width: 38% !important;
   height: 8% !important;
 }

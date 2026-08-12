@@ -397,24 +397,10 @@ class FantaHorrorGame {
     }
 
     /*
-     * Landing variant (brief "Landing Page"): the upload-struk offer is a desktop-only,
-     * once-per-session view. Phones always get the compact CARA BERMAIN + MAIN GAME row,
-     * and so does any desktop reload -- the sessionStorage flag is what makes the second
-     * view "compact", so it survives reloads but resets for a genuinely new visit.
+     * Landing variant: layout is controlled by coupon quota availability via applyQuotaUI().
      */
     applyLandingVariant() {
-        const SEEN_KEY = 'fanta-lp-offer-seen';
-        const isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-        let seen = false;
-        try {
-            seen = sessionStorage.getItem(SEEN_KEY) === '1';
-            if (!isMobile) sessionStorage.setItem(SEEN_KEY, '1');
-        } catch (err) {
-            // Private mode / storage disabled: fall back to always showing the offer.
-        }
-
-        const compact = isMobile || seen;
-        this.screens.lp?.classList.toggle('lp-compact-mode', compact);
+        this.screens.lp?.classList.remove('lp-compact-mode');
     }
 
     /*
@@ -690,10 +676,12 @@ class FantaHorrorGame {
      */
     preloadResultArt() {
         [
-            // Win: normal and coupon-out share the BG Baru plate; voucher-out has its own.
+            // Win: BG Baru plate
+            'BG Baru/win.jpeg?v=20260812-all-result-states',
             'bg_v2_win.webp?v=20260812-cover',
             'voucher_out_winner_full.webp',
-            // Lose: normal runs the BG Baru plate, both sold-out states the PSD composite.
+            // Lose: BG Baru plate
+            'BG Baru/LPLose.jpeg?v=20260812-all-result-states',
             'bg_v2_lp_lose.webp?v=20260812-lplose',
             'lose_psd_voucher_out.webp?v=20260809-psd3'
         ].forEach(file => { new Image().src = 'assets/' + file; });
