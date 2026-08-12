@@ -1229,8 +1229,14 @@ body {
   width: auto;
   max-width: none;
 }
-#screen-win .btn-share { left: 10%; top: 76%; width: 38%; height: 8%; }
-#screen-win .btn-main-lagi { right: 10%; top: 76%; width: 38%; height: 8%; }
+/*
+  The SHARE row is spaced off AMBIL VOUCHER by the same margin AMBIL VOUCHER keeps from
+  the artboard floor (7%), instead of the 1% that left the two rows nearly touching
+  while 7% sat empty underneath. AMBIL VOUCHER itself does not move -- it is the CTA the
+  campaign is measured on, and its box was solved against the artboard.
+*/
+#screen-win .btn-share { left: 10%; top: 70%; width: 38%; height: 8%; }
+#screen-win .btn-main-lagi { right: 10%; top: 70%; width: 38%; height: 8%; }
 #screen-win .btn-ambil-voucher { left: 10%; top: 85%; width: 80%; height: 8%; }
 
 /*
@@ -1238,8 +1244,9 @@ body {
   so each box is grown and nudged to land the button body on the artboard rectangle
   (117/569 at 1761, 403 x 155; the wide one 117 at 1969, 855 x 155).
 */
-#screen-lose .btn-share         { left:  9.370%; top: 74.539%; width: 40.241%; height: 8.105%; }
-#screen-lose .btn-main-lagi     { left: 51.222%; top: 74.539%; width: 40.241%; height: 8.105%; }
+/* Same even-gap rule as Win; Lose keeps 8.42% under AMBIL VOUCHER, so the row sits higher. */
+#screen-lose .btn-share         { left:  9.370%; top: 66.898%; width: 40.241%; height: 8.105%; }
+#screen-lose .btn-main-lagi     { left: 51.222%; top: 66.898%; width: 40.241%; height: 8.105%; }
 #screen-lose .btn-ambil-voucher { left:  9.360%; top: 83.423%; width: 82.112%; height: 8.157%; }
 
 /*
@@ -1250,7 +1257,12 @@ body {
 #screen-lose .lose-logo-suzzanna {
   position: absolute;
   left: 63.981%;
-  top: 68.120%;
+  /*
+    Travels with the CTA row: raising SHARE/MAIN LAGI by 7.641% put MAIN LAGI straight
+    over this lockup (they share the 64-90% column band). Same shift keeps the gap the
+    KV had between the two.
+  */
+  top: 60.479%;
   width: 25.926%;
   height: 3.889%;
   display: block;
