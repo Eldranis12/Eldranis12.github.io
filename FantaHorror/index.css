@@ -80,13 +80,18 @@ body {
   /* iOS Chrome counts the retracting toolbar inside 100vh, which pushed the artboard
      down and cut off the bottom (buttons / modal). dvh tracks the *visible* viewport,
      so the frame always fits. vh first as a fallback for older browsers. */
-  width: min(100vw, calc(100vh * 6 / 13));
-  height: min(100vh, calc(100vw * 13 / 6));
-  width: min(100vw, calc(100dvh * 6 / 13));
-  height: min(100dvh, calc(100vw * 13 / 6));
-  max-width: 540px;
+  /*
+    The canvas follows the artwork, not the old 6:13 artboard. Every BG v2 plate is that
+    same artboard widened to 1390 x 2340 -- 155px of bleed added on each side, vertical
+    scale untouched -- so sizing the canvas 1390:2340 shows each plate whole, with no
+    crop, and the UI box below keeps the 1080-wide coordinate space every rule is
+    already written against.
+  */
+  width: min(100vw, calc(100dvh * 1390 / 2340));
+  height: min(100dvh, calc(100vw * 2340 / 1390));
+  max-width: 695px;          /* 540 * 1390/1080, same artboard scale as before */
   max-height: 1170px;
-  aspect-ratio: 6 / 13;
+  aspect-ratio: 1390 / 2340;
   background-color: var(--horror-dark);
   box-shadow: 0 0 50px rgba(255, 102, 0, 0.25), 0 0 100px rgba(0, 0, 0, 0.9);
   border: none;
@@ -119,228 +124,41 @@ body {
 
   #app-container {
     /*
-      The UI band runs 2% (winner headline) to 93% (AMBIL VOUCHER) of the artboard, so
-      the artboard may only outgrow the viewport while 91% of it still fits: the cap is
-      1/0.91, rounded to 1.10. This modest extra width reduces the side strips without
-      distorting the artwork or pushing the CTA band outside the viewport.
+      Grow the canvas to fill the phone, capped so the UI band still fits. That band runs
+      2% (winner headline) to 93% (AMBIL VOUCHER) of the artboard, so the canvas may only
+      outgrow the viewport while 91% of it remains on screen: 1/0.91, rounded to 1.10.
     */
-    --fit-h: min(max(100dvh, 100vw * 13 / 6), 100dvh * 1.10);
-    --fit-over: max(0px, var(--fit-h) - 100dvh);
+    --fit-h: min(max(100dvh, calc(100vw * 2340 / 1390)), calc(100dvh * 1.10));
+    --fit-over: max(0px, calc(var(--fit-h) - 100dvh));
     /*
-      That band is not centred in the artboard -- 2% of slack above, 7% below -- so
-      splitting the overflow evenly ate the winner headline (-34px on a 360x658 screen).
-      The crop is dealt out in the same 2:7 proportion as the slack instead, which is
-      what --fit-crop (the hidden slice at the top) and the nudge below encode.
+      The band is not centred -- 2% of slack above, 7% below -- so splitting the overflow
+      evenly ate the winner headline. Deal the crop out in that same 2:7 proportion.
     */
     --fit-crop: calc(var(--fit-over) * 2 / 9);
-    width: max(100vw, calc(100vh * 6 / 13));
-    height: max(100vh, calc(100vw * 13 / 6));
-    width: calc(var(--fit-h) * 6 / 13);
+    width: calc(var(--fit-h) * 1390 / 2340);
     height: var(--fit-h);
     max-width: none;
     max-height: none;
-    aspect-ratio: 6 / 13;
+    aspect-ratio: 1390 / 2340;
     /*
-      body is a flex container, so on a phone taller than 6:13 -- 412x915, 360x800, most
-      current Android -- the width above exceeds 100vw and the default flex-shrink:1
-      squeezed the artboard back to the viewport: 6:13 became 0.450, a 2.44% horizontal
-      squash carried by every percentage-positioned element on top of it. The overflow is
-      meant to be cropped by body's overflow:hidden, not absorbed by the box.
+      body is a flex container, so once the width above exceeds 100vw the default
+      flex-shrink:1 squeezed the canvas back and distorted every percentage on top of it.
+      The overflow is meant to be cropped by body's overflow:hidden, not absorbed.
     */
     flex-shrink: 0;
-    /* Undo flex centring's even split, down to the 2:7 offset. */
     position: relative;
     top: calc(var(--fit-over) / 2 - var(--fit-crop));
     background-color: transparent;
-    /*
-      The desktop framing glow casts 100px of near-black outside the box. Against the
-      old blurred strips that went unnoticed; over artwork meant to run edge to edge it
-      reads as a dark seam down both sides of the artboard.
-    */
+    /* The desktop framing glow would cast near-black over artwork that now runs to the edges. */
     box-shadow: none;
   }
 
-  #app-container .screen {
-    background-size: cover;
-  }
-
   /*
-    Fills the pillarbox strips the cap above leaves on 16:9 phones.
-
-    The strips can't be closed by widening #app-container: the UI band runs from 2% of
-    the artboard (winner headline) to 93% (AMBIL VOUCHER), and at full-bleed width on a
-    0.55-ratio screen that 91% band works out taller than the viewport, so something
-    would have to be cut. Instead the artwork alone is allowed past the box -- a fixed,
-    viewport-sized copy of the same background, which `overflow: hidden` cannot clip
-    because plain overflow is not a containing block for fixed positioning. z-index -1
-    keeps it under #app-container's own opaque plate, so it only ever shows in the
-    strips, and `background-image: inherit` means each screen brings its own artwork.
+    The final-life veil, Cara Bermain's backdrop and nothing else belong to the viewport
+    rather than the canvas: both are full-screen dimmers, and leaving them absolute
+    clipped them to the canvas, leaving bright strips at the sides on wide phones.
   */
-  .screen::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background-image: inherit;
-    background-size: cover;
-    background-position: center;
-    /*
-      Never tile. This rule's own `cover` can't under-fill, but the height-fitted
-      overrides below can: their plate is only 0.594 as wide as it is tall, so any
-      viewport squarer than that leaves horizontal room, and the initial value
-      (`repeat`) filled it by stamping the artwork again down both edges.
-    */
-    background-repeat: no-repeat;
-    pointer-events: none;
-    /*
-      This copy has to zoom past the artboard to reach the screen edges, so its crop
-      cannot line up with the sharp plate on top -- unblurred, that mismatch reads as a
-      broken seam down each side. Blurring it turns the strips into the usual letterbox
-      glow, and the scale keeps the blur's soft edge off screen.
-    */
-    filter: blur(18px) brightness(0.55);
-    transform: scale(1.12);
-  }
-
-  /*
-    The BG v2 plates are cut wider than 6:13 on purpose: the side bleed that `cover`
-    trims inside the artboard is exactly what the pillarbox strips need. So for those
-    screens the strip is not a blurred stand-in -- it is the same picture, continued.
-
-    Alignment is what makes the seam disappear. Inside the artboard the plate is fitted
-    by height (6:13 is narrower than the plate's 0.594), giving scale fit-h/1600. Pinning
-    this copy to the same height and the same centre reproduces that scale exactly, and
-    the artboard's own top edge sits at -fit-crop in the viewport, so it lines up
-    vertically too. `auto <height>` rather than `cover`, because cover would rescale to
-    fill a viewport wider than the plate and break the match.
-
-    Holds while the viewport is no wider than the plate (0.594); past that the plate
-    simply runs out and the strips fall back to the dark plate underneath.
-  */
-  #screen-game::before {
-    inset: calc(-1 * var(--fit-crop)) 0 auto 0;
-    height: var(--fit-h);
-    background-size: auto var(--fit-h);
-    background-position: center top;
-    filter: none;
-    transform: none;
-  }
-
-  /*
-    `bg_v2_ingame.webp` is the 950x1600 BG Baru plate. Drawing it on the narrow 6:13
-    game section cropped its side bleed before the viewport layer could be seen. On
-    mobile the section itself is transparent and this fixed layer owns the complete
-    background; gameplay coordinates remain on the original 6:13 UI canvas above it.
-  */
-  #app-container #screen-game {
-    background-image: none;
-  }
-
-  #screen-game::before {
-    z-index: 0;
-    background-image: url('assets/bg_v2_ingame.webp');
-    /* Sampled from the plate's own left/right columns, so where the artwork runs out
-       on a viewport squarer than 0.594 the remainder reads as more night, not a band. */
-    background-color: #26383F;
-  }
-
-  #screen-game .graves-grid-container {
-    z-index: 1;
-  }
-
-  /*
-    Winner runs the same height-fitted plate as gameplay, and for the same reason:
-    `bg_v2_win.webp` is the 950x1600 BG Baru cut, so its side bleed is what the strips
-    want. It previously fitted the plate by *width* instead, to keep all 950 source
-    pixels -- but that only reached 657 of 844 screen px on a 390-wide phone, and the
-    remaining 22% was papered over with a second copy of the same file at 1.28x. Two
-    zoom levels of one picture on one screen is what read as "cropped, not the real
-    artwork". Fitting by height puts the whole screen on a single continuous scale.
-  */
-  #app-container #screen-win:not(.voucher-out) {
-    background-image: none;
-  }
-
-  #screen-win:not(.voucher-out)::before {
-    inset: calc(-1 * var(--fit-crop)) 0 auto 0;
-    height: var(--fit-h);
-    z-index: 0;
-    background-image: url('assets/bg_v2_win.webp?v=20260812-cover');
-    background-size: auto var(--fit-h);
-    background-position: center top;
-    /* Same idea as gameplay, sampled from this plate's own edges. */
-    background-color: #150F27;
-    filter: none;
-    transform: none;
-  }
-
-  /*
-    LP and the normal Lose state share the 1390x2340 BG Baru plate, also 0.594, so they
-    take the same height-fitted treatment. The two sold-out Lose states are excluded:
-    they still ride 6:13 composites, which the generic blurred rule above suits.
-  */
-  #app-container #screen-lp,
-  #app-container #screen-lose:not(.coupon-out):not(.voucher-out) {
-    background-image: none;
-  }
-
-  #screen-lp::before,
-  #screen-lose:not(.coupon-out):not(.voucher-out)::before {
-    inset: calc(-1 * var(--fit-crop)) 0 auto 0;
-    height: var(--fit-h);
-    z-index: 0;
-    background-image: url('assets/bg_v2_lp_lose.webp?v=20260812-lplose');
-    background-size: auto var(--fit-h);
-    background-position: center top;
-    /* Sampled from this plate's own edge columns. */
-    background-color: #14182E;
-    filter: none;
-    transform: none;
-  }
-
-  /* Keep every layer of those two screens above their viewport-owned plate. */
-  #screen-lp .lp-header,
-  #screen-lp .lp-actions,
-  #screen-lp .lp-footer,
-  #screen-lose .result-header,
-  #screen-lose .result-actions,
-  #screen-lose .lose-logo-suzzanna {
-    z-index: 1;
-  }
-
-  /*
-    Keep the CTAs above that plate. .result-actions is a static flex child, and static
-    content paints *below* positioned boxes -- so without a position here the fixed
-    plate at z-index 0 would bury the buttons. (.result-header is already absolute.)
-  */
-  #screen-win .result-actions {
-    position: relative;
-    z-index: 1;
-  }
-
-  /*
-    The gameplay background now extends beyond the 6:13 UI canvas, so the final-life
-    veil must belong to the viewport too. Keeping it absolute confined the dark layer
-    to the centre canvas and left two bright, visibly "cut" strips at the sides.
-  */
-  #app-container .life-notif.life-empty {
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-    z-index: 100;
-  }
-
-  #app-container .life-notif.life-empty img {
-    width: min(82.6vw, calc(82.6dvh * 6 / 13));
-  }
-
-  /*
-    Cara Bermain is a viewport modal, not part of the 6:13 artwork. Keeping the
-    overlay absolute clipped its dark veil to the centre canvas on wider phones.
-    The popup remains independently capped, so only the backdrop reaches the edges.
-  */
+  #app-container .life-notif.life-empty,
   #app-container .modal-overlay {
     position: fixed;
     inset: 0;
@@ -349,14 +167,19 @@ body {
     height: 100dvh;
   }
 
+  #app-container .life-notif.life-empty {
+    z-index: 100;
+  }
+
   /*
-    Only the backdrop belongs to the viewport. The popup itself is still artboard-sized:
-    when the overlay went fixed, its `92%` started resolving against 100vw instead of the
-    artboard, which on a squarish screen (460x618) blew the popup up from 289px to 407px
-    -- 41% larger -- and the -18% nudge then pushed that oversized box 58px off the top.
-    Tracking the artboard width keeps it identical on tall phones and proportionate on
-    wide ones.
+    Their contents stay artboard-sized, though. The artboard is still 6:13 of the canvas
+    height (1080 of 2340), so these keep tracking it -- when the overlay went fixed, 92%
+    started resolving against 100vw and blew the popup up by 41% on squarish screens.
   */
+  #app-container .life-notif.life-empty img {
+    width: min(82.6vw, calc(var(--fit-h) * 6 / 13 * 0.826));
+  }
+
   #app-container .modal-cara-bermain-box {
     /* 78.2 / 345.9 are the 92% / 407px design figures taken down 15% per brief. */
     width: min(78.2vw, calc(var(--fit-h) * 6 / 13 * 0.782), 345.9px);
@@ -413,19 +236,59 @@ body {
 .btn-audio.muted .audio-art-mute { display: block; }
 
 /* Screens Base */
+/*
+  The UI box: the 1080-wide slice of the canvas that every percentage in this file is
+  measured against. Keeping it a separate, narrower box is what lets the canvas grow to
+  the plate's full width without touching a single coordinate.
+  Its own background is suppressed (0 0) -- the declaration stays only so ::before can
+  inherit whichever plate the screen sets.
+*/
 .screen {
   position: absolute;
-  inset: 0;
-  width: 100%;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 77.6978%;           /* 1080 of the 1390 canvas */
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
   padding: 40px 16px 20px;
-  background-size: cover;
+  background-size: 0 0;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+/*
+  Legacy 6:13 composites -- the voucher picker and the two sold-out result states -- have
+  no side bleed to give. Stretching them across the wider canvas would smear them 28.7%,
+  so they paint at the UI box's own width instead and leave the bleed strips to the
+  canvas colour underneath.
+*/
+#screen-voucher-select::before,
+#screen-win.voucher-out::before,
+#screen-win.coupon-out::before,
+#screen-lose.voucher-out::before,
+#screen-lose.coupon-out::before {
+  width: 100%;
+}
+
+/* The plate itself, painted across the whole canvas -- 100% 100%, so never cropped. */
+.screen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 128.7037%;          /* 1390 of the 1080 UI box */
+  height: 100%;
+  z-index: -1;
+  background-image: inherit;
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
 }
 
 /* ====================================
