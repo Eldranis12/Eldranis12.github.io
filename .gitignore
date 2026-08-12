@@ -32,6 +32,9 @@ yarn-error.log*
 # Need to commit a small one anyway? Force it: git add -f path/to/file.psd
 *.psd
 
-# Stray copy of the "Sound baru" delivery that landed outside the project folder;
-# the real one lives in FantaHorror/Fanta Horror_Q3_26/Sound baru/.
+# Stray copy of the "Sound baru" delivery that landed outside the project folder.
+# The clips that survived it now ship transcoded in FantaHorror/assets/sounds/.
 /Sound baru/
+
+# Claude Code local tooling -- not part of the client deliverable.
+.claude/
