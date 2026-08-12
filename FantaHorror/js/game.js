@@ -610,12 +610,6 @@ class FantaHorrorGame {
 
     switchScreen(screenName) {
         this.gameState = screenName;
-        const appContainer = document.getElementById('app-container');
-        const normalWinner = screenName === 'WIN'
-            && !this.screens.win?.classList.contains('voucher-out');
-        // iOS 14 has no :has(), so expose the active clean winner state explicitly.
-        // CSS uses it only to let the viewport-wide win plate escape the 6:13 UI clip.
-        appContainer?.classList.toggle('win-fullbleed', normalWinner);
         Object.keys(this.screens).forEach(key => {
             if (this.screens[key]) {
                 this.screens[key].classList.add('hidden');

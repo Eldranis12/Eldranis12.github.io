@@ -231,46 +231,37 @@ body {
   }
 
   /*
-    Winner uses one viewport-owned plate on mobile. A copy on #screen-win plus another
-    fixed copy was still visible on wider portrait ratios, which repeated the artwork
-    at both edges. The query also evicts the older cached composite that contained the
-    headline and bottle, so the clean plate and live headline cannot be mixed with it.
+    Winner runs the same height-fitted plate as gameplay, and for the same reason:
+    `bg_v2_win.webp` is the 950x1600 BG Baru cut, so its side bleed is what the strips
+    want. It previously fitted the plate by *width* instead, to keep all 950 source
+    pixels -- but that only reached 657 of 844 screen px on a 390-wide phone, and the
+    remaining 22% was papered over with a second copy of the same file at 1.28x. Two
+    zoom levels of one picture on one screen is what read as "cropped, not the real
+    artwork". Fitting by height puts the whole screen on a single continuous scale.
   */
   #app-container #screen-win:not(.voucher-out) {
     background-image: none;
   }
 
-  /*
-    The viewport-owned winner plate lives inside the 6:13 app element. Without this
-    exception, the app's normal `overflow: hidden` still clips that fixed plate back
-    to the narrow UI canvas, leaving only the blurred filler visible at both sides.
-    Limit the exception to the active normal Win screen so gameplay and PSD-backed
-    result variants retain their required clipping.
-  */
-  #app-container.win-fullbleed {
-    overflow: visible;
-  }
-
   #screen-win:not(.voucher-out)::before {
-    inset: 0;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
+    inset: calc(-1 * var(--fit-crop)) 0 auto 0;
+    height: var(--fit-h);
     z-index: 0;
-    /*
-      The first plate is width-fitted, so all 950 source pixels remain visible from
-      left to right. A cover-fitted copy sits behind it only to fill any short vertical
-      remainder on unusually tall phones; the foreground plate stays unstretched.
-    */
-    background-image:
-      url('assets/bg_v2_win.webp?v=20260812-width-fit'),
-      url('assets/bg_v2_win.webp?v=20260812-width-fit');
-    background-size: 100% auto, cover;
-    background-position: center, center;
-    background-repeat: no-repeat, no-repeat;
-    background-color: #020617;
+    background-image: url('assets/bg_v2_win.webp?v=20260812-cover');
+    background-size: auto var(--fit-h);
+    background-position: center top;
     filter: none;
     transform: none;
+  }
+
+  /*
+    Keep the CTAs above that plate. .result-actions is a static flex child, and static
+    content paints *below* positioned boxes -- so without a position here the fixed
+    plate at z-index 0 would bury the buttons. (.result-header is already absolute.)
+  */
+  #screen-win .result-actions {
+    position: relative;
+    z-index: 1;
   }
 
   /*
@@ -1019,7 +1010,7 @@ body {
   to `cover` -- stretching it to 100% 100% like the old artboard would squeeze it 22%.
 */
 #screen-win {
-  background-image: url('assets/bg_v2_win.webp?v=20260812-width-fit');
+  background-image: url('assets/bg_v2_win.webp?v=20260812-cover');
   background-size: cover;
 }
 
@@ -1264,7 +1255,7 @@ body {
 
 /* Winner coupon-out now reuses the wide clean plate; its two-button state stays live. */
 #screen-win.coupon-out {
-  background-image: url('assets/bg_v2_win.webp?v=20260812-width-fit');
+  background-image: url('assets/bg_v2_win.webp?v=20260812-cover');
   background-size: cover;
   background-position: center;
 }
