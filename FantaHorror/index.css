@@ -358,7 +358,8 @@ body {
     wide ones.
   */
   #app-container .modal-cara-bermain-box {
-    width: min(92vw, calc(var(--fit-h) * 6 / 13 * 0.92), 407px);
+    /* 78.2 / 345.9 are the 92% / 407px design figures taken down 15% per brief. */
+    width: min(78.2vw, calc(var(--fit-h) * 6 / 13 * 0.782), 345.9px);
   }
 }
 
@@ -1603,7 +1604,8 @@ body {
 /* CARA BERMAIN MODAL (Matching Brief Screenshot Design) */
 .modal-cara-bermain-box {
   position: relative;
-  width: min(92%, 407px);
+  /* 92% / 407px design figures taken down 15%; the mobile override matches. */
+  width: min(78.2%, 345.9px);
   max-height: 92%;
   background: none;
   border: none;
