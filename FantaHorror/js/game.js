@@ -677,12 +677,12 @@ class FantaHorrorGame {
     preloadResultArt() {
         [
             // Win: BG Baru plate
-            'BG Baru/win.jpeg?v=20260812-all-result-states',
+            'bg_v2_win.webp?v=20260812-all-result-states',
             'bg_v2_win.webp?v=20260812-cover',
             'voucher_out_winner_full.webp',
             // Lose: BG Baru plate
-            'BG Baru/LPLose.jpeg?v=20260812-all-result-states',
-            'bg_v2_lp_lose.webp?v=20260812-lplose',
+            'bg_lp_lose.jpg?v=20260812-all-result-states',
+            'bg_lp_lose.jpg?v=20260812-lplose',
             'lose_psd_voucher_out.webp?v=20260809-psd3'
         ].forEach(file => { new Image().src = 'assets/' + file; });
 
