@@ -678,10 +678,11 @@ class FantaHorrorGame {
      */
     preloadResultArt() {
         [
-            'Fanta-Horor-Winner_full.webp',
-            'coupon_out_winner_full.webp?v=20260731-clean',
+            // Win: normal and coupon-out share the BG Baru plate; voucher-out has its own.
+            'bg_v2_win.webp?v=20260812-cover',
             'voucher_out_winner_full.webp',
-            'lose_psd_normal.webp?v=20260809-psd3',
+            // Lose: normal runs the BG Baru plate, both sold-out states the PSD composite.
+            'bg_v2_lp_lose.webp?v=20260812-lplose',
             'lose_psd_voucher_out.webp?v=20260809-psd3'
         ].forEach(file => { new Image().src = 'assets/' + file; });
 

@@ -275,6 +275,40 @@ body {
   }
 
   /*
+    LP and the normal Lose state share the 1390x2340 BG Baru plate, also 0.594, so they
+    take the same height-fitted treatment. The two sold-out Lose states are excluded:
+    they still ride 6:13 composites, which the generic blurred rule above suits.
+  */
+  #app-container #screen-lp,
+  #app-container #screen-lose:not(.coupon-out):not(.voucher-out) {
+    background-image: none;
+  }
+
+  #screen-lp::before,
+  #screen-lose:not(.coupon-out):not(.voucher-out)::before {
+    inset: calc(-1 * var(--fit-crop)) 0 auto 0;
+    height: var(--fit-h);
+    z-index: 0;
+    background-image: url('assets/bg_v2_lp_lose.webp?v=20260812-lplose');
+    background-size: auto var(--fit-h);
+    background-position: center top;
+    /* Sampled from this plate's own edge columns. */
+    background-color: #14182E;
+    filter: none;
+    transform: none;
+  }
+
+  /* Keep every layer of those two screens above their viewport-owned plate. */
+  #screen-lp .lp-header,
+  #screen-lp .lp-actions,
+  #screen-lp .lp-footer,
+  #screen-lose .result-header,
+  #screen-lose .result-actions,
+  #screen-lose .lose-logo-suzzanna {
+    z-index: 1;
+  }
+
+  /*
     Keep the CTAs above that plate. .result-actions is a static flex child, and static
     content paints *below* positioned boxes -- so without a position here the fixed
     plate at z-index 0 would bury the buttons. (.result-header is already absolute.)
@@ -315,8 +349,16 @@ body {
     height: 100dvh;
   }
 
+  /*
+    Only the backdrop belongs to the viewport. The popup itself is still artboard-sized:
+    when the overlay went fixed, its `92%` started resolving against 100vw instead of the
+    artboard, which on a squarish screen (460x618) blew the popup up from 289px to 407px
+    -- 41% larger -- and the -18% nudge then pushed that oversized box 58px off the top.
+    Tracking the artboard width keeps it identical on tall phones and proportionate on
+    wide ones.
+  */
   #app-container .modal-cara-bermain-box {
-    width: min(92vw, 407px);
+    width: min(92vw, calc(var(--fit-h) * 6 / 13 * 0.92), 407px);
   }
 }
 
@@ -390,7 +432,7 @@ body {
 ==================================== */
 /* KV Rev 1: a clean plate -- logos, headline and buttons ride on top as real layers. */
 #screen-lp {
-  background-image: url('assets/bg_v2_lp.webp');
+  background-image: url('assets/bg_v2_lp_lose.webp?v=20260812-lplose');
 }
 
 /*
@@ -1034,29 +1076,29 @@ body {
   background-size: cover;
 }
 
-/* Approved composite exported from "Fanta-Horor-Lose (1) 3.psd". */
+/* BG Baru: LP and the normal Lose state share one clean 1390x2340 plate. */
 #screen-lose {
-  background-image: url('assets/lose_psd_normal.webp?v=20260809-psd3');
+  background-image: url('assets/bg_v2_lp_lose.webp?v=20260812-lplose');
 }
 
 /*
-  Static screens use the approved composite artwork.  The controls below stay
-  interactive but transparent, exactly over their PSD counterparts.  This
-  avoids rendering a second header/button set over the final artboard.
+  The voucher-select composite is a true 6:13 artboard, so stretching it to the box is
+  exact. LP, Lose and Win are not: their BG Baru plates are 0.594 wide, and `100% 100%`
+  would squash them into the 6:13 canvas.
 */
-#screen-lp,
-#screen-voucher-select,
-#screen-lose {
+#screen-voucher-select {
   padding: 0;
   background-size: 100% 100%;
   background-position: center;
 }
 
 /*
-  The normal winner plate is 950x1600, not a 6:13 artboard. Keep its centre layer at
-  the same height-based `cover` scale as the mobile side continuation; stretching it
-  to 100% 100% made the two copies disagree and produced doubled edges.
+  The BG Baru plates are 950x1600 / 1390x2340, not 6:13 artboards. Keep their centre
+  layer at the same height-based `cover` scale as the mobile side continuation;
+  stretching to 100% 100% made the two copies disagree and produced doubled edges.
 */
+#screen-lp,
+#screen-lose,
 #screen-win {
   padding: 0;
   background-size: cover;
@@ -1200,16 +1242,25 @@ body {
 #screen-lose .btn-main-lagi     { left: 51.222%; top: 74.539%; width: 40.241%; height: 8.105%; }
 #screen-lose .btn-ambil-voucher { left:  9.360%; top: 83.423%; width: 82.112%; height: 8.157%; }
 
-/* Suzzanna lockup + packshots, new in this KV. */
+/*
+  Suzzanna lockup + packshots, new in this KV. The BG Baru plate is clean art, so this
+  layer paints it; the sold-out states still ride composites that already contain it
+  and hide this again below.
+*/
 #screen-lose .lose-logo-suzzanna {
   position: absolute;
   left: 63.981%;
   top: 68.120%;
   width: 25.926%;
   height: 3.889%;
-  display: none;
+  display: block;
   pointer-events: none;
   z-index: 3;
+}
+
+#screen-lose.coupon-out .lose-logo-suzzanna,
+#screen-lose.voucher-out .lose-logo-suzzanna {
+  display: none;
 }
 
 /* ====================================
@@ -1353,7 +1404,7 @@ body {
   height: 20.47%;
 }
 
-/* The approved composite already contains the headline. */
+/* BG Baru: the normal Lose plate is clean art, so this layer paints the headline. */
 #screen-lose .result-header {
   position: absolute;
   inset: auto;
@@ -1362,7 +1413,7 @@ body {
   width: 82.960%;
   height: 18.227%;
   margin: 0;
-  opacity: 0;
+  opacity: 1;
   pointer-events: none;
   z-index: 3;
 }
@@ -1379,9 +1430,18 @@ body {
   layer on over those would print it twice.
 */
 #screen-win.voucher-out .result-header,
-#screen-lose.coupon-out .result-header {
+#screen-lose.coupon-out .result-header,
+#screen-lose.voucher-out .result-header {
   opacity: 0;
   pointer-events: none;
+}
+
+/*
+  Same split for the CTAs. On the clean plate they have to be real artwork; the two
+  sold-out Lose composites paint their own and re-hide these further down.
+*/
+#screen-lose .result-actions .img-btn {
+  opacity: 1;
 }
 
 #screen-win.coupon-out .result-actions .btn-share,
