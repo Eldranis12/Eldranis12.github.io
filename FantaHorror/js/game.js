@@ -256,6 +256,14 @@ class FantaHorrorGame {
             this.cinemaAvailable = false;
             this.fantaAvailable = false;
             logGrivyDebug('QA Coupon Preview Override', { couponPreview: 'out', cinemaAvailable: false, fantaAvailable: false });
+        } else if (couponPreview === 'fanta-out') {
+            this.cinemaAvailable = true;
+            this.fantaAvailable = false;
+            logGrivyDebug('QA Coupon Preview Override', { couponPreview: 'fanta-out', cinemaAvailable: true, fantaAvailable: false });
+        } else if (couponPreview === 'cinema-out') {
+            this.cinemaAvailable = false;
+            this.fantaAvailable = true;
+            logGrivyDebug('QA Coupon Preview Override', { couponPreview: 'cinema-out', cinemaAvailable: false, fantaAvailable: true });
         } else if (couponPreview === 'active') {
             this.cinemaAvailable = true;
             this.fantaAvailable = true;
@@ -374,6 +382,10 @@ class FantaHorrorGame {
         if (screenPreview) {
             logGrivyDebug('QA Screen Preview', { requested: params.get('screen'), screen: screenPreview });
             this.switchScreen(screenPreview);
+        }
+
+        if (params.get('modal') === 'cara') {
+            this.showModal('caraBermain');
         }
 
         // Fired here, not on DOMContentLoaded: until the quota resolves the landing page
