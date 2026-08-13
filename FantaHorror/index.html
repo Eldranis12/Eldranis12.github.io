@@ -6,7 +6,32 @@
   <title>FANTA Horror Gamification - Gebuk Suzzanna, Amankan Fantamu!</title>
   <meta name="description" content="Mainkan game FANTA Horror! Lindungi botol Fanta dari cegatan tangan Suzzanna selama 30 detik untuk memenangkan voucher nonton bioskop eksklusif!">
   
-  <link rel="stylesheet" href="index.css?v=20260813-nyawafix2">
+  <link rel="stylesheet" href="index.css?v=20260813-vvh">
+  <script>
+    /*
+     * iOS Safari's dynamic toolbar can retract mid-session without every
+     * `dvh`-driven `position: fixed` layer repainting to match -- the layer keeps the
+     * shorter height it first painted at, and the growing gap below it shows the dark
+     * #app-container/body background through as a visible black band. --vvh mirrors
+     * the same value in px, kept live via visualViewport so those layers resize on the
+     * same event that actually changes the visible area. `100dvh` stays as the CSS
+     * fallback wherever `var(--vvh, 100dvh)` is used, so browsers without this run
+     * (or before it fires) get the same layout as before.
+     */
+    (function () {
+      function setVVH() {
+        var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+        document.documentElement.style.setProperty('--vvh', h + 'px');
+      }
+      setVVH();
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', setVVH);
+        window.visualViewport.addEventListener('scroll', setVVH);
+      }
+      window.addEventListener('resize', setVVH);
+      window.addEventListener('orientationchange', setVVH);
+    })();
+  </script>
 </head>
 <body>
 

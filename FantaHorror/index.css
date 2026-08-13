@@ -68,7 +68,7 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: var(--vvh, 100dvh);
   overflow: hidden;
 }
 
@@ -82,8 +82,8 @@ body {
      so the frame always fits. vh first as a fallback for older browsers. */
   width: min(100vw, calc(100vh * 6 / 13));
   height: min(100vh, calc(100vw * 13 / 6));
-  width: min(100vw, calc(100dvh * 6 / 13));
-  height: min(100dvh, calc(100vw * 13 / 6));
+  width: min(100vw, calc(var(--vvh, 100dvh) * 6 / 13));
+  height: min(var(--vvh, 100dvh), calc(100vw * 13 / 6));
   max-width: 540px;
   max-height: 1170px;
   aspect-ratio: 6 / 13;
@@ -114,7 +114,7 @@ body {
   body {
     width: 100vw;
     height: 100vh;
-    height: 100dvh;
+    height: var(--vvh, 100dvh);
   }
 
   #app-container {
@@ -124,8 +124,8 @@ body {
       1/0.91, rounded to 1.10. This modest extra width reduces the side strips without
       distorting the artwork or pushing the CTA band outside the viewport.
     */
-    --fit-h: min(max(100dvh, 100vw * 13 / 6), 100dvh * 1.10);
-    --fit-over: max(0px, var(--fit-h) - 100dvh);
+    --fit-h: min(max(var(--vvh, 100dvh), 100vw * 13 / 6), var(--vvh, 100dvh) * 1.10);
+    --fit-over: max(0px, var(--fit-h) - var(--vvh, 100dvh));
     /*
       That band is not centred in the artboard -- 2% of slack above, 7% below -- so
       splitting the overflow evenly ate the winner headline (-34px on a 360x658 screen).
@@ -342,12 +342,12 @@ body {
     inset: 0;
     width: 100vw;
     height: 100vh;
-    height: 100dvh;
+    height: var(--vvh, 100dvh);
     z-index: 100;
   }
 
   #app-container .life-notif.life-empty img {
-    width: min(82.6vw, calc(82.6dvh * 6 / 13));
+    width: min(82.6vw, calc(var(--vvh, 100dvh) * 0.826 * 6 / 13));
   }
 
   /*
@@ -360,7 +360,7 @@ body {
     inset: 0;
     width: 100vw;
     height: 100vh;
-    height: 100dvh;
+    height: var(--vvh, 100dvh);
   }
 
   /*
@@ -548,7 +548,7 @@ body {
     shorter, which is what made the desktop and phone variants disagree.
     Tracking is em, not px, so it keeps scaling with the fluid font-size.
   */
-  font-size: calc(min(100vw, 100dvh * 6 / 13, 540px) * 0.04233);
+  font-size: calc(min(100vw, var(--vvh, 100dvh) * 6 / 13, 540px) * 0.04233);
   color: #FFFFFF;
   font-weight: 400;
   font-style: normal;
@@ -1642,7 +1642,7 @@ body {
   display: block;
   width: 100%;
   max-height: 92vh;
-  max-height: 92dvh;
+  max-height: calc(var(--vvh, 100dvh) * 0.92);
   object-fit: contain;
 }
 
