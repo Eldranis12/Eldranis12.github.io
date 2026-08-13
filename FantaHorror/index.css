@@ -691,7 +691,16 @@ body {
 .health-bottle {
   width: 22px;
   height: 70px;
-  background-image: url('assets/Nyawa.webp');
+  /*
+    PNG, not webp: the source carried bright RGB (up to pure white) under its fully
+    transparent pixels. Correctly-alpha-composited rendering never shows it, but Safari
+    doesn't always premultiply alpha before resampling, and this icon is downscaled
+    ~2.9x (63x205 source -> 22x70 here) -- so that hidden colour leaked through as a
+    visible box around the bottle on iPhone. Fixed at the asset level (transparent
+    pixels zeroed; every visible pixel is bit-for-bit unchanged) rather than in CSS,
+    so it stays fixed if this rule is ever copied elsewhere.
+  */
+  background-image: url('assets/Nyawa.png?v=20260813-alpha0fix');
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
