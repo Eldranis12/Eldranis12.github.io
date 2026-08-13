@@ -700,7 +700,7 @@ body {
     pixels zeroed; every visible pixel is bit-for-bit unchanged) rather than in CSS,
     so it stays fixed if this rule is ever copied elsewhere.
   */
-  background-image: url('assets/Nyawa.png?v=20260813-alpha0fix');
+  background-image: url('assets/Nyawa.png?v=20260813-nomatte');
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
