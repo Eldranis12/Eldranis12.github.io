@@ -723,18 +723,21 @@ body {
 
 .health-bottle.empty {
   /*
-    grayscale() first: the liquid is a saturated (88,212,0) green, and brightness()
-    alone only scales that towards black along the same hue -- composited over the
-    HUD's dark blue-teal background it still read as a visible green tint, not the
-    neutral "spent" look the empty state is meant to have.
+    Flat silhouette, not a dimmed photo. Successive rounds of dimming the artwork
+    (grayscale, lower brightness, lower opacity) never removed the "garis" reported on
+    spent bottles, because dimming scales every pixel by the same factor -- it lowers
+    the artwork's overall level but keeps its internal structure, so the label edges,
+    the moulding seams and the specular streaks stay legible relative to each other and
+    keep reading as lines.
 
-    opacity/brightness dropped further after grayscale still read as "lit" against the
-    background (composite ~25 units away from it in RGB space -- still bright enough
-    to feel like a dim glow rather than "spent"). Down to ~6 units away now: still
-    reads as a bottle-shaped silhouette, but no longer bright enough to look lit.
+    brightness(0) zeroes RGB outright, leaving the alpha channel to carry the shape. The
+    bottle interior is uniformly opaque (alpha 0.95-1.00), so the composite there is a
+    single flat value: measured spatial variation drops from ~1.8 per channel to
+    0.00/0.09/0.15 -- no internal detail left to read as a line. Opacity then sets how
+    dark the empty slot sits against the HUD.
   */
-  opacity: 0.15;
-  filter: grayscale(1) brightness(0.22);
+  opacity: 0.45;
+  filter: brightness(0);
   transform: scale(0.98);
 }
 
