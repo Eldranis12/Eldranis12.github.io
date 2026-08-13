@@ -715,7 +715,13 @@ body {
 
 .health-bottle.empty {
   opacity: 0.3;
-  filter: brightness(0.43);
+  /*
+    grayscale() first: the liquid is a saturated (88,212,0) green, and brightness()
+    alone only scales that towards black along the same hue -- composited over the
+    HUD's dark blue-teal background it still read as a visible green tint, not the
+    neutral "spent" look the empty state is meant to have.
+  */
+  filter: grayscale(1) brightness(0.43);
   transform: scale(0.98);
 }
 
