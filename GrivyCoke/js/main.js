@@ -76,6 +76,48 @@ const imagesReady = loadImages({
   rowWhite: 'assets/img/row-white.png',
   bubbleRed: 'assets/img/bubble-red.png',
   bubbleWhite: 'assets/img/bubble-white.png',
+  bub1: 'assets/img/bubbles/bubble-1.png',
+  bub2: 'assets/img/bubbles/bubble-2.png',
+  bub3: 'assets/img/bubbles/bubble-3.png',
+  bub4: 'assets/img/bubbles/bubble-4.png',
+  bub5: 'assets/img/bubbles/bubble-5.png',
+  bub6: 'assets/img/bubbles/bubble-6.png',
+  bub7: 'assets/img/bubbles/bubble-7.png',
+  bub8: 'assets/img/bubbles/bubble-8.png',
+  bub9: 'assets/img/bubbles/bubble-9.png',
+  fizz: 'assets/img/bubbles/fizz.png',
+});
+
+// asset bubble baru semuanya merah; untuk baris putih dipakai salinan yang
+// di-desaturasi + dicerahkan supaya bentuk & kilau gelembungnya tetap sama.
+const BUBBLE_KEYS = ['bub1','bub2','bub3','bub4','bub5','bub6','bub7','bub8','bub9'];
+const BUBBLE_SET = { red: [], white: [] };
+let fizzWhite = null;
+
+function whitenImage(im) {
+  const c = document.createElement('canvas');
+  c.width = im.naturalWidth || im.width;
+  c.height = im.naturalHeight || im.height;
+  const g = c.getContext('2d');
+  g.drawImage(im, 0, 0);
+  // buang warna (saturation 0) lalu cerahkan sedikit, tetap ikut alpha aslinya
+  g.globalCompositeOperation = 'saturation';
+  g.fillStyle = 'hsl(0,0%,50%)';
+  g.fillRect(0, 0, c.width, c.height);
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = 'rgba(255,255,255,0.6)';
+  g.fillRect(0, 0, c.width, c.height);
+  g.globalCompositeOperation = 'source-over';
+  return c;
+}
+
+imagesReady.then(() => {
+  for (const k of BUBBLE_KEYS) {
+    if (!IMG[k]) continue;
+    BUBBLE_SET.red.push(IMG[k]);
+    BUBBLE_SET.white.push(whitenImage(IMG[k]));
+  }
+  if (IMG.fizz) fizzWhite = whitenImage(IMG.fizz);
 });
 
 // ---------- state ----------
@@ -101,6 +143,7 @@ let elapsed = 0;
 let clearAnim = null;     // { rows, color, t }
 let trails = [];          // { x, y, w, color, t }  efek gradasi jatuh
 let bubbles = [];         // partikel gelembung line clear
+let fizzBursts = [];      // lembaran semburan fizz (asset Fizz bubble.png)
 let pendingSpawn = false;
 
 // ---------- layar ----------
@@ -313,14 +356,45 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 
-  // gelembung (asset Bubble Red/White dari GDrive): terbang kiri -> kanan
+  // semburan fizz di belakang gelembung (kabut karbonasi)
+  for (const f of fizzBursts) {
+    if (f.delay > 0) continue;
+    const img = f.color === 'red' ? IMG.fizz : fizzWhite;
+    if (!img) continue;
+    const k = 1 - f.t;                       // 0 -> 1 sepanjang umur
+    const w = f.w * (0.75 + k * 0.5);
+    const h = w * (177 / 525);
+    ctx.save();
+    // 'lighter' supaya terbaca sebagai kabut/kilau, bukan lapisan abu-abu solid
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.min(1, f.t * 1.6) * 0.3;
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.rot);
+    if (f.flip) ctx.scale(-1, 1);
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // gelembung: menyembur radial, naik berayun, berputar, membesar lalu pecah
   for (const b of bubbles) {
     if (b.delay > 0) continue;
-    const img = b.color === 'red' ? IMG.bubbleRed : IMG.bubbleWhite;
-    ctx.globalAlpha = Math.max(0, Math.min(1, b.t));
-    ctx.drawImage(img, b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
-    ctx.globalAlpha = 1;
+    const set = BUBBLE_SET[b.color === 'red' ? 'red' : 'white'];
+    const img = set.length ? set[b.img % set.length]
+                           : (b.color === 'red' ? IMG.bubbleRed : IMG.bubbleWhite);
+    if (!img) continue;
+    const k = 1 - b.t;
+    // pop di ujung umur: sedikit melar lalu hilang
+    const pop = b.t < 0.18 ? 1 + (0.18 - b.t) * 3.2 : 1;
+    const r = b.r * (1 + k * b.grow) * pop;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, b.t * 2.2);
+    ctx.translate(b.x, b.y);
+    ctx.rotate(b.rot);
+    ctx.drawImage(img, -r, -r, r * 2, r * 2);
+    ctx.restore();
   }
+  ctx.globalAlpha = 1;
 
   // saat animasi clear berjalan, balok terakhir sudah menyatu ke grid —
   // jangan digambar lagi sebagai balok aktif (feedback: "balok yang
@@ -416,22 +490,65 @@ function addTrail(distance, alpha = 0.9) {
 }
 
 function spawnBubbles(groups, color) {
-  // seperti balon sabun ditiup dari kiri: muncul di kiri, terbang ke kanan,
-  // ukuran & jumlah acak; warna mengikuti balok terakhir.
-  // Feedback 07 Jul: bubble diperbanyak + pakai asset bubble dari GDrive.
+  // Efek soda: baris yang penuh "meledak" jadi buih karbonasi.
+  // Bukan lagi arak-arakan kiri->kanan — tiap gelembung menyembur keluar dari
+  // titik acak sepanjang baris, lalu naik dengan gaya apung + goyangan sinus,
+  // berputar pelan, mengembang, dan pecah di akhir umurnya.
+  // Asset: assets/img/bubbles/bubble-1..9.png (+ fizz.png sebagai semburan).
   for (const [top, count] of groups) {
-    const n = (18 + Math.floor(Math.random() * 14)) * count;
+    const bandY = top * CELL;
+    const bandH = count * CELL;
+    const n = (34 + Math.floor(Math.random() * 16)) * count;
+
     for (let i = 0; i < n; i++) {
+      // sebar titik asal sepanjang baris; sedikit menumpuk di tengah
+      const spread = Math.random();
+      const ox = spread * canvas.width;
+      const oy = bandY + Math.random() * bandH;
+
+      // semburan radial: arah acak penuh, tapi condong ke atas (soda naik)
+      const ang = Math.random() * Math.PI * 2;
+      const burst = 90 + Math.random() * 320;
+      const big = Math.random() < 0.18;          // sedikit gelembung besar
+
       bubbles.push({
-        x: -20 + Math.random() * 140,
-        y: (top - 0.5) * CELL + Math.random() * (count + 1) * CELL,
-        r: 6 + Math.random() * 22,
-        vx: 350 + Math.random() * 500,          // px/detik ke kanan
-        vy: -60 + Math.random() * 90,           // sedikit naik-turun
-        delay: Math.random() * 0.35,            // muncul bergantian
+        x: ox,
+        y: oy,
+        r: (big ? 16 : 5) + Math.random() * (big ? 20 : 14),
+        vx: Math.cos(ang) * burst,
+        vy: Math.sin(ang) * burst - (40 + Math.random() * 80),
+        buoy: 120 + Math.random() * 260,         // percepatan naik (px/s^2)
+        drag: 1.6 + Math.random() * 1.4,         // semburan cepat mereda
+        wob: 18 + Math.random() * 46,            // amplitudo goyangan px/s
+        wobF: 3 + Math.random() * 5,             // frekuensi goyangan
+        phase: Math.random() * Math.PI * 2,
+        rot: Math.random() * Math.PI * 2,
+        vrot: (Math.random() - 0.5) * 3.4,
+        grow: 0.35 + Math.random() * 0.6,        // pengembangan sepanjang umur
+        img: Math.floor(Math.random() * 9),
+        delay: spread * 0.14 + Math.random() * 0.22,
+        age: 0,
         color,
         t: 1,
-        life: 0.7 + Math.random() * 0.7,
+        life: 0.65 + Math.random() * 0.75,
+      });
+    }
+
+    // semburan fizz: beberapa lembar asset Fizz bubble yang memudar & melebar,
+    // memberi "kabut" karbonasi di sepanjang baris
+    for (let i = 0; i < 1 + count; i++) {
+      fizzBursts.push({
+        x: (0.1 + Math.random() * 0.8) * canvas.width,
+        y: bandY + bandH * (0.2 + Math.random() * 0.6),
+        w: canvas.width * (0.55 + Math.random() * 0.5),
+        flip: Math.random() < 0.5,
+        rot: (Math.random() - 0.5) * 0.35,
+        drift: (Math.random() - 0.5) * 120,
+        rise: 40 + Math.random() * 90,
+        delay: Math.random() * 0.18,
+        color,
+        t: 1,
+        life: 0.45 + Math.random() * 0.3,
       });
     }
   }
@@ -502,12 +619,27 @@ function tick(ts, id) {
 
   // update efek
   trails = trails.filter(t => (t.t -= dt / 400) > 0);
+  const ds = dt / 1000;
+  fizzBursts = fizzBursts.filter(f => {
+    if (f.delay > 0) { f.delay -= ds; return true; }
+    f.x += f.drift * ds;
+    f.y -= f.rise * ds;
+    f.t -= ds / f.life;
+    return f.t > 0;
+  });
   bubbles = bubbles.filter(b => {
-    if (b.delay > 0) { b.delay -= dt / 1000; return true; }
-    b.x += b.vx * dt / 1000;
-    b.y += b.vy * dt / 1000;
-    b.t -= dt / (b.life * 1000);
-    return b.t > 0 && b.x < canvas.width + 40;
+    if (b.delay > 0) { b.delay -= ds; return true; }
+    b.age += ds;
+    // semburan awal mereda (drag), lalu gaya apung mengambil alih ke atas
+    const damp = Math.exp(-b.drag * ds);
+    b.vx *= damp;
+    b.vy = b.vy * damp - b.buoy * ds;
+    // goyangan horizontal supaya jalurnya berkelok, bukan garis lurus
+    b.x += (b.vx + Math.sin(b.age * b.wobF + b.phase) * b.wob) * ds;
+    b.y += b.vy * ds;
+    b.rot += b.vrot * ds;
+    b.t -= ds / b.life;
+    return b.t > 0 && b.y > -60 && b.x > -80 && b.x < canvas.width + 80;
   });
 
   if (clearAnim) {
@@ -680,7 +812,7 @@ async function startGame() {
   dropTimer = 0;
   lockTimer = -1;
   lastTickSecond = -1;
-  trails = []; bubbles = []; clearAnim = null; pendingSpawn = false;
+  trails = []; bubbles = []; fizzBursts = []; clearAnim = null; pendingSpawn = false;
   $('#popup-layer').innerHTML = '';
   $('#hud-time').classList.remove('blink');
 
