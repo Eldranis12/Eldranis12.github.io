@@ -43,8 +43,9 @@ export const CONFIG = {
   comboBonus: { 2: 50, 5: 250 },
   perfectClearBonus: 1500,
 
-  // animasi line clear: fase 1 baris berubah warna, fase 2 hilang kiri->kanan
-  clearAnimMs: 650,
+  // animasi line clear: fase 1 baris berubah warna, fase 2 hilang kiri->kanan.
+  // durasi ini juga jadi lama sapuan botol + jejak buih (lihat main.js)
+  clearAnimMs: 850,
 
   // multiplayer (email Mahda 2026-07: maks 4 pemain per sesi;
   // TY page multiplayer menampilkan poin semua pemain di sesi itu)

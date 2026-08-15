@@ -86,38 +86,19 @@ const imagesReady = loadImages({
   bub8: 'assets/img/bubbles/bubble-8.png',
   bub9: 'assets/img/bubbles/bubble-9.png',
   fizz: 'assets/img/bubbles/fizz.png',
+  bottleSweep: 'assets/img/bubbles/bottle.png',
+  sweepLine1: 'assets/img/bubbles/line-1.png',
+  sweepLine2: 'assets/img/bubbles/line-2.png',
+  sweepLine3: 'assets/img/bubbles/line-3.png',
 });
 
-// asset bubble baru semuanya merah; untuk baris putih dipakai salinan yang
-// di-desaturasi + dicerahkan supaya bentuk & kilau gelembungnya tetap sama.
+// Gelembung selalu merah (feedback: "bubble ga perlu ada yg putih, tetep
+// merah"), dipakai untuk baris merah maupun putih.
 const BUBBLE_KEYS = ['bub1','bub2','bub3','bub4','bub5','bub6','bub7','bub8','bub9'];
-const BUBBLE_SET = { red: [], white: [] };
-let fizzWhite = null;
-
-function whitenImage(im) {
-  const c = document.createElement('canvas');
-  c.width = im.naturalWidth || im.width;
-  c.height = im.naturalHeight || im.height;
-  const g = c.getContext('2d');
-  g.drawImage(im, 0, 0);
-  // buang warna (saturation 0) lalu cerahkan sedikit, tetap ikut alpha aslinya
-  g.globalCompositeOperation = 'saturation';
-  g.fillStyle = 'hsl(0,0%,50%)';
-  g.fillRect(0, 0, c.width, c.height);
-  g.globalCompositeOperation = 'source-atop';
-  g.fillStyle = 'rgba(255,255,255,0.6)';
-  g.fillRect(0, 0, c.width, c.height);
-  g.globalCompositeOperation = 'source-over';
-  return c;
-}
+const BUBBLE_SET = [];
 
 imagesReady.then(() => {
-  for (const k of BUBBLE_KEYS) {
-    if (!IMG[k]) continue;
-    BUBBLE_SET.red.push(IMG[k]);
-    BUBBLE_SET.white.push(whitenImage(IMG[k]));
-  }
-  if (IMG.fizz) fizzWhite = whitenImage(IMG.fizz);
+  for (const k of BUBBLE_KEYS) if (IMG[k]) BUBBLE_SET.push(IMG[k]);
 });
 
 // ---------- state ----------
@@ -356,10 +337,31 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 
+  // garis kecepatan (asset Line 1-3): meregang dari kiri sampai posisi botol
+  if (clearAnim && IMG.sweepLine1) {
+    const lines = [IMG.sweepLine1, IMG.sweepLine2, IMG.sweepLine3];
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const [top, count] of clearAnim.groups) {
+      const bandY = top * CELL, bandH = count * CELL;
+      const w = Math.max(0, clearAnim.sweepX);
+      for (let i = 0; i < lines.length; i++) {
+        const img = lines[i];
+        if (!img) continue;
+        const h = CELL * (0.5 + i * 0.12);
+        const cy = bandY + bandH * (0.28 + i * 0.22);
+        ctx.globalAlpha = Math.min(1, clearAnim.t * 3) * (0.5 - i * 0.1);
+        ctx.drawImage(img, w - w * (0.9 + i * 0.05), cy - h / 2, w * (0.9 + i * 0.05), h);
+      }
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
   // semburan fizz di belakang gelembung (kabut karbonasi)
   for (const f of fizzBursts) {
     if (f.delay > 0) continue;
-    const img = f.color === 'red' ? IMG.fizz : fizzWhite;
+    const img = IMG.fizz;
     if (!img) continue;
     const k = 1 - f.t;                       // 0 -> 1 sepanjang umur
     const w = f.w * (0.75 + k * 0.5);
@@ -376,12 +378,11 @@ function draw() {
   }
   ctx.globalAlpha = 1;
 
-  // gelembung: menyembur radial, naik berayun, berputar, membesar lalu pecah
+  // gelembung: selalu merah, terlempar ke belakang botol lalu naik berayun,
+  // berputar, membesar, dan pecah
   for (const b of bubbles) {
     if (b.delay > 0) continue;
-    const set = BUBBLE_SET[b.color === 'red' ? 'red' : 'white'];
-    const img = set.length ? set[b.img % set.length]
-                           : (b.color === 'red' ? IMG.bubbleRed : IMG.bubbleWhite);
+    const img = BUBBLE_SET.length ? BUBBLE_SET[b.img % BUBBLE_SET.length] : IMG.bubbleRed;
     if (!img) continue;
     const k = 1 - b.t;
     // pop di ujung umur: sedikit melar lalu hilang
@@ -395,6 +396,26 @@ function draw() {
     ctx.restore();
   }
   ctx.globalAlpha = 1;
+
+  // botol Coca-Cola yang menyapu baris — digambar paling atas, di depan jejak
+  if (clearAnim && IMG.bottleSweep) {
+    const k = 1 - clearAnim.t;
+    for (const [top, count] of clearAnim.groups) {
+      const bandY = top * CELL, bandH = count * CELL;
+      const h = Math.max(bandH * 1.25, CELL * 2.3);
+      const w = h * (104 / 271);
+      // sedikit bergoyang & miring supaya tidak terasa digeser kaku
+      const bob = Math.sin(k * Math.PI * 3) * CELL * 0.12;
+      const tilt = Math.sin(k * Math.PI * 2) * 0.12 - 0.1;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, k * 8, clearAnim.t * 4);
+      ctx.translate(clearAnim.sweepX, bandY + bandH / 2 + bob);
+      ctx.rotate(tilt);
+      ctx.drawImage(IMG.bottleSweep, -w / 2, -h / 2, w, h);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
 
   // saat animasi clear berjalan, balok terakhir sudah menyatu ke grid —
   // jangan digambar lagi sebagai balok aktif (feedback: "balok yang
@@ -489,66 +510,66 @@ function addTrail(distance, alpha = 0.9) {
   }
 }
 
-function spawnBubbles(groups, color) {
-  // Efek soda: baris yang penuh "meledak" jadi buih karbonasi.
-  // Bukan lagi arak-arakan kiri->kanan — tiap gelembung menyembur keluar dari
-  // titik acak sepanjang baris, lalu naik dengan gaya apung + goyangan sinus,
-  // berputar pelan, mengembang, dan pecah di akhir umurnya.
-  // Asset: assets/img/bubbles/bubble-1..9.png (+ fizz.png sebagai semburan).
+// Efek line clear: botol Coca-Cola menyapu baris dari kiri ke kanan dan
+// meninggalkan jejak buih karbonasi di belakangnya (feedback 12 Agu:
+// "harusnya ada botolnya", "bubblenya kyk efek trail gitu").
+// Botolnya yang jalan kiri->kanan; gelembungnya sendiri tidak kaku — begitu
+// lepas dari botol ia menyembur ke belakang, naik berayun, berputar, membesar,
+// lalu pecah. Asset: assets/img/bubbles/bottle.png, bubble-1..9.png, fizz.png.
+
+// posisi botol 0..1 sepanjang baris; cepat di awal lalu melambat di ujung
+function sweepPos(t) {
+  const k = 1 - t;                    // clearAnim.t turun 1 -> 0
+  return 1 - Math.pow(1 - k, 2.2);
+}
+
+function emitSweepTrail(groups, dt) {
+  const ds = dt / 1000;
   for (const [top, count] of groups) {
     const bandY = top * CELL;
     const bandH = count * CELL;
-    const n = (34 + Math.floor(Math.random() * 16)) * count;
-
+    const bx = clearAnim.sweepX;
+    // gelembung menetes dari badan botol, makin banyak untuk clear multi-baris
+    const n = Math.round((190 * count) * ds);
     for (let i = 0; i < n; i++) {
-      // sebar titik asal sepanjang baris; sedikit menumpuk di tengah
-      const spread = Math.random();
-      const ox = spread * canvas.width;
-      const oy = bandY + Math.random() * bandH;
-
-      // semburan radial: arah acak penuh, tapi condong ke atas (soda naik)
-      const ang = Math.random() * Math.PI * 2;
-      const burst = 90 + Math.random() * 320;
-      const big = Math.random() < 0.18;          // sedikit gelembung besar
-
+      const big = Math.random() < 0.16;
       bubbles.push({
-        x: ox,
-        y: oy,
-        r: (big ? 16 : 5) + Math.random() * (big ? 20 : 14),
-        vx: Math.cos(ang) * burst,
-        vy: Math.sin(ang) * burst - (40 + Math.random() * 80),
-        buoy: 120 + Math.random() * 260,         // percepatan naik (px/s^2)
-        drag: 1.6 + Math.random() * 1.4,         // semburan cepat mereda
-        wob: 18 + Math.random() * 46,            // amplitudo goyangan px/s
+        // muncul tepat di belakang botol, tersebar setinggi baris
+        x: bx - Math.random() * CELL * 1.1,
+        y: bandY + Math.random() * bandH,
+        r: (big ? 15 : 4) + Math.random() * (big ? 18 : 13),
+        // terlempar ke belakang botol lalu mereda -> jejak tertinggal
+        vx: -(60 + Math.random() * 220),
+        vy: (Math.random() - 0.55) * 200,
+        buoy: 130 + Math.random() * 280,         // percepatan naik (px/s^2)
+        drag: 2.0 + Math.random() * 1.6,         // lemparan cepat mereda
+        wob: 20 + Math.random() * 50,            // amplitudo goyangan px/s
         wobF: 3 + Math.random() * 5,             // frekuensi goyangan
         phase: Math.random() * Math.PI * 2,
         rot: Math.random() * Math.PI * 2,
         vrot: (Math.random() - 0.5) * 3.4,
         grow: 0.35 + Math.random() * 0.6,        // pengembangan sepanjang umur
         img: Math.floor(Math.random() * 9),
-        delay: spread * 0.14 + Math.random() * 0.22,
+        delay: 0,
         age: 0,
-        color,
         t: 1,
-        life: 0.65 + Math.random() * 0.75,
+        life: 0.5 + Math.random() * 0.7,
       });
     }
 
-    // semburan fizz: beberapa lembar asset Fizz bubble yang memudar & melebar,
-    // memberi "kabut" karbonasi di sepanjang baris
-    for (let i = 0; i < 1 + count; i++) {
+    // kabut fizz tipis, ikut menempel di jejak botol
+    if (Math.random() < 26 * ds * count) {
       fizzBursts.push({
-        x: (0.1 + Math.random() * 0.8) * canvas.width,
+        x: bx - CELL * (0.6 + Math.random()),
         y: bandY + bandH * (0.2 + Math.random() * 0.6),
-        w: canvas.width * (0.55 + Math.random() * 0.5),
+        w: CELL * (4 + Math.random() * 4),
         flip: Math.random() < 0.5,
-        rot: (Math.random() - 0.5) * 0.35,
-        drift: (Math.random() - 0.5) * 120,
+        rot: (Math.random() - 0.5) * 0.3,
+        drift: -(40 + Math.random() * 120),
         rise: 40 + Math.random() * 90,
-        delay: Math.random() * 0.18,
-        color,
+        delay: 0,
         t: 1,
-        life: 0.45 + Math.random() * 0.3,
+        life: 0.4 + Math.random() * 0.3,
       });
     }
   }
@@ -588,8 +609,7 @@ function placePiece(landMode = 'normal') {
       else groups.push([y, 1]);
     }
 
-    spawnBubbles(groups, res.lastColor);
-    clearAnim = { rows: res.rows, groups, color: res.lastColor, t: 1 };
+    clearAnim = { rows: res.rows, groups, color: res.lastColor, t: 1, sweepX: 0 };
     pendingSpawn = true; // spawn setelah animasi
     playSfx('clear');
   } else {
@@ -643,6 +663,9 @@ function tick(ts, id) {
   });
 
   if (clearAnim) {
+    // botol menyapu baris + menyemburkan jejak buih di belakangnya
+    clearAnim.sweepX = sweepPos(clearAnim.t) * (canvas.width + CELL * 1.6) - CELL * 0.8;
+    emitSweepTrail(clearAnim.groups, dt);
     clearAnim.t -= dt / CONFIG.clearAnimMs;
     if (clearAnim.t <= 0) {
       const perfect = game.clearRows(clearAnim.rows);
