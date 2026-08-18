@@ -75,8 +75,14 @@ img {
 }
 .screen.dark { background: var(--dark); }
 .screen.red {
-  background: url('../assets/img/bg-red.jpg') top center / 100% 100% no-repeat;
+  background-color: var(--coke-red);
+  background-position: top center;
+  background-size: auto 100%;
+  background-repeat: no-repeat;
 }
+#screen-game { background-image: url('../assets/img/bg-game-expanded.jpg'); }
+#screen-result { background-image: url('../assets/img/bg-result-single-expanded.jpg'); }
+#screen-result.multi { background-image: url('../assets/img/bg-result-multi-expanded.jpg'); }
 .hidden { display: none !important; }
 
 /* konten layar diskalakan proporsional bila layar lebih pendek dari
@@ -488,6 +494,16 @@ img {
   bottom: 55px;
   width: 460px;
 }
+
+/* Background terbaru sudah memuat swoosh/copyright, dan background result
+   juga sudah memuat deco serta botol. Sembunyikan layer lama agar tidak
+   terduplikasi di atas artwork final. */
+#screen-game > .swoosh,
+#screen-game > .copyright,
+#screen-result > .deco,
+#screen-result > .swoosh,
+#screen-result > .copyright,
+#screen-result .bottle { display: none; }
 
 /* ---------------- screen 3: your score / scoreboard ---------------- */
 .result-content {

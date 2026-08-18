@@ -74,8 +74,15 @@ const imagesReady = loadImages({
   trailWhite: 'assets/img/trail-white.png',
   rowRed: 'assets/img/row-red.png',
   rowWhite: 'assets/img/row-white.png',
-  bubbleRed: 'assets/img/bubble-red.png',
-  bubbleWhite: 'assets/img/bubble-white.png',
+  bubble1: 'assets/img/line-clear/bubble-1.png',
+  bubble2: 'assets/img/line-clear/bubble-2.png',
+  bubble3: 'assets/img/line-clear/bubble-3.png',
+  bubble4: 'assets/img/line-clear/bubble-4.png',
+  bubble5: 'assets/img/line-clear/bubble-5.png',
+  bubble6: 'assets/img/line-clear/bubble-6.png',
+  bubble7: 'assets/img/line-clear/bubble-7.png',
+  bubble8: 'assets/img/line-clear/bubble-8.png',
+  bubble9: 'assets/img/line-clear/bubble-9.png',
 });
 
 // ---------- state ----------
@@ -98,7 +105,7 @@ let lastTickSecond = -1; // detik terakhir yang sudah bunyi "tick" (10 detik ter
 let elapsed = 0;
 
 // animasi
-let clearAnim = null;     // { rows, color, t }
+let clearAnim = null;     // { rows, groups, color, t }
 let trails = [];          // { x, y, w, color, t }  efek gradasi jatuh
 let bubbles = [];         // partikel gelembung line clear
 let pendingSpawn = false;
@@ -273,9 +280,8 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 
-  // balok terkunci
-  // animasi clear: fase 1 (30% awal) baris sudah berubah warna balok terakhir,
-  // fase 2 balok hilang dari kiri ke kanan
+  // balok terkunci: warna baris mengikuti balok terakhir, lalu blok hilang
+  // dari kiri ke kanan seperti aturan line clear sebelumnya.
   const clearing = new Set(clearAnim ? clearAnim.rows : []);
   const prog = clearAnim ? Math.max(0, (0.7 - clearAnim.t) / 0.7) : 0;
   for (let y = 0; y < CONFIG.rows; y++) {
@@ -295,17 +301,15 @@ function draw() {
     }
   }
 
-  // overlay stroke: satu kotak per kelompok baris berurutan (multi-baris =
-  // satu kotak lebih tinggi, sesuai spec sheet .ai).
-  // PNG row-red/white 1817x377 punya margin glow besar; kotak solidnya di
-  // bbox (94,95)-(1720,280) -> skala supaya kotak solid pas menutup baris.
+  // Kotak line clear lama tetap mengikuti warna blok terakhir. Yang diganti
+  // hanya partikel bubble di bawah bagian ini.
   if (clearAnim) {
     const img = clearAnim.color === 'red' ? IMG.rowRed : IMG.rowWhite;
     const fadeIn = Math.min(1, (1 - clearAnim.t) * 5);
     const fadeOut = Math.min(1, clearAnim.t * 5);
     ctx.globalAlpha = Math.min(fadeIn, fadeOut);
     for (const [top, count] of clearAnim.groups) {
-      const tx = -4, tw = canvas.width + 8;          // target kotak solid
+      const tx = -4, tw = canvas.width + 8;
       const ty = top * CELL - 4, th = count * CELL + 8;
       const sx = tw / (1720 - 94), sy = th / (280 - 95);
       ctx.drawImage(img, tx - 94 * sx, ty - 95 * sy, 1817 * sx, 377 * sy);
@@ -313,13 +317,21 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 
-  // gelembung (asset Bubble Red/White dari GDrive): terbang kiri -> kanan
+  // Bubble baru bergerak organik: tersebar dari sepanjang baris, naik,
+  // berayun, berputar, dan mengembang/mengecil—bukan sweep kiri ke kanan.
   for (const b of bubbles) {
     if (b.delay > 0) continue;
-    const img = b.color === 'red' ? IMG.bubbleRed : IMG.bubbleWhite;
-    ctx.globalAlpha = Math.max(0, Math.min(1, b.t));
-    ctx.drawImage(img, b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
-    ctx.globalAlpha = 1;
+    const img = IMG[`bubble${b.sprite}`];
+    const fadeIn = Math.min(1, b.age / 0.12);
+    const pulse = 1 + Math.sin(b.age * b.pulseSpeed + b.phase) * b.pulse;
+    const radius = b.r * pulse;
+    const ratio = img.height / img.width;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(fadeIn, b.t));
+    ctx.translate(b.x, b.y);
+    ctx.rotate(b.rotation);
+    ctx.drawImage(img, -radius, -radius * ratio, radius * 2, radius * 2 * ratio);
+    ctx.restore();
   }
 
   // saat animasi clear berjalan, balok terakhir sudah menyatu ke grid —
@@ -415,23 +427,32 @@ function addTrail(distance, alpha = 0.9) {
   }
 }
 
-function spawnBubbles(groups, color) {
-  // seperti balon sabun ditiup dari kiri: muncul di kiri, terbang ke kanan,
-  // ukuran & jumlah acak; warna mengikuti balok terakhir.
-  // Feedback 07 Jul: bubble diperbanyak + pakai asset bubble dari GDrive.
+function spawnBubbles(groups) {
+  // Aset baru tersebar dari seluruh baris. Setiap bubble mempunyai arah,
+  // ayunan, putaran, ukuran, dan jeda berbeda agar geraknya terasa hidup.
   for (const [top, count] of groups) {
-    const n = (18 + Math.floor(Math.random() * 14)) * count;
+    const n = (18 + Math.floor(Math.random() * 12)) * count;
     for (let i = 0; i < n; i++) {
+      const direction = Math.random() < 0.5 ? -1 : 1;
+      const life = 0.85 + Math.random() * 0.85;
       bubbles.push({
-        x: -20 + Math.random() * 140,
-        y: (top - 0.5) * CELL + Math.random() * (count + 1) * CELL,
-        r: 6 + Math.random() * 22,
-        vx: 350 + Math.random() * 500,          // px/detik ke kanan
-        vy: -60 + Math.random() * 90,           // sedikit naik-turun
-        delay: Math.random() * 0.35,            // muncul bergantian
-        color,
+        x: 20 + Math.random() * (canvas.width - 40),
+        y: top * CELL + Math.random() * count * CELL,
+        r: 6 + Math.random() * 25,
+        vx: direction * (20 + Math.random() * 125),
+        vy: -45 - Math.random() * 150,
+        drift: 18 + Math.random() * 65,
+        waveSpeed: 3 + Math.random() * 7,
+        phase: Math.random() * Math.PI * 2,
+        rotation: Math.random() * Math.PI * 2,
+        spin: direction * (0.4 + Math.random() * 2.2),
+        pulse: 0.05 + Math.random() * 0.16,
+        pulseSpeed: 5 + Math.random() * 8,
+        delay: Math.random() * 0.38,
+        sprite: 1 + Math.floor(Math.random() * 9),
         t: 1,
-        life: 0.7 + Math.random() * 0.7,
+        life,
+        age: 0,
       });
     }
   }
@@ -459,7 +480,8 @@ function placePiece(landMode = 'normal') {
     popupGroup(items, centerCol, rowTop, rowCount);
     playSfx(WORD_SFX[res.word]);
 
-    // baris penuh berubah warna mengikuti balok terakhir yang melengkapinya
+    // Pertahankan rules lama: seluruh baris mengikuti warna balok terakhir
+    // yang menyelesaikan line (merah menjadi merah, putih menjadi putih).
     for (const y of res.rows)
       game.grid[y] = Array(CONFIG.cols).fill(res.lastColor);
 
@@ -471,7 +493,7 @@ function placePiece(landMode = 'normal') {
       else groups.push([y, 1]);
     }
 
-    spawnBubbles(groups, res.lastColor);
+    spawnBubbles(groups);
     clearAnim = { rows: res.rows, groups, color: res.lastColor, t: 1 };
     pendingSpawn = true; // spawn setelah animasi
     playSfx('clear');
@@ -504,10 +526,14 @@ function tick(ts, id) {
   trails = trails.filter(t => (t.t -= dt / 400) > 0);
   bubbles = bubbles.filter(b => {
     if (b.delay > 0) { b.delay -= dt / 1000; return true; }
-    b.x += b.vx * dt / 1000;
-    b.y += b.vy * dt / 1000;
+    const step = dt / 1000;
+    b.age += step;
+    b.x += (b.vx + Math.sin(b.age * b.waveSpeed + b.phase) * b.drift) * step;
+    b.y += b.vy * step;
+    b.vy -= 10 * step;
+    b.rotation += b.spin * step;
     b.t -= dt / (b.life * 1000);
-    return b.t > 0 && b.x < canvas.width + 40;
+    return b.t > 0 && b.x > -80 && b.x < canvas.width + 80 && b.y > -80;
   });
 
   if (clearAnim) {
