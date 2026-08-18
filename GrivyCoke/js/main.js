@@ -29,8 +29,13 @@ function fitStage() {
   const { w: vw, h: vh } = viewportSize();
   let s = vw / 1080;
   let H = Math.round(vh / s);
-  if (H < 1900) {
-    // layar terlalu lebar (desktop/landscape): fit tinggi, bar di samping
+  if (vw > vh) {
+    // layar beneran landscape (desktop/rotate): fit tinggi, bar di samping.
+    // Dulu dicek pakai "H < 1900" (tinggi desain hasil fit-width) -- tapi di
+    // HP portrait dengan address bar/tab bar Safari kelihatan, visualViewport
+    // tingginya ikut susut sehingga H gampang jatuh di bawah 1900 padahal
+    // layarnya portrait biasa -> stage salah masuk mode fit-height dan jadi
+    // kecil dengan bar hitam kiri-kanan (feedback iOS Safari).
     s = vh / 2340;
     H = 2340;
   }
