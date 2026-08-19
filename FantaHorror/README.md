@@ -98,7 +98,8 @@ di-embed dan host-nya yang menentukan channel:
 
 Urutan prioritas: parameter URL → `window.FANTA_HORROR_CONFIG` → `DEFAULT_CHANNEL`.
 
-Untuk merilis ke live, ikuti [GANTI-KE-LIVE.md](GANTI-KE-LIVE.md) — termasuk syarat
+Untuk merilis ke live, ikuti [GANTI-KE-LIVE.md](GANTI-KE-LIVE.md)
+([English](SWITCH-TO-LIVE.md)) — termasuk syarat
 hosting yang, kalau dilanggar, membuat semua pemain melihat "kupon habis" tanpa
 pesan error apa pun.
 

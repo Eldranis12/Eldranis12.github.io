@@ -2,6 +2,8 @@
 
 Panduan mengubah game dari channel **staging** ke **live campaign**.
 
+*(English version: [SWITCH-TO-LIVE.md](SWITCH-TO-LIVE.md))*
+
 Inti perubahannya cuma satu angka. Sisanya verifikasi — dan ada satu jebakan
 (lihat [Syarat penting](#syarat-penting-domain-hosting)) yang bisa membuat semua
 pemain melihat "kupon habis" walau kuponnya masih ada.
