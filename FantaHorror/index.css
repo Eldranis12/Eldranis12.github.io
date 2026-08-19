@@ -883,11 +883,22 @@ body {
   pointer-events: none;
 }
 
-/* Active popping state -- the hand rises behind the still-free bottle first. */
+/*
+  Active popping state -- the hand rises behind the still-free bottle first.
+
+  translateY is 0, not the -3% it used to be: that lift raised every bottle 0.545% of
+  the artboard off its dirt mound, which read as the bottle hovering. It hurt the bottom
+  row most -- rows 1 and 2 sit 0.2% *into* the ground so the lift partly cancelled, but
+  row 3 already sits 0.06% above it, so the two added up to 0.60% (~5px on a phone).
+  Measured against the fire bases in bg_v2_ingame.webp, which mark the ground line.
+
+  The three keyframes below start from this same resting transform, so they were changed
+  with it -- leaving them at -3% would make each animation jump on its first frame.
+*/
 .grave-slot.active-bottle .fanta-bottle,
 .grave-slot.active-suzzanna .fanta-bottle {
   opacity: 1;
-  transform: translateY(-3%);
+  transform: translateY(0);
 }
 
 .grave-slot.active-suzzanna .suzzanna-hand {
@@ -1023,7 +1034,7 @@ body {
 }
 
 @keyframes bottleRescued {
-  0% { transform: translateY(-3%) scale(1); opacity: 1; }
+  0% { transform: translateY(0) scale(1); opacity: 1; }
   45% { transform: translateY(-11%) scale(1.14); opacity: 0.9; }
   100% { transform: translateY(-15%) scale(1); opacity: 0; }
 }
@@ -1055,7 +1066,7 @@ body {
 }
 
 @keyframes grabBottleOff {
-  from { opacity: 1; transform: translateY(-3%); }
+  from { opacity: 1; transform: translateY(0); }
   to { opacity: 0; transform: translateY(1%); }
 }
 
@@ -1077,7 +1088,7 @@ body {
   resists (a small lift) and then sinks out of sight -- the opposite of a rescue.
 */
 @keyframes stolenIntoGrave {
-  0% { opacity: 0; transform: translateY(-3%) scale(1); }
+  0% { opacity: 0; transform: translateY(0) scale(1); }
   22% { opacity: 1; transform: translateY(-6%) scale(1.02); }
   45% { opacity: 1; transform: translateY(6%) scale(0.97); }
   /* Stays opaque: the slot's bottom clip swallows it, so hand and bottle really do
