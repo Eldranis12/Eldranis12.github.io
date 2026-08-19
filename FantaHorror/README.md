@@ -98,6 +98,10 @@ di-embed dan host-nya yang menentukan channel:
 
 Urutan prioritas: parameter URL → `window.FANTA_HORROR_CONFIG` → `DEFAULT_CHANNEL`.
 
+Untuk merilis ke live, ikuti [GANTI-KE-LIVE.md](GANTI-KE-LIVE.md) — termasuk syarat
+hosting yang, kalau dilanggar, membuat semua pemain melihat "kupon habis" tanpa
+pesan error apa pun.
+
 ### Parameter gameplay
 
 Konstanta di [`js/game.js`](js/game.js), sekitar baris 152:
