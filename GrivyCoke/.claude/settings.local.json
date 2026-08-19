@@ -11,7 +11,8 @@
       "Bash(git pull *)",
       "Bash(git diff *)",
       "Read(//tmp/**)",
-      "Bash(cd \"C:/Users/IMAJI_DEV_04/Documents/Unity Project/Eldranis12.github.io/GrivyCoke\" && git diff 9ebf0d4:GrivyCoke/js/main.js 8c2a7b6:GrivyCoke/js/main.js > \"C:/Users/IMAJI_DEV_04/AppData/Local/Temp/claude/C--Users-IMAJI-DEV-04-Documents-Unity-Project-Eldranis12-github-io-GrivyCoke/2124f9fc-8370-4d3b-b5ca-3de06c3a07b5/scratchpad/mainjs.diff\")"
+      "Bash(cd \"C:/Users/IMAJI_DEV_04/Documents/Unity Project/Eldranis12.github.io/GrivyCoke\" && git diff 9ebf0d4:GrivyCoke/js/main.js 8c2a7b6:GrivyCoke/js/main.js > \"C:/Users/IMAJI_DEV_04/AppData/Local/Temp/claude/C--Users-IMAJI-DEV-04-Documents-Unity-Project-Eldranis12-github-io-GrivyCoke/2124f9fc-8370-4d3b-b5ca-3de06c3a07b5/scratchpad/mainjs.diff\")",
+      "Bash(file assets/fonts/*.ttf)"
     ]
   }
 }

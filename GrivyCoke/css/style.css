@@ -14,7 +14,11 @@
 @font-face {
   font-family: 'TCCC Unity Head';
   src: url('../assets/fonts/TCCCUnityHead-Medium.ttf') format('truetype');
-  font-weight: 400 600;
+  /* batas atas dilebarkan ke 650 (bukan 600 pas): beberapa Android tampak
+     memperlakukan batas atas range sebagai eksklusif, jadi request weight:600
+     (dipakai teks "Kumpulkan...") gagal cocok ke face ini dan kepental ke
+     face Bold di bawah (700 900) -- iOS Safari inklusif jadi normal di sana. */
+  font-weight: 400 650;
   font-display: swap;
 }
 @font-face {
