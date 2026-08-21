@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Uji kotak judul — FANTA Horror</title>
+<style>
+  /*
+    Diagnostic page for a box that appears around the Lose headline on iPhone but not in
+    any desktop browser here. The asset itself is ruled out: its alpha channel is a clean
+    text-and-glow silhouette (checked down to alpha 1) and the RGB under fully transparent
+    pixels is zeroed, yet the box persists on device.
+
+    Each panel below renders the same artwork a different way, on the same dark sky the
+    real screen uses. Whichever panels stay clean identify what the renderer is actually
+    tripping on -- WebP decoding, downscaling, or layer compositing -- without guessing.
+  */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a1428;
+    color: #cfe3ff;
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 16px 12px 48px;
+  }
+  h1 { font-size: 1.05rem; margin-bottom: 4px; }
+  .lead { color: #8fa8c8; font-size: 0.85rem; margin-bottom: 18px; }
+  .panel { margin-bottom: 22px; }
+  .label {
+    font-size: 0.78rem; font-weight: 700; color: #9ec2ff;
+    margin-bottom: 6px; letter-spacing: .02em;
+  }
+  .note { font-size: 0.72rem; color: #7e93b0; margin-top: 5px; }
+
+  /* Same night sky the Lose screen uses, so a lighter box would stand out the same way. */
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 897 / 427;
+    background: linear-gradient(#0d1b33, #16294a);
+    overflow: hidden;
+  }
+
+  /* A: exactly how the game renders it today. */
+  .stage img { display: block; width: 100%; height: 100%; }
+
+  /* B: CSS background instead of an <img> element. */
+  .as-bg {
+    background-image: url('assets/lose_rev_headline.webp?v=20260813-nomatte');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+
+  /* E: forced onto its own compositing layer. */
+  .own-layer img { will-change: transform; transform: translateZ(0); }
+</style>
+</head>
+<body>
+
+<h1>Uji kotak di judul</h1>
+<p class="lead">
+  Lihat tiap kotak di bawah. Yang <b>ada kotak terang</b> di sekeliling tulisan berarti
+  bermasalah; yang bersih berarti cara render itu aman. Beri tahu saya nomor mana saja
+  yang bersih.
+</p>
+
+<div class="panel">
+  <div class="label">1 — WebP, &lt;img&gt; (cara sekarang di game)</div>
+  <div class="stage"><img src="assets/lose_rev_headline.webp?v=20260813-nomatte" alt=""></div>
+  <div class="note">Ini yang dipakai game sekarang. Kemungkinan besar bermasalah.</div>
+</div>
+
+<div class="panel">
+  <div class="label">2 — WebP, background CSS (bukan &lt;img&gt;)</div>
+  <div class="stage as-bg"></div>
+  <div class="note">Kalau ini bersih tapi 1 tidak: masalahnya di elemen &lt;img&gt;.</div>
+</div>
+
+<div class="panel">
+  <div class="label">3 — PNG, &lt;img&gt;</div>
+  <div class="stage"><img src="assets/test_headline.png" alt=""></div>
+  <div class="note">Kalau ini bersih tapi 1 tidak: masalahnya di decoder WebP iOS.</div>
+</div>
+
+<div class="panel">
+  <div class="label">4 — WebP sudah diperkecil (648px, hampir tanpa downscale)</div>
+  <div class="stage"><img src="assets/test_headline_small.webp" alt=""></div>
+  <div class="note">Kalau ini bersih tapi 1 tidak: masalahnya saat browser memperkecil gambar.</div>
+</div>
+
+<div class="panel">
+  <div class="label">5 — WebP, dipaksa jadi layer sendiri</div>
+  <div class="stage own-layer"><img src="assets/lose_rev_headline.webp?v=20260813-nomatte" alt=""></div>
+  <div class="note">Kalau ini bersih tapi 1 tidak: masalahnya di compositing layer.</div>
+</div>
+
+<div class="panel">
+  <div class="label">6 — Pembanding: tanpa gambar sama sekali</div>
+  <div class="stage"></div>
+  <div class="note">Harus polos. Kalau di sini pun ada kotak, berarti bukan gambarnya.</div>
+</div>
+
+</body>
+</html>
