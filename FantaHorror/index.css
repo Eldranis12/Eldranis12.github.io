@@ -1578,7 +1578,12 @@ body {
   width: 82%;
   max-width: 290px;
   height: auto;
-  filter: drop-shadow(0 0 12px rgba(43, 255, 34, 0.7));
+  /*
+    No filter here. A green drop-shadow used to sit on this image; on iOS it painted as
+    a lighter rectangle around the headline rather than following the text silhouette,
+    which is the same failure the health bottles had. The artwork carries its own glow,
+    so the headline renders exactly as the designer exported it.
+  */
 }
 
 .result-voucher-info {
