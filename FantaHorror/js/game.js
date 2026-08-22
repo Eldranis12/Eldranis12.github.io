@@ -680,9 +680,8 @@ class FantaHorrorGame {
             'bg_v2_win.webp?v=20260812-all-result-states',
             'bg_v2_win.webp?v=20260812-cover',
             'voucher_out_winner_full.webp',
-            // Lose: BG Baru plate
-            'bg_lp_lose.jpg?v=20260812-all-result-states',
-            'bg_lp_lose.jpg?v=20260812-lplose',
+            // Lose: its own plate now -- the Suzzanna lockup is baked into this one.
+            'bg_lose.jpg?v=20260822-bgbaru',
             'lose_psd_voucher_out.webp?v=20260809-psd3'
         ].forEach(file => { new Image().src = 'assets/' + file; });
 
