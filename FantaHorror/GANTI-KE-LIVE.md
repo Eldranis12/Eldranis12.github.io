@@ -24,22 +24,16 @@ diarahkan ke kampanye yang salah.
 
 ---
 
-## Langkah 1 — Ubah channel
+## Langkah 1 — Channel
 
-Buka [`js/game.js`](js/game.js), **baris 13**:
-
-```js
-const DEFAULT_CHANNEL = 0; // 0 = Staging / Testing, 1 = Live / Real Campaign
-```
-
-Ubah `0` menjadi `1`:
+**Sudah dilakukan.** [`js/game.js`](js/game.js) **baris 13** kini terkirim sebagai:
 
 ```js
 const DEFAULT_CHANNEL = 1; // 0 = Staging / Testing, 1 = Live / Real Campaign
 ```
 
-Hanya itu. Jangan ubah array `CHANNELS` di bawahnya — kode kampanye untuk kedua
-channel sudah terisi di sana.
+Untuk kembali ke staging, ubah `1` menjadi `0`. Hanya itu — jangan ubah array
+`CHANNELS` di bawahnya, kode kampanye untuk kedua channel sudah terisi di sana.
 
 ## Langkah 2 — Naikkan versi cache
 

@@ -10,7 +10,7 @@
  * In production the game is served from fun.fanta.id/c/fanta-horror-game-922,
  * so the coupon API call is same-origin.
  */
-const DEFAULT_CHANNEL = 0; // 0 = Staging / Testing, 1 = Live / Real Campaign
+const DEFAULT_CHANNEL = 1; // 0 = Staging / Testing, 1 = Live / Real Campaign
 
 // Resolve channel from URL param (?env=live | ?channel=1) or window.FANTA_HORROR_CONFIG or default
 const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;

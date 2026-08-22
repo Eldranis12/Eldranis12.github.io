@@ -29,9 +29,6 @@ Kalau tidak ada Python:
 npx serve -l 8661
 ```
 
-Pengguna Claude Code / VS Code: [`.claude/launch.json`](.claude/launch.json) sudah
-mendefinisikan server ini dengan nama `fanta-horror`.
-
 ### Perlu tahu saat development lokal
 
 API kuota Grivy tidak bisa dijangkau dari `localhost`, jadi console akan memunculkan

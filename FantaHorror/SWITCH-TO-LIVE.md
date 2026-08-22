@@ -24,22 +24,17 @@ wrong campaign.
 
 ---
 
-## Step 1 — Change the channel
+## Step 1 — The channel
 
-Open [`js/game.js`](js/game.js), **line 13**:
-
-```js
-const DEFAULT_CHANNEL = 0; // 0 = Staging / Testing, 1 = Live / Real Campaign
-```
-
-Change the `0` to `1`:
+**Already done.** [`js/game.js`](js/game.js) **line 13** now ships as:
 
 ```js
 const DEFAULT_CHANNEL = 1; // 0 = Staging / Testing, 1 = Live / Real Campaign
 ```
 
-That is the whole change. Leave the `CHANNELS` array below it alone — the
-campaign codes for both channels are already filled in there.
+To go back to staging, change the `1` to `0`. That is the whole change — leave
+the `CHANNELS` array below it alone, the campaign codes for both channels are
+already filled in there.
 
 ## Step 2 — Bump the cache version
 
