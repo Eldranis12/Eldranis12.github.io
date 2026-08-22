@@ -639,6 +639,18 @@ img {
 }
 @keyframes pending-blink { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
 
+/* Pemain yang putus di tengah game / tidak menyelesaikan -> diskualifikasi
+   (Kiosk Vendor Feedback Q5). Dibedakan dari "bermain…": tidak berkedip,
+   tidak punya nomor peringkat, dan lebih redup. */
+.result-row.dq { opacity: .45; }
+.result-row.dq .score {
+  font-family: inherit;
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
 /* ---- TY page multiplayer: SCOREBOARD ---- */
 #screen-result.multi #final-score,
 #screen-result.multi .line { display: none; }

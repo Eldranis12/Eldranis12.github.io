@@ -2,7 +2,7 @@
 // SessionService — jembatan game <-> server multiplayer.
 // ------------------------------------------------------------
 // Dua mode di balik satu interface:
-//   • REMOTE — CONFIG.multiplayerUrl + user_id ada. Join ke server; server
+//   • REMOTE — CONFIG.multiplayerUrl + user_uid ada. Join ke server; server
 //     mengelompokkan pemain per device_id (kiosk) + window bergulir, lalu
 //     MENGEMBALIKAN session_id. Klien polling waiting room + ranking pakai
 //     session_id itu.
@@ -83,11 +83,15 @@ class RemoteSession {
     this.remote = true;
     this.mode = 'single';
     this._sessionId = null;                    // ditentukan server saat join
+    // Nama field mengikuti "Kiosk Vendor Feedback" (Q1/Q3): kiosk_id = device_id,
+    // user_uid, wa_session_id. nickname_entered = teks asli pemain (untuk
+    // ditampilkan), nickname = versi normalisasi Grivy (untuk pencocokan).
     this._q = {
-      device_id: PLAYER.deviceId,              // kunci grup (kiosk)
-      user_id: PLAYER.userId,
-      nickname: PLAYER.nickname,
-      whats_app_session_id: PLAYER.whatsAppSessionId, // konteks per-user saja
+      device_id: PLAYER.deviceId,              // kunci grup (kiosk / kiosk_id)
+      user_uid: PLAYER.userId,
+      nickname_entered: PLAYER.nickname,
+      nickname: PLAYER.nicknameNormalized || PLAYER.nickname,
+      wa_session_id: PLAYER.waSessionId,       // konteks per-user saja
       duration: CONFIG.gameSeconds,
     };
   }
@@ -119,7 +123,7 @@ class RemoteSession {
     if (!this._sessionId) return;
     const body = JSON.stringify({
       session_id: this._sessionId,
-      user_id: this._q.user_id,
+      user_uid: this._q.user_uid,
       score: score ?? 0,
       live: true,
     });
@@ -136,7 +140,7 @@ class RemoteSession {
     if (!this._sessionId) return;
     const data = {
       session_id: this._sessionId,
-      user_id: this._q.user_id,
+      user_uid: this._q.user_uid,
       score: score ?? 0,
     };
     const json = JSON.stringify(data);
@@ -171,10 +175,12 @@ class RemoteSession {
       const data = await jget(`${this.base}/session/results?session_id=${encodeURIComponent(this._sessionId)}`);
       if (data && data.results) {
         const rows = data.results.map(r => ({
-          nickname: r.nickname,
+          nickname: r.nickname_entered || r.nickname,
           score: r.score,
-          me: r.user_id === this._q.user_id,
+          me: r.user_uid === this._q.user_uid,
           submitted: r.submitted,
+          // Q5: pemain yang putus/tidak menyelesaikan game didiskualifikasi
+          disqualified: !!r.disqualified,
         }));
         return { rows, ready: !!data.ready };
       }
@@ -247,8 +253,8 @@ class LocalSession {
   async waitForStart(onTick) {
     // simulasi countdown overlay hanya kalau ?wait= diaktifkan (demo)
     const total = CONFIG.waitWindowMs;
-    const players = [{ user_id: PLAYER.userId, nickname: PLAYER.nickname },
-                     ...this.others.map((o, i) => ({ user_id: 'mock' + i, nickname: o.nickname }))];
+    const players = [{ user_uid: PLAYER.userId, nickname: PLAYER.nickname },
+                     ...this.others.map((o, i) => ({ user_uid: 'mock' + i, nickname: o.nickname }))];
     if (total > 0) {
       const start = Date.now();
       let msLeft;
@@ -265,16 +271,18 @@ class LocalSession {
   async submitScore(score) { this._score = score; }
 
   async watchResults(onUpdate) {
-    const rows = [{ nickname: PLAYER.nickname, score: this._score, me: true, submitted: true },
-      ...this.others.map(o => ({ nickname: o.nickname, score: o.score, me: false, submitted: true }))]
+    const rows = [{ nickname: PLAYER.nickname, score: this._score, me: true, submitted: true,
+                    disqualified: false },
+      ...this.others.map(o => ({ nickname: o.nickname, score: o.score, me: false, submitted: true,
+                                 disqualified: false }))]
       .sort((a, b) => b.score - a.score);
     onUpdate(rows, true);   // lokal: langsung final
     return rows;
   }
 }
 
-// Pilih implementasi: remote kalau ada URL server + user_id. Grup ditentukan
-// server via device_id (kiosk); tanpa device_id -> server buat sesi solo.
+// Pilih implementasi: remote kalau ada URL server + user_uid. Grup ditentukan
+// server via kiosk_id/device_id; tanpa itu -> server buat sesi solo.
 export function createSession() {
   const canRemote = CONFIG.multiplayerUrl && PLAYER.userId;
   return canRemote ? new RemoteSession(CONFIG.multiplayerUrl) : new LocalSession();

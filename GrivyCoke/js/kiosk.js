@@ -1,101 +1,60 @@
 // ============================================================
-// Integrasi kiosk vendor — stub.
-// Endpoint, auth, dan skema payload menyusul dari kiosk vendor;
-// sesuaikan body di bawah begitu detailnya tersedia.
+// Integrasi kiosk vendor — sisi klien.
+// ------------------------------------------------------------
+// PENTING (Kiosk Vendor Feedback, Q4): Game Start / Game End WAJIB dipanggil
+// server-to-server. Kiosk vendor menolak `window.parent.postMessage` maupun
+// `fetch` langsung dari browser pemain, karena API mereka tidak boleh bisa
+// dipanggil dari klien — skor gampang dipalsukan lewat devtools.
+//
+// Karena itu file ini TIDAK lagi memanggil API kiosk. Panggilan resmi
+// dilakukan backend: `server-php/kiosk.php` (dipicu saat sesi mulai dan saat
+// sesi selesai). Yang tersisa di sini hanya sinyal postMessage untuk
+// keperluan debug/embed lokal — sifatnya TIDAK otoritatif dan tidak boleh
+// dijadikan sumber data kiosk.
 // ============================================================
 
 import { CONFIG, PLAYER } from './config.js';
 
-async function post(urlStr, payload) {
-  if (!urlStr) {
-    console.log('[kiosk stub]', payload);
-    return;
-  }
+// Sinyal debug ke parent window (hanya aktif dengan ?kiosk_debug=1).
+function notifyParent(type, payload = {}) {
+  if (!CONFIG.kioskDebug) return;
   try {
-    await fetch(urlStr, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    if (typeof window === 'undefined') return;
+    const msg = {
+      source: 'coke_tetris',
+      note: 'DEBUG ONLY — bukan sumber data kiosk (lihat Q4, server-to-server)',
+      type,
+      timestamp: new Date().toISOString(),
+      ...payload,
+    };
+    if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*');
+    if (window.opener && !window.opener.closed) window.opener.postMessage(msg, '*');
   } catch (err) {
-    console.error('[kiosk] gagal memanggil API:', err);
+    console.warn('[kiosk debug] gagal kirim postMessage:', err);
   }
 }
 
-// Kirim pesan ke parent window jika game berjalan di dalam iframe
-function notifyParent(type, payload = {}) {
-  try {
-    if (typeof window !== 'undefined') {
-      const msg = {
-        source: 'coke_tetris',
-        type,
-        timestamp: new Date().toISOString(),
-        ...payload,
-      };
-      // Jika di dalam iframe
-      if (window.parent && window.parent !== window) {
-        window.parent.postMessage(msg, '*');
-      }
-      // Jika dibuka via window.open()
-      if (window.opener && !window.opener.closed) {
-        window.opener.postMessage(msg, '*');
-      }
-    }
-  } catch (err) {
-    console.warn('[iframe message error]', err);
-  }
-}
+const base = sessionId => ({
+  game_session_id: sessionId || '',      // id sesi buatan backend game
+  kiosk_id: PLAYER.deviceId,             // = device_id
+  user_uid: PLAYER.userId,
+  wa_session_id: PLAYER.waSessionId,
+  nickname: PLAYER.nicknameNormalized || PLAYER.nickname,
+  nickname_entered: PLAYER.nickname,
+});
 
 export function notifyGameStart(sessionId) {
-  notifyParent('GAME_START', {
-    session_id: sessionId || '',
-    device_id: PLAYER.deviceId,
-    user_id: PLAYER.userId,
-    nickname: PLAYER.nickname,
-  });
-  return post(CONFIG.kioskStartUrl, {
-    event: 'game_start',
-    session_id: sessionId,
-    device_id: PLAYER.deviceId,
-    timestamp: new Date().toISOString(),
-  });
+  notifyParent('GAME_START', base(sessionId));
 }
 
 export function notifyScoreUpdate(sessionId, score) {
-  notifyParent('SCORE_UPDATE', {
-    session_id: sessionId || '',
-    device_id: PLAYER.deviceId,
-    user_id: PLAYER.userId,
-    nickname: PLAYER.nickname,
-    score: score || 0,
-  });
+  notifyParent('SCORE_UPDATE', { ...base(sessionId), score: score || 0 });
 }
 
 export function notifyGameExit(sessionId, score) {
-  notifyParent('GAME_CLOSED', {
-    session_id: sessionId || '',
-    device_id: PLAYER.deviceId,
-    user_id: PLAYER.userId,
-    nickname: PLAYER.nickname,
-    score: score || 0,
-  });
+  notifyParent('GAME_CLOSED', { ...base(sessionId), score: score || 0 });
 }
 
 export function notifyGameEnd(sessionId, results) {
-  // results: [{ nickname, score }]
-  notifyParent('GAME_END', {
-    session_id: sessionId || '',
-    device_id: PLAYER.deviceId,
-    user_id: PLAYER.userId,
-    nickname: PLAYER.nickname,
-    results: results || [],
-  });
-  return post(CONFIG.kioskEndUrl, {
-    event: 'game_end',
-    session_id: sessionId,
-    device_id: PLAYER.deviceId,
-    completed: true,
-    results,
-    timestamp: new Date().toISOString(),
-  });
+  notifyParent('GAME_END', { ...base(sessionId), results: results || [] });
 }

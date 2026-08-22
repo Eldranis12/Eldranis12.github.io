@@ -858,7 +858,7 @@ async function startGame() {
   if (showLobby) {
     $('#waiting-overlay').classList.remove('hidden');
     updateWaiting({ count: 1, max: CONFIG.maxPlayers,
-      players: [{ user_id: PLAYER.userId, nickname: PLAYER.nickname }],
+      players: [{ user_uid: PLAYER.userId, nickname: PLAYER.nickname }],
       ms_left: session.remote ? CONFIG.joinWindowSeconds * 1000 : CONFIG.waitWindowMs });
   }
   try {
@@ -878,20 +878,28 @@ async function startGame() {
   requestAnimationFrame(ts => tick(ts, id));
 }
 
-// render ranking TY page. Pemain yang belum selesai ditandai "bermain…"
-// (bukan skor 0) supaya jelas skornya akan menyusul.
+// render ranking TY page.
+//   - masih main            -> "bermain…" (bukan skor 0) supaya jelas menyusul
+//   - putus / tidak selesai -> "diskualifikasi" (Kiosk Vendor Feedback Q5:
+//     pemain yang disconnect atau tidak menyelesaikan game didiskualifikasi,
+//     skor terakhirnya tidak dipakai)
 function renderResults(rows) {
   const list = rows.slice(0, CONFIG.maxPlayers).sort((a, b) => {
+    if (!!a.disqualified !== !!b.disqualified) return a.disqualified ? 1 : -1;
     const sa = a.submitted !== false, sb = b.submitted !== false;
     if (sa !== sb) return sa ? -1 : 1;        // yang sudah selesai di atas
     return (b.score || 0) - (a.score || 0);
   });
-  $('#session-results').innerHTML = list.map((r, i) => `
-    <div class="result-row${r.me ? ' me' : ''}${r.submitted === false ? ' pending' : ''}">
-      <span class="rank">#${i + 1}</span>
+  $('#session-results').innerHTML = list.map((r, i) => {
+    const pending = r.submitted === false && !r.disqualified;
+    const label = r.disqualified ? 'diskualifikasi' : (pending ? 'bermain…' : r.score);
+    return `
+    <div class="result-row${r.me ? ' me' : ''}${pending ? ' pending' : ''}${r.disqualified ? ' dq' : ''}">
+      <span class="rank">${r.disqualified ? '—' : '#' + (i + 1)}</span>
       <span class="name">${esc(r.nickname)}</span>
-      <span class="score">${r.submitted === false ? 'bermain…' : r.score}</span>
-    </div>`).join('');
+      <span class="score">${label}</span>
+    </div>`;
+  }).join('');
 }
 
 async function endGame(reason = 'timeup') {

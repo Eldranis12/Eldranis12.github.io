@@ -4,22 +4,52 @@
 
 const url = new URLSearchParams(location.search);
 
-// Base URL server multiplayer (Node.js, folder server/).
-// Saat game dibuka di localhost (dev) otomatis pakai server lokal
-// (http://localhost:8787) — tinggal `node server/server.js`. Di host lain
-// (produksi/GitHub Pages) pakai URL produksi. Override kapan saja: ?mp_url=
-// (mis. ?mp_url=http://192.168.1.5:8787 untuk uji dari HP di LAN yang sama).
+// Base URL backend sesi + leaderboard (PHP + MySQL, folder server-php/,
+// di-deploy ke Hostinger/Niagahoster). Saat game dibuka di localhost (dev)
+// otomatis pakai server lokal :8787 — bisa `node server/server.js` atau
+// `php -S 127.0.0.1:8787 server-php/router-dev.php`. Override kapan saja:
+// ?mp_url= (mis. ?mp_url=http://192.168.1.5:8787 untuk uji dari HP di LAN).
+//
+// CATATAN: kalau nanti domain asli dipasang di hPanel, ganti URL di bawah —
+// dan tambahkan domain game ke 'cors_origin' di config.php server.
 const IS_LOCALHOST = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname);
 const MP_URL_DEFAULT = IS_LOCALHOST
   ? 'http://localhost:8787'
-  : 'https://coke-mp.8infiniooh.com';
+  : 'https://lightgrey-gerbil-393119.hostingersite.com/coke-api';
+
+// Parameter URL dari Grivy. Nama resmi mengikuti "Kiosk Vendor Feedback"
+// (Q1): wa_session_id, user_uid, nickname, nickname_entered. Nama lama tetap
+// diterima sebagai fallback supaya link yang sudah beredar tidak rusak.
+//
+// Penting soal nickname (Q1): `nickname` adalah versi TERNORMALISASI milik
+// Grivy — sudah di-trim, spasi dirapatkan, dan DIBESARKAN semua; dipakai
+// Grivy untuk cek keunikan + profanity. Yang ditampilkan ke layar/leaderboard
+// harus `nickname_entered`, yaitu teks asli persis seperti diketik pemain.
+const param = (...names) => {
+  for (const n of names) {
+    const v = url.get(n);
+    if (v) return v;
+  }
+  return '';
+};
+
+const NICK_NORMALIZED = param('nickname');
+const NICK_ENTERED    = param('nickname_entered');
 
 export const PLAYER = {
-  whatsAppSessionId: url.get('whats_app_session_id') || '',
-  userId:            url.get('user_id') || '',
-  nickname:          url.get('nickname') || 'Player',
-  deviceId:          url.get('device_id') || '',
+  // konteks per-user dari WhatsApp; BUKAN kunci grup multiplayer
+  waSessionId: param('wa_session_id', 'whats_app_session_id'),
+  userId:      param('user_uid', 'user_id'),
+  // untuk ditampilkan: pakai teks asli pemain, jatuh ke versi normalisasi
+  nickname:    NICK_ENTERED || NICK_NORMALIZED || 'Player',
+  // versi normalisasi Grivy — dikirim apa adanya ke backend untuk pencocokan
+  nicknameNormalized: NICK_NORMALIZED,
+  // kunci grup multiplayer = kiosk. Grivy menyebutnya kiosk_id, kita device_id
+  deviceId:    param('device_id', 'kiosk_id'),
 };
+
+// Alias lama supaya kode/skrip yang masih memakai nama sebelumnya tidak pecah.
+PLAYER.whatsAppSessionId = PLAYER.waSessionId;
 
 export const CONFIG = {
   // papan
@@ -89,7 +119,10 @@ export const CONFIG = {
       });
   })(),
 
-  // endpoint kiosk vendor (diisi saat detail API tersedia)
-  kioskStartUrl: url.get('kiosk_start_url') || '',
-  kioskEndUrl:   url.get('kiosk_end_url') || '',
+  // Endpoint kiosk vendor TIDAK lagi dipanggil dari browser. Kiosk Vendor
+  // Feedback (Q4) menetapkan Game Start / Game End wajib server-to-server —
+  // postMessage dan fetch langsung dari klien ditolak karena skor bisa
+  // dipalsukan lewat devtools. Pemanggilan itu sekarang dilakukan backend
+  // (server-php/kiosk.php). Dua parameter di bawah hanya untuk uji lokal.
+  kioskDebug: url.get('kiosk_debug') === '1',
 };

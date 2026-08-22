@@ -1,5 +1,11 @@
 # Server Multiplayer — Coke Hangout Tetris
 
+> **Produksi sekarang pakai [`../server-php/`](../server-php/README.md)**
+> (PHP + MySQL) karena hosting Niagahoster paket Bisnis itu shared cPanel —
+> tidak bisa menjalankan proses Node 24/7, dan store in-memory di sini hilang
+> tiap kali proses di-restart. Endpoint & perilakunya identik; file di folder
+> ini tetap dipakai untuk **dev lokal**.
+
 Server sesi untuk mode **single/multiplayer**, sesuai dokumen *"Kebutuhan dari
 Grivy"* (12 Jul 2026). **Bukan real-time**: tiap pemain main di papan sendiri
 di HP masing-masing. Server hanya:
