@@ -46,6 +46,8 @@ npm test                # integrasi test (6 skenario)
 | `RESULT_GRACE_SECONDS` | `25` | Toleransi menunggu skor pemain yang HP-nya lambat/tutup |
 | `CORS_ORIGIN` | `*` | Batasi ke domain game saat produksi |
 | `SESSION_TTL_SECONDS` | `300` | Umur sesi di memori setelah selesai |
+| `KIOSK_START_URL` | *(kosong)* | Endpoint API kiosk vendor untuk Game Start. Kosong = stub (di-log saja) |
+| `KIOSK_END_URL` | *(kosong)* | Endpoint API kiosk vendor untuk Game End. Kosong = stub (di-log saja) |
 
 ## API
 
@@ -57,7 +59,21 @@ Semua body/response JSON. CORS aktif (`CORS_ORIGIN`).
 | `GET`  | `/session/state` | Polling waiting room (~1 dtk) | `?session_id=` |
 | `POST` | `/session/score` | Game pemain selesai | `{session_id, user_id, score}` |
 | `GET`  | `/session/results` | Polling ranking di TY page | `?session_id=` |
+| `POST` | `/kiosk/game-start` | Relay Game Start ke vendor (dari `js/kiosk.js`) | `{wa_session_id, kiosk_id, user_id, nickname, session_id}` |
+| `POST` | `/kiosk/game-end` | Relay Game End ke vendor. Kalau `session_id` dikenal, skor yang diteruskan diambil dari sesi ini sendiri (bukan `results` di body) | `{wa_session_id, kiosk_id, user_id, nickname, session_id, results?}` |
 | `GET`  | `/health` | Cek status | — |
+
+**Kenapa `/kiosk/*` lewat sini, bukan game langsung ke vendor:** kiosk vendor
+mensyaratkan Game Start/End dipanggil server-to-server, bukan `fetch` dari
+browser pemain (rawan skor palsu lewat devtools) — lihat dokumen *Kiosk Vendor
+Feedback* poin 4. `js/kiosk.js` memanggil dua route ini (server yang sudah
+dipercaya klien untuk `/session/*`), lalu server ini yang meneruskan ke
+`KIOSK_START_URL`/`KIOSK_END_URL` sebenarnya. Untuk `/kiosk/game-end`, kalau
+`session_id` cocok dengan sesi yang dikelola server ini, skor yang dikirim ke
+vendor diambil dari catatan sesi sendiri (hasil `/session/score` yang sah),
+bukan dari `results` yang diklaim klien — ini yang membuat syarat
+server-to-server benar-benar mencegah pemalsuan skor, bukan cuma pindah alamat
+panggilan.
 
 **Alur:** `join` mengelompokkan lewat `device_id` lalu **mengembalikan
 `session_id`**; klien pakai `session_id` itu untuk `state`/`score`/`results`.

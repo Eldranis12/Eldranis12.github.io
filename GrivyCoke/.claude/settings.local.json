@@ -12,7 +12,22 @@
       "Bash(git diff *)",
       "Read(//tmp/**)",
       "Bash(cd \"C:/Users/IMAJI_DEV_04/Documents/Unity Project/Eldranis12.github.io/GrivyCoke\" && git diff 9ebf0d4:GrivyCoke/js/main.js 8c2a7b6:GrivyCoke/js/main.js > \"C:/Users/IMAJI_DEV_04/AppData/Local/Temp/claude/C--Users-IMAJI-DEV-04-Documents-Unity-Project-Eldranis12-github-io-GrivyCoke/2124f9fc-8370-4d3b-b5ca-3de06c3a07b5/scratchpad/mainjs.diff\")",
-      "Bash(file assets/fonts/*.ttf)"
+      "Bash(file assets/fonts/*.ttf)",
+      "Bash(where pdftoppm *)",
+      "Bash(pdftotext -layout \"C:\\\\Users\\\\IMAJI_DEV_04\\\\Downloads\\\\Kiosk Vendor Feedback.pdf\" -)",
+      "Bash(node --check server/server.js)",
+      "Bash(echo \"server.js exit: $?\")",
+      "Bash(node --check --input-type=module js/kiosk.js)",
+      "Bash(echo \"kiosk.js exit: $?\")",
+      "Bash(node --check --input-type=module js/config.js)",
+      "Bash(node server.js)",
+      "Bash(node test.js)",
+      "Bash(curl -s http://localhost:8787/health)",
+      "Bash(curl -s -X POST http://localhost:8787/kiosk/game-start -H \"Content-Type: application/json\" -d '{\"wa_session_id\":\"wa-123\",\"kiosk_id\":\"kiosk-A\",\"user_id\":\"u1\",\"nickname\":\"Test\",\"session_id\":\"\"}')",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //F //PID 60104)",
+      "Bash(node server/test.js)",
+      "Bash(cd \"C:/Users/IMAJI_DEV_04/Documents/Unity Project/Eldranis12.github.io/GrivyCoke\" && find . -iname \"render.yaml\" -o -iname \"*.yaml\" 2>/dev/null | grep -v node_modules; cat render.yaml 2>/dev/null; find .. -maxdepth 2 -iname \"render.yaml\" 2>/dev/null)"
     ]
   }
 }

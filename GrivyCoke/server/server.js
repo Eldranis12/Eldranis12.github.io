@@ -32,6 +32,12 @@ const RESULT_GRACE_MS = parseInt(process.env.RESULT_GRACE_SECONDS || '25', 10) *
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 // sesi dibersihkan dari memori sekian lama setelah selesai
 const SESSION_TTL_MS = parseInt(process.env.SESSION_TTL_SECONDS || '300', 10) * 1000;
+// endpoint API kiosk vendor untuk Game Start/End (dokumen Kiosk Vendor
+// Feedback poin 4: wajib server-to-server, bukan fetch langsung dari browser
+// pemain -- vendor menolak karena rawan skor palsu lewat devtools).
+// Kosong = stub (cuma di-log), dipakai sebelum kredensial vendor tersedia.
+const KIOSK_START_URL = process.env.KIOSK_START_URL || '';
+const KIOSK_END_URL   = process.env.KIOSK_END_URL || '';
 
 // ---------- store ----------
 const sessions = new Map();       // session_id -> session
@@ -148,6 +154,21 @@ function readBody(req) {
 
 const clip = s => String(s || 'Player').slice(0, 40);
 
+// Teruskan event ke API kiosk vendor server-to-server. Gagal/lambatnya vendor
+// tidak boleh mem-block respons ke klien -- dicatat saja di log server.
+async function relayToKiosk(urlStr, payload) {
+  if (!urlStr) { console.log('[kiosk stub]', payload); return; }
+  try {
+    await fetch(urlStr, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.error('[kiosk] gagal memanggil API vendor:', err.message || err);
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return send(res, 204, {});
 
@@ -238,6 +259,52 @@ const server = http.createServer(async (req, res) => {
       if (!s) return send(res, 404, { error: 'sesi tidak ditemukan' });
       advance(s);
       return send(res, 200, resultsPayload(s));
+    }
+
+    // --- kiosk vendor: Game Start server-to-server (bukan dari browser
+    // pemain -- syarat vendor, lihat KIOSK_START_URL di atas) ---
+    if (req.method === 'POST' && path === '/kiosk/game-start') {
+      const b = await readBody(req);
+      await relayToKiosk(KIOSK_START_URL, {
+        event: 'game_start',
+        wa_session_id: b.wa_session_id || '',
+        kiosk_id: b.kiosk_id || '',
+        user_id: b.user_id || '',
+        nickname: clip(b.nickname),
+        session_id: b.session_id || '',
+        timestamp: new Date().toISOString(),
+      });
+      return send(res, 200, { ok: true });
+    }
+
+    // --- kiosk vendor: Game End server-to-server. Kalau session_id dikenal
+    // (sesi via /session/join), skor diambil dari catatan sesi KITA sendiri
+    // -- bukan dari body request -- supaya klien tidak bisa mengarang skor
+    // lewat devtools lalu kirim ke sini (inti alasan syarat server-to-server).
+    // Tanpa sesi (mode lokal/single tanpa server) -> tidak ada yang bisa
+    // divalidasi silang, pakai hasil dari klien apa adanya. ---
+    if (req.method === 'POST' && path === '/kiosk/game-end') {
+      const b = await readBody(req);
+      let results = Array.isArray(b.results) ? b.results : [];
+      const s = b.session_id && sessions.get(b.session_id);
+      if (s) {
+        advance(s);
+        results = (s.roster || [...s.players.keys()])
+          .map(uid => { const p = s.players.get(uid); return { nickname: p.nickname, score: p.score ?? 0 }; })
+          .sort((pa, pb) => pb.score - pa.score);
+      }
+      await relayToKiosk(KIOSK_END_URL, {
+        event: 'game_end',
+        wa_session_id: b.wa_session_id || '',
+        kiosk_id: b.kiosk_id || '',
+        user_id: b.user_id || '',
+        nickname: clip(b.nickname),
+        session_id: b.session_id || '',
+        completed: true,
+        results,
+        timestamp: new Date().toISOString(),
+      });
+      return send(res, 200, { ok: true });
     }
 
     return send(res, 404, { error: 'not found' });

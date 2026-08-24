@@ -8,8 +8,25 @@ const path = require('path');
 
 const PORT = 8799;
 const BASE = `http://127.0.0.1:${PORT}`;
+
+// vendor kiosk palsu buat cek relay server-to-server benar-benar sampai
+// (dan dengan payload yang benar) tanpa perlu endpoint vendor asli.
+const FAKE_VENDOR_PORT = 8798;
+const received = [];
+const fakeVendor = require('http').createServer((req, res) => {
+  let data = '';
+  req.on('data', c => data += c);
+  req.on('end', () => {
+    received.push(JSON.parse(data || '{}'));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end('{}');
+  });
+});
+
 const env = { ...process.env, PORT: String(PORT), JOIN_WINDOW_SECONDS: '1',
-  RESULT_GRACE_SECONDS: '1', GAME_SECONDS: '0' };
+  RESULT_GRACE_SECONDS: '1', GAME_SECONDS: '0',
+  KIOSK_START_URL: `http://127.0.0.1:${FAKE_VENDOR_PORT}/start`,
+  KIOSK_END_URL: `http://127.0.0.1:${FAKE_VENDOR_PORT}/end` };
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const post = (p, body) => fetch(BASE + p, { method: 'POST',
@@ -116,20 +133,71 @@ async function run() {
     ok('re-join (reload): tidak menggandakan, nickname diperbarui');
   }
 
+  // --- 8. kiosk relay: game-start server-to-server sampai ke vendor ---
+  {
+    received.length = 0;
+    const r = await post('/kiosk/game-start',
+      { wa_session_id: 'wa-8', kiosk_id: 'k8', user_id: 'u8', nickname: 'Rio', session_id: '' });
+    assert.equal(r.ok, true);
+    await sleep(100);
+    assert.equal(received.length, 1);
+    assert.equal(received[0].event, 'game_start');
+    assert.equal(received[0].wa_session_id, 'wa-8');
+    assert.equal(received[0].kiosk_id, 'k8');
+    ok('kiosk relay: game-start diteruskan server-to-server ke vendor');
+  }
+
+  // --- 9. kiosk relay: game-end pakai skor OTORITATIF dari sesi kita, bukan
+  // klaim klien -- ini inti alasan syarat server-to-server (cegah skor palsu
+  // lewat devtools) ---
+  {
+    received.length = 0;
+    const j = await join('k9', 'spoof', 'Jujur');
+    await score(j.session_id, 'spoof', 77);            // skor asli tercatat di server
+    await post('/kiosk/game-end', {
+      wa_session_id: 'wa-9', kiosk_id: 'k9', user_id: 'spoof', nickname: 'Jujur',
+      session_id: j.session_id,
+      results: [{ nickname: 'Jujur', score: 999999 }],  // klaim palsu dari klien
+    });
+    await sleep(100);
+    assert.equal(received.length, 1);
+    assert.equal(received[0].event, 'game_end');
+    assert.equal(received[0].wa_session_id, 'wa-9');
+    assert.equal(received[0].results[0].score, 77, 'skor yang diteruskan harus dari server, bukan klaim klien');
+    ok('kiosk relay: game-end pakai skor server (klaim klien 999999 diabaikan)');
+  }
+
+  // --- 10. kiosk relay: tanpa session_id dikenal (mode lokal) -> fallback ke
+  // hasil dari klien apa adanya (tidak ada yang bisa divalidasi silang) ---
+  {
+    received.length = 0;
+    await post('/kiosk/game-end', {
+      wa_session_id: 'wa-10', kiosk_id: '', user_id: 'solo', nickname: 'Solo',
+      session_id: '', results: [{ nickname: 'Solo', score: 555 }],
+    });
+    await sleep(100);
+    assert.equal(received[0].results[0].score, 555);
+    ok('kiosk relay: tanpa sesi server -> fallback ke hasil klien');
+  }
+
   console.log(`\n${pass} test lulus ✅`);
 }
 
-const srv = spawn('node', [path.join(__dirname, 'server.js')], { env, stdio: ['ignore', 'pipe', 'inherit'] });
-srv.stdout.on('data', async d => {
-  if (!/server jalan/.test(String(d))) return;
-  try {
-    await run();
-    srv.kill();
-    process.exit(0);
-  } catch (err) {
-    console.error('\n❌ TEST GAGAL:', err.message);
-    srv.kill();
-    process.exit(1);
-  }
+fakeVendor.listen(FAKE_VENDOR_PORT, () => {
+  const srv = spawn('node', [path.join(__dirname, 'server.js')], { env, stdio: ['ignore', 'pipe', 'inherit'] });
+  srv.stdout.on('data', async d => {
+    if (!/server jalan/.test(String(d))) return;
+    try {
+      await run();
+      srv.kill();
+      fakeVendor.close();
+      process.exit(0);
+    } catch (err) {
+      console.error('\n❌ TEST GAGAL:', err.message);
+      srv.kill();
+      fakeVendor.close();
+      process.exit(1);
+    }
+  });
+  setTimeout(() => { console.error('server tidak start'); srv.kill(); fakeVendor.close(); process.exit(1); }, 5000).unref();
 });
-setTimeout(() => { console.error('server tidak start'); srv.kill(); process.exit(1); }, 5000).unref();
