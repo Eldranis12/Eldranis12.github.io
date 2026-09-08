@@ -25,13 +25,30 @@ if (urlEnv === 'live' || urlEnv === '1' || RUNTIME_CONFIG.channel === 1 || RUNTI
 }
 const CHANNEL = resolvedChannel;
 
+/*
+ * childCampaigns hold the codes whose coupon stock is actually polled -- the rows
+ * highlighted tosca in the sheet. cinemaMain / fantaMain stay the yellow "Main Page"
+ * codes: they are the redirect targets, not what gets checked.
+ *
+ * `name` only has to match CGV / CINEPOLIS / XXI to drive the three voucher cards; the
+ * other names are deliberately distinct so two campaigns of the same brand cannot
+ * overwrite each other's quota (notably the December Cinepolis promo, which is inactive
+ * until 1 Dec 2026 and would otherwise mask the live Cinepolis one).
+ */
 const CHANNELS = [
     {   // 0 - Testing / Staging
-        domain: 'https://stage.grivy.app',
+        domain: 'https://stage.fun.fanta.id',
         cinemaMain: 'fanta-horror-testing-main-cinema',
         fantaMain: 'fanta-horror-testing-main-voucher',
         childCampaigns: {
-            cinema: [],
+            cinema: [
+                { code: 'fanta-horror-testing-cgv-cinema', name: 'CGV' },
+                { code: 'fanta-horror-testing-cinepolis-cinema', name: 'CINEPOLIS' },
+                { code: 'fanta-horror-testing-xxi-cinema', name: 'XXI' },
+                { code: 'fanta-horror-testing-platinum-cinema', name: 'PLATINUM' },
+                { code: 'fanta-horror-testing-platinum-cinema2', name: 'PLATINUM2' }
+            ],
+            // The sheet highlights no Fanta-voucher row for testing; falls back to fantaMain.
             fanta: []
         }
     },
@@ -40,8 +57,17 @@ const CHANNELS = [
         cinemaMain: 'fanta-horror-196',
         fantaMain: 'fanta-horror-564',
         childCampaigns: {
-            cinema: [],
-            fanta: []
+            cinema: [
+                { code: 'fanta-horror-cgv-cinema-647', name: 'CGV' },
+                { code: 'fanta-horror-cinepolis-cinema-253', name: 'CINEPOLIS' },
+                { code: 'fanta-horror-cinepolis-des-253', name: 'CINEPOLIS_DES' }, // runs per 1 Dec 2026
+                { code: 'fanta-horror-xxi-cinema-718', name: 'XXI' },
+                { code: 'fanta-horror-cgv2-fnb-174', name: 'CGV_FNB' }
+            ],
+            fanta: [
+                { code: 'fanta-horror-385sat', name: 'ALFAMART' },
+                { code: 'fanta-horror-270idm', name: 'INDOMARET' }
+            ]
         }
     }
 ];
