@@ -38,6 +38,10 @@ const SESSION_TTL_MS = parseInt(process.env.SESSION_TTL_SECONDS || '300', 10) * 
 // Kosong = stub (cuma di-log), dipakai sebelum kredensial vendor tersedia.
 const KIOSK_START_URL = process.env.KIOSK_START_URL || '';
 const KIOSK_END_URL   = process.env.KIOSK_END_URL || '';
+// Grivy Game Connect (API Game Vendor v4 �5) -- server-to-server, token sama
+// dipakai utk voucher jadi tak boleh sampai ke klien. Kosong = stub (di-log).
+const GRIVY_CONNECT_URL = process.env.GRIVY_CONNECT_URL || '';
+const GRIVY_TOKEN       = process.env.GRIVY_TOKEN || '';
 
 // ---------- store ----------
 const sessions = new Map();       // session_id -> session
@@ -185,10 +189,17 @@ const server = http.createServer(async (req, res) => {
     // Grup per device_id (kiosk); server yang menentukan session_id.
     if (req.method === 'POST' && path === '/session/join') {
       const b = await readBody(req);
-      const uid = b.user_id;
+      // client (js/session.js) kirim user_uid/kiosk_id/nickname_entered
+      // (skema baru, sama dgn server-php); user_id/device_id/nickname lama
+      // tetap diterima sbg fallback (dipakai server/test.js).
+      const uid = b.user_uid || b.user_id;
       if (!uid) return send(res, 400, { error: 'user_id wajib' });
 
-      const key = deviceKeyOf(b.device_id, uid);
+      // API v4 §3: game_session_id kini dibuat kiosk, sama persis utk semua
+      // pemain seronde -- kunci grup PASTI kalau ada, kosong -> cara lama.
+      const key = b.game_session_id
+        ? `gs:${b.game_session_id}`
+        : deviceKeyOf(b.device_id || b.kiosk_id, uid);
       // ambil sesi yang sedang membentuk untuk kiosk ini
       let s = null;
       const activeId = deviceActive.get(key);
@@ -202,9 +213,9 @@ const server = http.createServer(async (req, res) => {
       if (!s.players.has(uid) && s.players.size < MAX_PLAYERS) {
         s.players.set(uid, {
           user_id: uid,
-          nickname: clip(b.nickname),
-          device_id: b.device_id || '',
-          whatsAppSessionId: b.whats_app_session_id || '',
+          nickname: clip(b.nickname_entered || b.nickname),
+          device_id: b.device_id || b.kiosk_id || '',
+          whatsAppSessionId: b.wa_session_id || b.whats_app_session_id || '',
           score: null,
           submitted: false,
           joinedAt: Date.now(),
@@ -213,12 +224,34 @@ const server = http.createServer(async (req, res) => {
         s.deadline = Date.now() + WINDOW_MS;
       } else if (s.players.has(uid)) {
         // re-join (reload HP): perbarui nickname; jangan gandakan / reset window
-        s.players.get(uid).nickname = clip(b.nickname || s.players.get(uid).nickname);
+        s.players.get(uid).nickname = clip(b.nickname_entered || b.nickname || s.players.get(uid).nickname);
       }
       // slot penuh -> mulai sekarang (tidak menunggu sisa window)
       if (s.players.size >= MAX_PLAYERS) s.deadline = Date.now();
       advance(s);
       return send(res, 200, publicState(s));
+    }
+
+    // --- grivy game connect: registrasi "connected" server-to-server ---
+    // Info lobi Grivy sendiri; tidak dipakai utk keputusan game apa pun di
+    // sini, jadi gagal/kosong tidak boleh menghentikan game (selalu 200).
+    if (req.method === 'POST' && path === '/grivy/connect') {
+      const b = await readBody(req);
+      if (!GRIVY_CONNECT_URL || !GRIVY_TOKEN) {
+        console.log('[grivy stub]', b);
+        return send(res, 200, { ok: false, error: 'grivy belum dikonfigurasi' });
+      }
+      try {
+        const r = await fetch(GRIVY_CONNECT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': GRIVY_TOKEN },
+          body: JSON.stringify({ wa_session_id: b.wa_session_id || '', game_session_id: b.game_session_id || '' }),
+        });
+        return send(res, 200, { ok: r.ok, status: r.status, body: await r.json().catch(() => null) });
+      } catch (err) {
+        console.error('[grivy] gagal memanggil Game Connect:', err.message || err);
+        return send(res, 200, { ok: false, error: err.message || 'request gagal' });
+      }
     }
 
     // --- state: polling waiting room (pakai session_id dari /join) ---
@@ -235,7 +268,7 @@ const server = http.createServer(async (req, res) => {
       const s = sessions.get(b.session_id);
       if (!s) return send(res, 404, { error: 'sesi tidak ditemukan' });
       advance(s);
-      const p = s.players.get(b.user_id);
+      const p = s.players.get(b.user_uid || b.user_id);
       if (!p) return send(res, 404, { error: 'pemain tidak ada di sesi' });
 
       const incomingScore = Math.max(0, parseInt(b.score, 10) || 0);
@@ -269,8 +302,8 @@ const server = http.createServer(async (req, res) => {
         event: 'game_start',
         wa_session_id: b.wa_session_id || '',
         kiosk_id: b.kiosk_id || '',
-        user_id: b.user_id || '',
-        nickname: clip(b.nickname),
+        user_id: b.user_uid || b.user_id || '',
+        nickname: clip(b.nickname_entered || b.nickname),
         session_id: b.session_id || '',
         timestamp: new Date().toISOString(),
       });
@@ -297,8 +330,8 @@ const server = http.createServer(async (req, res) => {
         event: 'game_end',
         wa_session_id: b.wa_session_id || '',
         kiosk_id: b.kiosk_id || '',
-        user_id: b.user_id || '',
-        nickname: clip(b.nickname),
+        user_id: b.user_uid || b.user_id || '',
+        nickname: clip(b.nickname_entered || b.nickname),
         session_id: b.session_id || '',
         completed: true,
         results,

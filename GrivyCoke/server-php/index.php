@@ -21,6 +21,7 @@
 declare(strict_types=1);
 require __DIR__ . '/lib.php';
 require __DIR__ . '/kiosk.php';
+require __DIR__ . '/grivy.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') { send(204, []); }
 
@@ -153,7 +154,11 @@ if ($method === 'POST' && $path === '/session/join') {
   $nickNorm = clip(field($b, 'nickname')) ?: 'Player';
   $nickRaw  = clip(field($b, 'nickname_entered')) ?: $nickNorm;
 
-  $key     = device_key_of($kioskId, $uid);
+  // API v4 �3: game_session_id kini dibuat kiosk & sama persis utk semua
+  // pemain seronde -- kunci grup PASTI, tak perlu lagi menebak lewat window.
+  // Kosong (link lama / kiosk belum kirim) -> fallback ke cara lama.
+  $gameSessionId = mb_substr(field($b, 'game_session_id'), 0, 191);
+  $key = $gameSessionId !== '' ? 'gs:' . $gameSessionId : device_key_of($kioskId, $uid);
   $durSec  = isset($b['duration']) ? max(0, (int) $b['duration']) : null;
   $maxP    = (int) cfg('max_players');
   $windowM = (int) cfg('join_window_seconds') * 1000;
@@ -222,6 +227,18 @@ if ($method === 'POST' && $path === '/session/join') {
   }
 
   send(200, $state);
+}
+
+// ---------------- grivy game connect (API v4 �5) ----------------
+// Wajib server-to-server (token dipakai juga utk voucher). Hasil dari sini
+// hanya info lobi Grivy sendiri -- tak dipakai utk keputusan game apa pun,
+// jadi kegagalan panggilan ini TIDAK menghentikan game (respons tetap 200).
+if ($method === 'POST' && $path === '/grivy/connect') {
+  $b   = read_body();
+  $wa  = field($b, 'wa_session_id');
+  $gsi = field($b, 'game_session_id');
+  $r   = ($wa !== '' && $gsi !== '') ? grivy_connect($wa, $gsi) : ['ok' => false, 'error' => 'wa_session_id/game_session_id wajib'];
+  send(200, $r);
 }
 
 // ---------------- state ----------------

@@ -88,6 +88,7 @@ class RemoteSession {
     // ditampilkan), nickname = versi normalisasi Grivy (untuk pencocokan).
     this._q = {
       device_id: PLAYER.deviceId,              // kunci grup (kiosk / kiosk_id)
+      game_session_id: PLAYER.gameSessionId,   // kunci grup PASTI kalau kiosk kirim (API v4)
       user_uid: PLAYER.userId,
       nickname_entered: PLAYER.nickname,
       nickname: PLAYER.nicknameNormalized || PLAYER.nickname,
@@ -101,6 +102,15 @@ class RemoteSession {
   async join() {
     const r = await jpost(this.base + '/session/join', this._q);
     this._sessionId = r.session_id;            // dipakai untuk polling berikutnya
+    // Grivy API v4 �5: registrasi "connected" wajib server-to-server (token
+    // dipakai juga utk voucher, tak boleh sampai ke klien). Gagal/lambat tidak
+    // boleh menghambat waiting room kita sendiri -- fire-and-forget.
+    if (PLAYER.waSessionId && PLAYER.gameSessionId) {
+      jpost(this.base + '/grivy/connect', {
+        wa_session_id: PLAYER.waSessionId,
+        game_session_id: PLAYER.gameSessionId,
+      }).catch(() => {});
+    }
   }
 
   // Polling waiting room sampai fase 'playing'. onTick(state) dipanggil tiap

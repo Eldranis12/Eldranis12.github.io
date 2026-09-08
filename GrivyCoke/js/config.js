@@ -46,6 +46,9 @@ export const PLAYER = {
   nicknameNormalized: NICK_NORMALIZED,
   // kunci grup multiplayer = kiosk. Grivy menyebutnya kiosk_id, kita device_id
   deviceId:    param('device_id', 'kiosk_id'),
+  // ID ronde buatan kiosk (API v4): sama persis utk semua pemain seronde.
+  // Kalau ada, ini kunci grup yang PASTI -- tak perlu lagi menebak lewat window.
+  gameSessionId: param('game_session_id'),
 };
 
 // Alias lama supaya kode/skrip yang masih memakai nama sebelumnya tidak pecah.

@@ -51,6 +51,13 @@ return [
   'kiosk_timeout_seconds' => 10,
   'kiosk_max_attempts'    => 5,
 
+  // --- Grivy Game Connect (API Game Vendor v4 �5) ---
+  // Token statis per environment, dikirim apa adanya di header Authorization
+  // (TANPA prefix "Bearer"). Token ini juga otorisasi voucher -- jangan pernah
+  // kirim ke klien (lihat �4 dokumen). Stage: lihat dokumen internal terbaru.
+  'grivy_connect_url' => 'https://us-central1-barcode-stage.cloudfunctions.net/partnerWaSessionGameConnect',
+  'grivy_token'       => '',
+
   // Timezone untuk riwayat & kunci minggu leaderboard.
   'timezone' => 'Asia/Jakarta',
 ];
