@@ -158,34 +158,44 @@ if ($method === 'POST' && $path === '/session/join') {
   // pemain seronde -- kunci grup PASTI, tak perlu lagi menebak lewat window.
   // Kosong (link lama / kiosk belum kirim) -> fallback ke cara lama.
   $gameSessionId = mb_substr(field($b, 'game_session_id'), 0, 191);
-  $key = $gameSessionId !== '' ? 'gs:' . $gameSessionId : device_key_of($kioskId, $uid);
+  $isRoundLocked = $gameSessionId !== '';    // kunci PASTI -> satu ronde, sekali main
+  $key = $isRoundLocked ? 'gs:' . $gameSessionId : device_key_of($kioskId, $uid);
   $durSec  = isset($b['duration']) ? max(0, (int) $b['duration']) : null;
   $maxP    = (int) cfg('max_players');
   $windowM = (int) cfg('join_window_seconds') * 1000;
 
   $state = with_device_lock($key, function () use ($key, $uid, $kioskId, $waId, $nickNorm,
-                                                   $nickRaw, $durSec, $maxP, $windowM) {
+                                                   $nickRaw, $durSec, $maxP, $windowM, $isRoundLocked) {
     db()->beginTransaction();
     try {
-      // sesi yang sedang membentuk untuk kiosk ini
+      // Kunci game_session_id (kiosk API v4) = SATU ronde, sekali pakai --
+      // ambil sesi apa pun (phase apa pun) milik key ini, bukan cuma "waiting".
+      // Kunci lama (kiosk_id+window) TETAP hanya "waiting", karena kiosk itu
+      // sendiri memang dipakai berulang sepanjang hari utk ronde berbeda-beda.
+      $phaseFilter = $isRoundLocked ? '' : 'AND phase = "waiting"';
       $st = db()->prepare(
-        'SELECT id FROM sessions WHERE device_key = ? AND phase = "waiting"
-          ORDER BY created_at DESC LIMIT 1 FOR UPDATE');
+        "SELECT id FROM sessions WHERE device_key = ? $phaseFilter
+          ORDER BY created_at DESC LIMIT 1 FOR UPDATE");
       $st->execute([$key]);
       $activeId = $st->fetchColumn();
 
       $s = null;
       if ($activeId) { $s = load_session((string) $activeId, true); if ($s) advance($s); }
 
-      // belum ada sesi menunggu (atau yang lama sudah mulai) -> sesi BARU
-      if (!$s || $s['phase'] !== 'waiting') {
+      if (!$s) {
         $s = create_session($key, $durSec);
+      } elseif ($s['phase'] !== 'waiting') {
+        // Ronde sudah mulai/selesai. Kunci lama boleh buka sesi baru (kiosk
+        // dipakai lagi); kunci game_session_id TIDAK -- refresh URL yang sama
+        // tidak boleh membuka ronde baru (laporan vendor kiosk 11 Sep 2026:
+        // "refreshing the same game URL allows the player to play again").
+        if (!$isRoundLocked) $s = create_session($key, $durSec);
       } elseif (!$s['duration_ms'] && $durSec) {
         $s['duration_ms'] = $durSec * 1000;
       }
 
       $now = now_ms();
-      if (!isset($s['players'][$uid]) && count($s['players']) < $maxP) {
+      if ($s['phase'] === 'waiting' && !isset($s['players'][$uid]) && count($s['players']) < $maxP) {
         db()->prepare(
           'INSERT INTO session_players
              (session_id, user_uid, nickname, nickname_entered, kiosk_id, wa_session_id, joined_at)
@@ -280,7 +290,9 @@ if ($method === 'POST' && $path === '/session/score') {
             ->execute([$newScore, $s['id'], $uid]);
         $s['players'][$uid]['score'] = $newScore;
       }
-    } else {
+    } elseif (!$p['submitted']) {
+      // Idempoten: sekali submit final, abaikan submit final berikutnya
+      // (refresh/replay tidak boleh menaikkan skor yang sudah dikunci).
       $newScore = max((int) ($p['score'] ?? 0), $incoming);
       db()->prepare(
         'UPDATE session_players SET score = ?, submitted = 1, submitted_at = ?

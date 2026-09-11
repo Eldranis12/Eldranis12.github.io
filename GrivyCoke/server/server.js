@@ -197,20 +197,27 @@ const server = http.createServer(async (req, res) => {
 
       // API v4 §3: game_session_id kini dibuat kiosk, sama persis utk semua
       // pemain seronde -- kunci grup PASTI kalau ada, kosong -> cara lama.
-      const key = b.game_session_id
+      const isRoundLocked = !!b.game_session_id;
+      const key = isRoundLocked
         ? `gs:${b.game_session_id}`
         : deviceKeyOf(b.device_id || b.kiosk_id, uid);
       // ambil sesi yang sedang membentuk untuk kiosk ini
       let s = null;
       const activeId = deviceActive.get(key);
       if (activeId) { s = sessions.get(activeId); if (s) advance(s); }
-      // tidak ada sesi waiting untuk kiosk ini (belum ada / yg lama sudah mulai)
-      // -> buka sesi BARU (kiosk dipakai berurutan sepanjang hari)
       const durSec = b.duration ? parseInt(b.duration, 10) : null;
-      if (!s || s.phase !== 'waiting') s = createSession(key, durSec);
-      else if (!s.durationMs && durSec) s.durationMs = durSec * 1000;
+      if (!s) {
+        s = createSession(key, durSec);
+      } else if (s.phase !== 'waiting') {
+        // Ronde sudah mulai/selesai. Kunci lama boleh buka sesi baru (kiosk
+        // dipakai lagi); kunci game_session_id TIDAK -- refresh URL yang sama
+        // tidak boleh membuka ronde baru (laporan vendor kiosk 11 Sep 2026).
+        if (!isRoundLocked) s = createSession(key, durSec);
+      } else if (!s.durationMs && durSec) {
+        s.durationMs = durSec * 1000;
+      }
 
-      if (!s.players.has(uid) && s.players.size < MAX_PLAYERS) {
+      if (s.phase === 'waiting' && !s.players.has(uid) && s.players.size < MAX_PLAYERS) {
         s.players.set(uid, {
           user_id: uid,
           nickname: clip(b.nickname_entered || b.nickname),
@@ -277,8 +284,10 @@ const server = http.createServer(async (req, res) => {
         if (!p.submitted) {
           p.score = Math.max(p.score || 0, incomingScore);
         }
-      } else {
-        // final score submission (game over, time up, or exit beacon)
+      } else if (!p.submitted) {
+        // final score submission (game over, time up, or exit beacon).
+        // Idempoten: sekali submitted, abaikan submit final berikutnya
+        // (refresh/replay tidak boleh menaikkan skor yang sudah dikunci).
         p.score = Math.max(p.score || 0, incomingScore);
         p.submitted = true;
       }
