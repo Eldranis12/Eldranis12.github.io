@@ -28,14 +28,13 @@ lalu buka `http://localhost:8123`. (Preview Claude Code: konfigurasi `tetris` di
 ## Parameter URL
 
 ```
-?whats_app_session_id=abc123&user_id=xyz&nickname=Grady&device_id=001
+?wa_session_id=wcs_123&user_uid=xyz&nickname=GRADY&nickname_entered=Grady&game_session_id=KIOSK_01-20260907T101500-7f3a&device_id=KIOSK_01
 ```
 
-- `device_id` — **kunci pengelompokan multiplayer** (kiosk). Pemain dengan
-  `device_id` sama yang join dalam window 15 dtk = satu sesi game.
-- `whats_app_session_id` — per-user (1:1, beda tiap pemain); **konteks saja**,
-  bukan kunci grup.
-- `user_id` — pembeda pemain di dalam sesi. `nickname` — tampil di ranking.
+- `game_session_id` — ID ronde yang dibuat kiosk; sama untuk semua pemain ronde.
+- `wa_session_id` — sesi WhatsApp individual; diteruskan tanpa perubahan.
+- `user_uid` — ID pemain. `nickname_entered` adalah nama untuk tampilan.
+- `device_id` — kiosk asal, dipakai saat Game Start dan Game End.
 
 Tambahan untuk pengujian/konfigurasi:
 
@@ -43,7 +42,7 @@ Tambahan untuk pengujian/konfigurasi:
 - `mp_url` — base URL server multiplayer (mis. `?mp_url=http://localhost:8787`).
   Kosong = mode lokal (single player / simulasi `?others=`). Produksi: isi
   `MP_URL_DEFAULT` di `js/config.js`.
-- `join_window` — lama window tunggu multiplayer di server, dalam detik (default 15)
+- `join_window` — override window lobby untuk pengujian UI (default produksi 12 detik)
 - `wait` — (mode lokal) simulasi overlay tunggu tanpa server, dalam detik
 - `others` — (mode lokal) simulasi hasil pemain lain untuk demo TY page,
   contoh `?others=Nadia:450,Bima:300`
@@ -54,14 +53,12 @@ Tambahan untuk pengujian/konfigurasi:
 **Bukan real-time** — tiap pemain main di papan sendiri; server hanya
 mengelompokkan pemain + mengumpulkan skor akhir.
 
-- **Pengelompokan (klarifikasi Grivy Jul 2026)** — per **`device_id` (kiosk)**,
-  bukan `whats_app_session_id`. Grivy tak punya konsep game-session; game yang
-  mengelola. Pemain masuk kode di kiosk berurutan; yang join ke `device_id`
-  sama dalam window = satu sesi. Server yang **membuat `session_id`**.
-- **Waiting room** — window **bergulir**: reset 15 dtk tiap pemain baru join
-  (maks 4). Overlay menampilkan daftar pemain + hitung mundur.
-- **Penentuan mode** — mulai saat slot penuh **ATAU** window habis;
-  `>1 pemain → multiplayer`, `1 pemain → single player`.
+- **Pengelompokan Flow 5 v4** — kiosk memilih maksimal 4 pemain dan membuat
+  `game_session_id`; game tidak lagi menebak grup dari waktu/device.
+- **Waiting room** — backend memanggil Game Connect dan polling tiap 2 detik.
+  Game mulai ketika semua undangan connect atau window 12 detik habis.
+- **Fallback aman** — tanpa `game_session_id` atau saat integrasi gagal, game
+  berjalan single-player dan tidak mengelompokkan pemain berdasarkan kiosk.
 - **TY page** — multiplayer = panel **SCOREBOARD** ranking semua pemain (baris
   sendiri di-highlight, botol tampil); single player = "YOUR SCORE" + skor.
 - **Fallback aman** — kalau server tak terjangkau / tanpa `user_id`, game
@@ -70,8 +67,8 @@ mengelompokkan pemain + mengumpulkan skor akhir.
 Komponen:
 - Klien: [`js/session.js`](js/session.js) (abstraksi remote/local) +
   wiring di [`js/main.js`](js/main.js).
-- Server: [`server/`](server/) — Node.js zero-dependency. Lihat
-  [server/README.md](server/README.md) untuk API & cara menjalankan.
+- Server produksi: [`server-php/`](server-php/) — PHP + MySQL, termasuk proxy
+  Game Connect dan relay Game Start/Game End server-to-server.
 
 Untuk dev lokal: game pakai server statik no-cache
 [`server/dev-static.js`](server/dev-static.js) (dikonfigurasi di
@@ -136,7 +133,8 @@ asset tombol "Saya siap".
   Catatan: model TIDAK real-time (papan tiap pemain independen; server hanya
   waiting room + kumpul skor), jadi Colyseus tidak diperlukan. Yang tersisa:
   deploy server ke domain HTTPS + isi `MP_URL_DEFAULT` di `js/config.js`.
-- **API kiosk vendor** — payload di `js/kiosk.js` masih asumsi, sesuaikan saat skema resmi keluar
+- **Kredensial produksi** — token Grivy dan API key kiosk wajib diisi langsung
+  pada `server-php/config.php` di server; jangan dimasukkan ke repository.
 - **Validasi skor server-side** — wajib sebelum produksi karena leaderboard berhadiah voucher
 - **Font brand (TCCC)** — sementara memakai Montserrat + Oswald dari Google Fonts
 - Tombol "Main Lagi" di layar skor tidak ada di desain (ditambahkan untuk pengujian)

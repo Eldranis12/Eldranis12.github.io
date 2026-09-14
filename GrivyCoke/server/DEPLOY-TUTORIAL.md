@@ -1,5 +1,8 @@
 # Tutorial Deploy — Server Multiplayer Coke Hangout Tetris
 
+> **Arsip/legacy:** deployment Node ini tidak mendukung Flow 5 v4. Gunakan
+> [`../server-php/README.md`](../server-php/README.md) untuk deployment aktif.
+
 > **Untuk: Claude yang jalan di VPS (Podman + Caddy).**
 > Semua file server ada di repo GitHub `Eldranis12/Eldranis12.github.io`
 > (folder `GrivyCoke/server/`). Ikuti langkah berurutan.

@@ -87,7 +87,9 @@ return [
   'db_pass' => '$PLACEHOLDER',
   'db_port' => 3306,
 
-  'join_window_seconds'  => 15,
+  'lobby_wait_seconds'   => 12,
+  'join_window_seconds'  => 12,
+  'allow_legacy_grouping' => false,
   'max_players'          => 4,
   'game_seconds'         => 180,
   'result_grace_seconds' => 25,
@@ -99,13 +101,19 @@ return [
 
   'leaderboard_scoring' => 'cumulative',
 
-  // Isi begitu kiosk vendor mengirim endpoint + auth (Q4, server-to-server).
-  'kiosk_start_url'       => '',
-  'kiosk_end_url'         => '',
+  // API ROM staging yang diberikan Kiosk Vendor. API key diisi langsung di server.
+  'kiosk_start_url'       => 'https://cokezerotheringan-ringan.com/romapi/v1/nongkrong/game-start',
+  'kiosk_end_url'         => 'https://cokezerotheringan-ringan.com/romapi/v1/nongkrong/game-end',
   'kiosk_api_key'         => '',
-  'kiosk_api_key_header'  => 'Authorization',
+  'kiosk_api_key_header'  => 'X-API-Key',
   'kiosk_timeout_seconds' => 10,
   'kiosk_max_attempts'    => 5,
+
+  // Token Production diisi langsung di server, jangan lewat CLI/repository.
+  'grivy_connect_url'      => 'https://us-central1-grivy-barcode.cloudfunctions.net/partnerWaSessionGameConnect',
+  'grivy_token'            => '',
+  'grivy_timeout_seconds'  => 10,
+  'grivy_max_attempts'     => 3,
 
   'timezone' => 'Asia/Jakarta',
 ];

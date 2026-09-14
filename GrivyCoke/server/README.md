@@ -1,5 +1,9 @@
 # Server Multiplayer — Coke Hangout Tetris
 
+> **Legacy development server.** Flow 5 v4 aktif berada di
+> [`../server-php/`](../server-php/README.md). Server Node ini tidak memakai
+> lobby Grivy Game Connect dan tidak boleh dipakai untuk staging/production.
+
 > **Produksi sekarang pakai [`../server-php/`](../server-php/README.md)**
 > (PHP + MySQL) karena hosting Niagahoster paket Bisnis itu shared cPanel —
 > tidak bisa menjalankan proses Node 24/7, dan store in-memory di sini hilang

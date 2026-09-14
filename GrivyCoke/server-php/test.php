@@ -15,17 +15,25 @@ declare(strict_types=1);
 
 $PORT = (int) (getenv('TEST_PORT') ?: 8799);
 $BASE = "http://127.0.0.1:$PORT";
+$GRIVY_PORT = $PORT + 1;
+$GRIVY_BASE = "http://127.0.0.1:$GRIVY_PORT";
 
 // timing pendek untuk test
 putenv('COKE_JOIN_WINDOW_SECONDS=1');
+putenv('COKE_LOBBY_WAIT_SECONDS=1');
 putenv('COKE_RESULT_GRACE_SECONDS=1');
 putenv('COKE_GAME_SECONDS=0');
 putenv('COKE_CORS_ORIGIN=*');
 putenv('COKE_ADMIN_TOKEN=test-token');
+putenv('COKE_ALLOW_LEGACY_GROUPING=1');
 // Endpoint kiosk palsu: /health di server test ini sendiri (selalu balas 200),
 // jadi jalur server-to-server benar-benar diuji ujung ke ujung.
 putenv("COKE_KIOSK_START_URL=$BASE/health");
 putenv("COKE_KIOSK_END_URL=$BASE/health");
+putenv('COKE_KIOSK_API_KEY=test-key');
+putenv("COKE_GRIVY_CONNECT_URL=$GRIVY_BASE/connect");
+putenv('COKE_GRIVY_TOKEN=test-grivy-token');
+putenv('COKE_GRIVY_MAX_ATTEMPTS=2');
 if (!getenv('COKE_DB_NAME')) putenv('COKE_DB_NAME=coke_test');
 
 // config.php wajib ada (lib.php membacanya). Untuk test, kalau belum ada,
@@ -48,9 +56,11 @@ db()->exec('SET FOREIGN_KEY_CHECKS=1');
 
 // ---------- jalankan server ----------
 $env = '';
-foreach (['COKE_JOIN_WINDOW_SECONDS', 'COKE_RESULT_GRACE_SECONDS', 'COKE_GAME_SECONDS',
-          'COKE_CORS_ORIGIN', 'COKE_ADMIN_TOKEN', 'COKE_DB_NAME', 'COKE_DB_USER',
-          'COKE_DB_PASS', 'COKE_DB_HOST', 'COKE_KIOSK_START_URL', 'COKE_KIOSK_END_URL'] as $k) {
+foreach (['COKE_JOIN_WINDOW_SECONDS', 'COKE_LOBBY_WAIT_SECONDS', 'COKE_RESULT_GRACE_SECONDS', 'COKE_GAME_SECONDS',
+          'COKE_CORS_ORIGIN', 'COKE_ADMIN_TOKEN', 'COKE_ALLOW_LEGACY_GROUPING', 'COKE_DB_NAME', 'COKE_DB_USER',
+          'COKE_DB_PASS', 'COKE_DB_HOST', 'COKE_KIOSK_START_URL', 'COKE_KIOSK_END_URL',
+          'COKE_KIOSK_API_KEY', 'COKE_GRIVY_CONNECT_URL', 'COKE_GRIVY_TOKEN',
+          'COKE_GRIVY_MAX_ATTEMPTS'] as $k) {
   $v = getenv($k);
   if ($v !== false) $env .= $k . '=' . escapeshellarg($v) . ' ';
 }
@@ -58,10 +68,16 @@ $desc = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
 $srv = proc_open("$env PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:$PORT "
                . escapeshellarg(__DIR__ . '/router-dev.php'), $desc, $pipes, __DIR__);
 if (!is_resource($srv)) { fwrite(STDERR, "gagal start server\n"); exit(1); }
-register_shutdown_function(function () use ($srv) { @proc_terminate($srv); });
+$grivySrv = proc_open("php -S 127.0.0.1:$GRIVY_PORT "
+                   . escapeshellarg(__DIR__ . '/test-grivy-router.php'), $desc, $grivyPipes, __DIR__);
+if (!is_resource($grivySrv)) { fwrite(STDERR, "gagal start fake Grivy\n"); exit(1); }
+register_shutdown_function(function () use ($srv, $grivySrv) {
+  @proc_terminate($srv); @proc_terminate($grivySrv);
+});
 
 for ($i = 0; $i < 50; $i++) {
-  if (@file_get_contents("$BASE/health") !== false) break;
+  if (@file_get_contents("$BASE/health") !== false
+      && @file_get_contents("$GRIVY_BASE/health") !== false) break;
   usleep(100_000);
 }
 
@@ -273,17 +289,19 @@ try {
   eq((int) $rowsEv['game_end']['http_status'], 200, 'kiosk balas 200');
   $ok('Q4: game_start & game_end terkirim server-to-server (dgn antrean + retry)');
 
-  // --- 17. payload kiosk memakai penamaan yang disepakati ---
+  // --- 17. payload kiosk mengikuti kontrak ROM Game Start / Game End ---
   $pl = db()->prepare('SELECT payload FROM kiosk_events WHERE event = "game_end" AND session_id = ?');
   $pl->execute([$sessionSingle]);
   $payload = json_decode((string) $pl->fetchColumn(), true);
   eq($payload['game_session_id'], $sessionSingle, 'game_session_id');
   truthy(array_key_exists('kiosk_id', $payload), 'kiosk_id ada');
+  eq($payload['game_status'], 'COMPLETED', 'game_status');
   $p0 = $payload['players'][0];
-  foreach (['user_uid', 'wa_session_id', 'nickname', 'nickname_entered', 'score', 'rank'] as $f) {
+  foreach (['wa_session_id', 'nickname_entered', 'score', 'status'] as $f) {
     truthy(array_key_exists($f, $p0), "field $f ada di payload pemain");
   }
-  $ok('payload kiosk: game_session_id / kiosk_id / user_uid / wa_session_id / rank');
+  eq($p0['status'], 'FINISHED', 'status pemain selesai');
+  $ok('payload kiosk sesuai kontrak ROM: game_status + status pemain');
 
   // ====== versi database (tetap dari sebelumnya) ======
 
@@ -316,13 +334,72 @@ try {
   truthy(($get('/stats?token=test-token')['total']['c'] ?? 0) > 0, 'stats terbaca');
   $ok('admin: /history & /stats terlindungi token dan mengembalikan data');
 
+  // --- 22. Flow 5 v4: lobby Grivy + ID kiosk dipertahankan ---
+  $roundId = 'KIOSK_01-20260907T101500-7f3a';
+  $g1 = $post('/session/join', [
+    'game_session_id' => $roundId, 'kiosk_id' => 'KIOSK_01',
+    'user_uid' => 'g1', 'wa_session_id' => 'wa-g1',
+    'nickname' => 'G1', 'nickname_entered' => 'G One',
+  ]);
+  eq($g1['session_id'], $roundId, 'game_session_id kiosk dipertahankan');
+  eq($g1['lobby_source'], 'grivy', 'lobby berasal dari Grivy');
+  eq($g1['count'], 1, 'satu pemain connect');
+  eq($g1['max'], 2, 'dua pemain diundang');
+  $g2 = $post('/session/join', [
+    'game_session_id' => $roundId, 'kiosk_id' => 'KIOSK_01',
+    'user_uid' => 'g2', 'wa_session_id' => 'wa-g2',
+    'nickname' => 'G2', 'nickname_entered' => 'G Two',
+  ]);
+  eq($g2['session_id'], $roundId, 'ID ronde tetap sama');
+  eq($g2['count'], 2, 'semua pemain connect');
+  eq($g2['phase'], 'playing', 'mulai segera saat lobby lengkap');
+  $startEvent = db()->prepare(
+    'SELECT status, http_status FROM kiosk_events WHERE session_id = ? AND event = "game_start"');
+  $startEvent->execute([$roundId]);
+  $startRow = $startEvent->fetch();
+  eq($startRow['status'] ?? null, 'sent', 'Game Start langsung terkirim');
+  eq((int) ($startRow['http_status'] ?? 0), 200, 'Game Start dibalas 200');
+
+  $score($roundId, 'g1', 111);
+  $score($roundId, 'g2', 222);
+  $endEvent = db()->prepare(
+    'SELECT status, http_status FROM kiosk_events WHERE session_id = ? AND event = "game_end"');
+  $endEvent->execute([$roundId]);
+  $endRow = $endEvent->fetch();
+  eq($endRow['status'] ?? null, 'sent', 'Game End langsung terkirim');
+  eq((int) ($endRow['http_status'] ?? 0), 200, 'Game End dibalas 200');
+
+  $replay = $post('/session/join', [
+    'game_session_id' => $roundId, 'kiosk_id' => 'KIOSK_01',
+    'user_uid' => 'g1', 'wa_session_id' => 'wa-g1',
+    'nickname' => 'G1', 'nickname_entered' => 'G One',
+  ]);
+  eq($replay['round_locked'] ?? false, true, 'refresh ronde lama dikunci');
+  eq($replay['locked_phase'] ?? null, 'ended', 'hasil ronde selesai dikembalikan');
+  db()->prepare('DELETE FROM sessions WHERE id = ?')->execute([$roundId]);
+  $archivedReplay = $post('/session/join', [
+    'game_session_id' => $roundId, 'kiosk_id' => 'KIOSK_01',
+    'user_uid' => 'g1', 'wa_session_id' => 'wa-g1',
+    'nickname' => 'G1', 'nickname_entered' => 'G One',
+  ]);
+  eq($archivedReplay['round_locked'] ?? false, true, 'arsip tetap mengunci URL lama');
+  eq($archivedReplay['lobby_source'] ?? null, 'archive', 'lock dibaca dari arsip');
+  $bad = $post('/session/join', [
+    'game_session_id' => 'error-24', 'kiosk_id' => 'KIOSK_01',
+    'user_uid' => 'bad', 'wa_session_id' => 'wa-bad',
+  ]);
+  truthy(str_contains((string) ($bad['error'] ?? ''), 'code 24'), 'error 24 ditangani');
+  $ok('Flow 5 v4: callback langsung, ID tetap, dan ronde tidak bisa dimainkan ulang');
+
   echo "\n$pass test lulus ✅\n";
   @proc_terminate($srv);
+  @proc_terminate($grivySrv);
   exit(0);
 
 } catch (Throwable $e) {
   echo "\n❌ TEST GAGAL: " . $e->getMessage() . "\n";
   echo $e->getFile() . ':' . $e->getLine() . "\n";
   @proc_terminate($srv);
+  @proc_terminate($grivySrv);
   exit(1);
 }

@@ -7,7 +7,9 @@ Server Node lama menyimpan sesi di RAM — di shared hosting prosesnya bisa
 di-restart kapan saja dan semua sesi + skor hilang. Versi ini stateless:
 seluruh state ada di MySQL. `server/server.js` tetap dipakai untuk dev lokal.
 
-Sudah disesuaikan dengan dokumen **"Kiosk Vendor Feedback"** (Q1–Q7).
+Sudah disesuaikan dengan **API Documentation for Game Vendor v4 / Flow 5**:
+Game Connect menjadi sumber lobby, sedangkan Game Start/Game End tetap dikirim
+server-to-server ke sistem Kiosk Vendor.
 
 ## Penamaan field (Q1 — kesepakatan lintas vendor)
 
@@ -17,18 +19,16 @@ Grivy meminta satu nama yang sama dipakai ketiga pihak. Yang dipakai di sini:
 |---|---|
 | `wa_session_id` | id sesi WhatsApp milik Grivy, **per-user (1:1)**. Konteks + kunci submit pemenang. **Bukan** kunci grup |
 | `user_uid` | id pemain dari Grivy — kunci pencocokan pemenang (Q7) |
-| `kiosk_id` | = `device_id`. **Kunci pengelompokan multiplayer** |
-| `game_session_id` | id sesi game, **dibuat backend ini** |
+| `kiosk_id` | = `device_id`, kiosk asal ronde |
+| `game_session_id` | ID ronde **dibuat kiosk** dan disimpan byte-for-byte |
 | `nickname` | versi NORMALISASI Grivy (trim, spasi rapat, HURUF BESAR) — untuk pencocokan |
 | `nickname_entered` | teks asli persis seperti diketik pemain — **inilah yang ditampilkan** |
 
 Nama lama (`device_id`, `user_id`, `whats_app_session_id`) masih diterima
 supaya link yang sudah beredar tidak rusak.
 
-> ⚠️ **Belum beres:** contoh game URL yang ditulis Grivy di dokumen
-> **tidak memuat `device_id`/`kiosk_id`**, padahal seluruh pengelompokan
-> multiplayer bergantung padanya. Tanpa parameter itu, tiap pemain jatuh ke
-> sesi solo. Harus dikonfirmasi ke Grivy sebelum produksi.
+Jika `game_session_id` tidak tersedia, browser langsung memakai mode
+single-player dan tidak mencoba mengelompokkan pemain lewat `device_id`.
 
 ## Aturan yang mengikuti feedback
 
@@ -65,7 +65,7 @@ walau baris sesinya sudah dibersihkan.
 | Method | Path | Dipanggil saat |
 |---|---|---|
 | `POST` | `/session/join` | Game di HP dibuka → balas `{session_id, game_session_id, …}` |
-| `GET`  | `/session/state?session_id=` | Polling waiting room (~1 dtk) |
+| `GET`  | `/session/state?session_id=&user_uid=` | Polling Game Connect/lobby (~2 dtk) |
 | `POST` | `/session/score` | Skor live (`live:true`) & skor akhir |
 | `GET`  | `/session/results?session_id=` | Polling ranking di TY page |
 | `*`    | `/health` | Cek status (menerima method apa pun) |
@@ -105,7 +105,9 @@ Token admin dikirim lewat `?token=` atau header `X-Admin-Token`.
    Nama lengkapnya berprefix username hosting (mis. `abcd1234_coke`).
 2. **Upload** seluruh isi folder `server-php/` ke `public_html/coke-api/`.
 3. **Isi kredensial** — rename `config.example.php` jadi `config.php`, lalu
-   isi `db_*`, `cors_origin`, dan `admin_token` (string acak panjang, mis.
+   isi `db_*`, `cors_origin`, `admin_token`, `grivy_token`, dan
+   `kiosk_api_key` (semuanya hanya di server). Untuk instalasi lama, langkah
+   install juga memperlebar kolom session ID tanpa menghapus data.
    hasil `openssl rand -hex 24`).
 4. **Buat tabel** — buka sekali:
    `https://DOMAIN/coke-api/install.php?token=ADMIN_TOKEN` → harus
@@ -140,7 +142,7 @@ Semua di `config.php`, bisa ditimpa environment variable berawalan `COKE_`
 
 | Kunci | Default | Keterangan |
 |---|---|---|
-| `join_window_seconds` | `15` | Window tunggu bergulir |
+| `lobby_wait_seconds` | `12` | Batas tunggu lobby Game Connect |
 | `max_players` | `4` | Maks pemain per sesi |
 | `game_seconds` | `180` | Durasi game default |
 | `result_grace_seconds` | `25` | Toleransi menunggu skor pemain lambat sebelum DQ |
@@ -149,8 +151,11 @@ Semua di `config.php`, bisa ditimpa environment variable berawalan `COKE_`
 | `max_score` | `100000` | Batas atas skor yang dianggap wajar |
 | `admin_token` | *(kosong)* | Token endpoint admin. Kosong = admin dimatikan |
 | `leaderboard_scoring` | `cumulative` | `cumulative` (Q6) atau `best` |
-| `kiosk_start_url` / `kiosk_end_url` | *(kosong)* | Endpoint kiosk (server-to-server) |
-| `kiosk_api_key` / `kiosk_api_key_header` | *(kosong)* / `Authorization` | Auth kiosk |
+| `kiosk_start_url` / `kiosk_end_url` | endpoint staging ROM | Endpoint kiosk (server-to-server) |
+| `kiosk_api_key` / `kiosk_api_key_header` | *(kosong)* / `X-API-Key` | Auth kiosk |
+| `grivy_connect_url` | endpoint Production | Game Connect Flow 5 v4 |
+| `grivy_token` | *(kosong)* | Token partner; hanya di backend |
+| `grivy_max_attempts` | `3` | Retry code 99/network/concurrency lock |
 | `kiosk_timeout_seconds` | `10` | Timeout panggilan kiosk |
 | `kiosk_max_attempts` | `5` | Batas percobaan ulang sebelum ditandai `failed` |
 | `timezone` | `Asia/Jakarta` | Untuk `played_at` & kunci minggu |
@@ -169,13 +174,14 @@ Lalu buka game dengan `?mp_url=http://127.0.0.1:8787`.
 
 ```bash
 cd server-php
+php test-contract.php
 COKE_DB_NAME=coke_test COKE_DB_USER=root COKE_DB_PASS= php test.php
 ```
 
 Butuh MySQL/MariaDB jalan + database uji kosong. **Isi database uji
 di-TRUNCATE tiap kali test jalan** — jangan arahkan ke database produksi.
-21 skenario: 7 pertama sama persis dengan `server/test.js` (grouping kiosk,
-rolling window, maks 4, re-join), sisanya penyesuaian feedback (penamaan
+22 skenario: 7 pertama menjaga kompatibilitas server lama hanya dalam mode
+test (`allow_legacy_grouping=true`), sisanya mencakup Flow 5 v4, penamaan
 field, kompatibilitas nama lama, diskualifikasi, leaderboard kumulatif,
 minggu ISO, `wa_session_id` untuk pemenang, antrean kiosk server-to-server)
 dan perilaku khusus database (arsip riwayat, fallback hasil, validasi skor,

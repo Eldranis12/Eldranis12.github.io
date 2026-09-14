@@ -33,7 +33,7 @@ function cfg(?string $key = null) {
     // COKE_DB_NAME, COKE_JOIN_WINDOW_SECONDS, COKE_CORS_ORIGIN, dst.
     foreach ($c as $k => $v) {
       $env = getenv('COKE_' . strtoupper($k));
-      if ($env === false || $env === '') continue;
+      if ($env === false) continue;
       $c[$k] = is_int($v) ? (int) $env : (is_array($v) ? explode(',', $env) : $env);
     }
     date_default_timezone_set($c['timezone'] ?? 'Asia/Jakarta');
@@ -42,6 +42,12 @@ function cfg(?string $key = null) {
 }
 
 function now_ms(): int { return (int) round(microtime(true) * 1000); }
+
+function lobby_wait_ms(): int {
+  $seconds = cfg('lobby_wait_seconds');
+  if ($seconds === null) $seconds = cfg('join_window_seconds'); // config lama
+  return max(0, (int) ($seconds ?? 12)) * 1000;
+}
 
 // ---------- database ----------
 function db(): PDO {
@@ -147,16 +153,19 @@ function load_players(string $sessionId): array {
   return $out;
 }
 
-function create_session(string $deviceKey, ?int $durationSec): array {
+function create_session(string $deviceKey, ?int $durationSec, ?string $sessionId = null,
+                        bool $startImmediately = false): array {
   $now = now_ms();
   $s = [
-    'id'            => new_id(),
+    // Flow 5 v4: kalau kiosk memberi game_session_id, pertahankan byte-for-byte.
+    // ID acak hanya untuk fallback single-player tanpa informasi ronde.
+    'id'            => $sessionId ?: new_id(),
     'device_key'    => $deviceKey,
     'phase'         => 'waiting',
     'mode'          => null,
     'duration_ms'   => $durationSec ? $durationSec * 1000 : null,
     'created_at'    => $now,
-    'deadline'      => $now + cfg('join_window_seconds') * 1000,
+    'deadline'      => $startImmediately ? $now : $now + lobby_wait_ms(),
     'play_deadline' => null,
     'ended_at'      => null,
     'roster'        => null,
@@ -225,7 +234,7 @@ function advance(array &$s): void {
 function is_disqualified(array $p): bool { return empty($p['submitted']); }
 
 // ---------- snapshot untuk klien ----------
-function public_state(array $s): array {
+function public_state(array $s, ?array $lobby = null): array {
   $now  = now_ms();
   $ids  = $s['phase'] === 'waiting' ? array_keys($s['players']) : ($s['roster'] ?: []);
   $list = [];
@@ -237,7 +246,7 @@ function public_state(array $s): array {
       'nickname_entered' => $p['nickname_entered'] ?? '',
     ];
   }
-  return [
+  $state = [
     'session_id'      => $s['id'],
     'game_session_id' => $s['id'],     // nama eksplisit untuk lintas-vendor
     'phase'           => $s['phase'],
@@ -248,8 +257,21 @@ function public_state(array $s): array {
     'max'             => (int) cfg('max_players'),
     'players'         => $list,
     'ms_left'         => $s['phase'] === 'waiting' ? max(0, (int) $s['deadline'] - $now) : 0,
-    'window_ms'       => (int) cfg('join_window_seconds') * 1000,
+    'window_ms'       => lobby_wait_ms(),
   ];
+  if ($lobby && !empty($lobby['ok'])) {
+    $state['count'] = (int) $lobby['connected_count'];
+    $state['max'] = max(1, (int) $lobby['invited_count']);
+    if ($s['phase'] === 'waiting') $state['mode'] = $state['max'] > 1 ? 'multi' : 'single';
+    $state['players'] = array_map(fn($u) => [
+      'nickname' => $u['nickname'] ?? 'Player',
+      'connected' => isset($u['connected_at']),
+    ], $lobby['users'] ?? []);
+    $state['lobby_source'] = 'grivy';
+  } else {
+    $state['lobby_source'] = 'local';
+  }
+  return $state;
 }
 
 function results_payload(array $s): array {
@@ -348,41 +370,38 @@ function week_range(string $weekKey): array {
 // Payload disiapkan saat kejadian, pengirimannya dilakukan worker terpisah
 // (kiosk.php) supaya request pemain tidak menunggu API kiosk dan kegagalan
 // bisa dicoba ulang.
-function queue_kiosk_event(string $event, array $s): void {
-  if (!cfg('kiosk_' . ($event === 'game_start' ? 'start' : 'end') . '_url')) return;
-
+function build_kiosk_payload(string $event, array $s): array {
   $ids     = $s['roster'] ?: array_keys($s['players']);
   $players = [];
   foreach ($ids as $uid) {
     $p = $s['players'][$uid] ?? null;
     if (!$p) continue;
     $dq  = $event === 'game_end' && is_disqualified($p);
-    $row = [
-      'user_uid'         => $uid,
-      'wa_session_id'    => $p['wa_session_id'] ?: '',
-      'nickname'         => $p['nickname'],
+    $row = ['wa_session_id' => $p['wa_session_id'] ?: ''];
+    if ($event === 'game_end') $row += [
       'nickname_entered' => $p['nickname_entered'] ?: $p['nickname'],
+      'score' => $dq ? 0 : (int) ($p['score'] ?? 0),
+      'status' => $dq ? 'DQ' : 'FINISHED',
     ];
-    if ($event === 'game_end') {
-      $row['score']        = $dq ? 0 : (int) ($p['score'] ?? 0);
-      $row['disqualified'] = $dq;
-    }
     $players[] = $row;
   }
   if ($event === 'game_end') {
     usort($players, fn($a, $b) => $b['score'] <=> $a['score']);
-    foreach ($players as $i => &$r) $r['rank'] = $i + 1;
-    unset($r);
   }
 
   $payload = [
-    'event'           => $event,
-    'game_session_id' => $s['id'],
     'kiosk_id'        => kiosk_id_of($s),
-    'mode'            => $s['mode'] ?: 'single',
+    'game_session_id' => $s['id'],
     'players'         => $players,
-    'timestamp'       => date('c'),
   ];
+  if ($event === 'game_end') $payload['game_status'] = 'COMPLETED';
+  return $payload;
+}
+
+function queue_kiosk_event(string $event, array $s): void {
+  if (!cfg('kiosk_' . ($event === 'game_start' ? 'start' : 'end') . '_url')
+      || !cfg('kiosk_api_key')) return;
+  $payload = build_kiosk_payload($event, $s);
 
   db()->prepare(
     'INSERT IGNORE INTO kiosk_events (event, session_id, payload, created_at)
@@ -401,7 +420,7 @@ function kiosk_id_of(array $s): string {
 // biasa, supaya tabel tetap kecil walau cron belum dipasang.
 function cleanup(): int {
   $ttl    = (int) cfg('session_ttl_seconds') * 1000;
-  $window = (int) cfg('join_window_seconds') * 1000;
+  $window = lobby_wait_ms();
   $game   = (int) cfg('game_seconds') * 1000;
   $now    = now_ms();
 
@@ -449,5 +468,32 @@ function run_schema(): array {
     db()->exec($stmt);
     if (preg_match('/CREATE TABLE IF NOT EXISTS\s+(\w+)/i', $stmt, $m)) $made[] = $m[1];
   }
+  migrate_schema_v4();
   return $made;
+}
+
+// Migrasi idempoten dari skema lama CHAR(12). Foreign key harus dilepas
+// sebentar agar kolom induk dan anak bisa diperlebar bersama-sama.
+function migrate_schema_v4(): void {
+  $st = db()->prepare(
+    'SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = "sessions" AND COLUMN_NAME = "id"');
+  $st->execute();
+  $column = $st->fetch();
+  $collation = db()->query(
+    'SELECT COLLATION_NAME FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = "sessions" AND COLUMN_NAME = "id"'
+  )->fetchColumn();
+  if (!$column) return;
+  if ($column['DATA_TYPE'] === 'varchar'
+      && (int) $column['CHARACTER_MAXIMUM_LENGTH'] >= 191
+      && $collation === 'utf8mb4_bin') return;
+
+  db()->exec('ALTER TABLE session_players DROP FOREIGN KEY fk_players_session');
+  db()->exec('ALTER TABLE sessions MODIFY id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL');
+  db()->exec('ALTER TABLE session_players MODIFY session_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL');
+  db()->exec('ALTER TABLE game_history MODIFY session_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL');
+  db()->exec('ALTER TABLE kiosk_events MODIFY session_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL');
+  db()->exec('ALTER TABLE session_players ADD CONSTRAINT fk_players_session
+              FOREIGN KEY (session_id) REFERENCES sessions (id) ON DELETE CASCADE');
 }
