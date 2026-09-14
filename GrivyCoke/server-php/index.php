@@ -231,9 +231,12 @@ if ($method === 'POST' && $path === '/session/join') {
     }
   });
 
-  // sesekali bersihkan sesi lama + dorong antrean kiosk walau cron belum ada
+  // Dorong antrean kiosk TIAP request join (Game Start harus segera sampai
+  // di kiosk supaya layar "Game Playing" tidak telat). Bersih-bersih sesi
+  // lama cukup sesekali -- bukan hal mendesak, tidak perlu tiap request.
+  try { kiosk_flush(3); } catch (Throwable $e) {}
   if (random_int(1, 25) === 1) {
-    try { cleanup(); kiosk_flush(3); } catch (Throwable $e) {}
+    try { cleanup(); } catch (Throwable $e) {}
   }
 
   send(200, $state);
@@ -304,6 +307,12 @@ if ($method === 'POST' && $path === '/session/score') {
 
     advance($s);          // semua pemain sudah kirim -> 'ended' + arsip + antre kiosk
     db()->commit();
+    // Dorong antrean SEKARANG (di luar transaksi, supaya lock baris sesi
+    // tidak ikut tertahan selama HTTP call ke vendor). Endpoint ini yang
+    // paling sering memicu Game End -- sebelumnya cuma /session/join yang
+    // "sesekali" (1/25) dorong antrean, jadi Game End bisa menumpuk lama
+    // tanpa terkirim (laporan vendor: "the endpoint is not there").
+    try { kiosk_flush(3); } catch (Throwable $e) {}
     send(200, ['ok' => true, 'ready' => $s['phase'] === 'ended']);
   } catch (Throwable $e) {
     if (db()->inTransaction()) db()->rollBack();
