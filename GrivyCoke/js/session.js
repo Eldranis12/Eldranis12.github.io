@@ -2,40 +2,37 @@
 // SessionService — jembatan game <-> server multiplayer.
 // ------------------------------------------------------------
 // Dua mode di balik satu interface:
-//   • REMOTE — CONFIG.multiplayerUrl + user_uid ada. Join ke server; server
-//     mengelompokkan pemain per device_id (kiosk) + window bergulir, lalu
-//     MENGEMBALIKAN session_id. Klien polling waiting room + ranking pakai
-//     session_id itu.
+//   • REMOTE — URL memuat identitas lengkap Flow 5 v4. Backend memanggil
+//     Grivy Game Connect; lobby Grivy menentukan jumlah pemain dan kapan ronde
+//     siap. game_session_id selalu berasal dari kiosk.
 //   • LOCAL  — tidak ada server/parameter. Game jalan single player (fallback
 //     aman), atau simulasi pemain lain lewat ?others= untuk demo TY page.
 //
-// Pengelompokan (klarifikasi Grivy): whats_app_session_id BUKAN kunci grup —
-// itu per-user. Grup = device_id (kiosk) + join dalam window 15 dtk. Model
-// TIDAK real-time: papan tiap pemain independen; server hanya mengelompokkan
-// + mengumpulkan skor akhir.
+// Tanpa game_session_id/wa_session_id, dokumen mewajibkan fallback single
+// player; tidak boleh menebak grup berdasarkan device_id.
 // ============================================================
 
 import { CONFIG, PLAYER } from './config.js';
 
-const POLL_MS = 1000;
+const POLL_MS = 2000;          // Grivy: jangan lebih cepat dari ~1,5 dtk/pemain
 const RESULT_POLL_MS = 2000;   // polling ranking (update hidup) lebih santai
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+async function responseJson(response) {
+  let body = {};
+  try { body = await response.json(); } catch {}
+  if (!response.ok) throw new Error(body.error || ('HTTP ' + response.status));
+  return body;
+}
 function jget(url) {
-  return fetch(url, { cache: 'no-store' }).then(r => {
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  });
+  return fetch(url, { cache: 'no-store' }).then(responseJson);
 }
 function jpost(url, body) {
   return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  }).then(r => {
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  });
+  }).then(responseJson);
 }
 
 // Web Worker timer untuk mencegah browser throttling pada background tab
@@ -83,6 +80,7 @@ class RemoteSession {
     this.remote = true;
     this.mode = 'single';
     this._sessionId = null;                    // ditentukan server saat join
+    this._joinState = null;
     // Nama field mengikuti "Kiosk Vendor Feedback" (Q1/Q3): kiosk_id = device_id,
     // user_uid, wa_session_id. nickname_entered = teks asli pemain (untuk
     // ditampilkan), nickname = versi normalisasi Grivy (untuk pencocokan).
@@ -101,30 +99,35 @@ class RemoteSession {
 
   async join() {
     const r = await jpost(this.base + '/session/join', this._q);
-    this._sessionId = r.session_id;            // dipakai untuk polling berikutnya
-    // Grivy API v4 �5: registrasi "connected" wajib server-to-server (token
-    // dipakai juga utk voucher, tak boleh sampai ke klien). Gagal/lambat tidak
-    // boleh menghambat waiting room kita sendiri -- fire-and-forget.
-    if (PLAYER.waSessionId && PLAYER.gameSessionId) {
-      jpost(this.base + '/grivy/connect', {
-        wa_session_id: PLAYER.waSessionId,
-        game_session_id: PLAYER.gameSessionId,
-      }).catch(() => {});
-    }
+    this._sessionId = r.session_id;
+    this._joinState = r; // join sudah menjalankan Game Connect pertama
+    return r;
   }
 
   // Polling waiting room sampai fase 'playing'. onTick(state) dipanggil tiap
   // poll untuk update overlay. Resolve {mode, players}.
   async waitForStart(onTick) {
+    let st = this._joinState;
+    this._joinState = null;
     for (;;) {
-      const st = await jget(`${this.base}/session/state?session_id=${encodeURIComponent(this._sessionId)}`);
+      if (!st) {
+        st = await jget(`${this.base}/session/state?session_id=${encodeURIComponent(this._sessionId)}`
+          + `&user_uid=${encodeURIComponent(this._q.user_uid)}`);
+      }
       onTick && onTick(st);
+      if (st.round_locked) {
+        this.mode = st.final_mode || st.mode || 'single';
+        this._players = st.players || [];
+        return { mode: this.mode, players: this._players, locked: true,
+                 phase: st.locked_phase || st.phase };
+      }
       if (st.phase !== 'waiting') {
         this.mode = st.final_mode || st.mode || 'single';
         this._players = st.players || [];
         return { mode: this.mode, players: this._players };
       }
       await sleep(POLL_MS);
+      st = null;
     }
   }
 
@@ -291,9 +294,10 @@ class LocalSession {
   }
 }
 
-// Pilih implementasi: remote kalau ada URL server + user_uid. Grup ditentukan
-// server via kiosk_id/device_id; tanpa itu -> server buat sesi solo.
+// Flow 5 v4 hanya boleh masuk remote lobby jika identitas pemain dan ronde
+// lengkap. Parameter yang hilang jatuh ke single-player lokal.
 export function createSession() {
-  const canRemote = CONFIG.multiplayerUrl && PLAYER.userId;
+  const canRemote = CONFIG.multiplayerUrl && PLAYER.userId
+    && PLAYER.waSessionId && PLAYER.gameSessionId;
   return canRemote ? new RemoteSession(CONFIG.multiplayerUrl) : new LocalSession();
 }

@@ -7,7 +7,7 @@
 --   wa_session_id    -> id sesi WhatsApp milik Grivy (per-user, 1:1)
 --   user_uid         -> id pemain dari Grivy (kunci pencocokan pemenang)
 --   kiosk_id         -> = device_id (kunci pengelompokan multiplayer)
---   game_session_id  -> id sesi game, DIBUAT server ini (kolom `id`/`session_id`)
+--   game_session_id  -> id ronde yang dibuat kiosk, disimpan tanpa perubahan
 --   nickname         -> versi NORMALISASI Grivy (trim, spasi rapat, HURUF BESAR)
 --   nickname_entered -> teks asli persis seperti diketik pemain (untuk tampilan)
 --
@@ -19,7 +19,7 @@
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS sessions (
-  id            CHAR(12)      NOT NULL,          -- = game_session_id
+  id            VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   device_key    VARCHAR(191)  NOT NULL,          -- 'dev:<kiosk_id>' atau 'u:<user_uid>'
   phase         ENUM('waiting','playing','ended') NOT NULL DEFAULT 'waiting',
   mode          ENUM('single','multi')           NULL,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS session_players (
-  session_id       CHAR(12)     NOT NULL,
+  session_id       VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   user_uid         VARCHAR(128) NOT NULL,
   nickname         VARCHAR(64)  NOT NULL DEFAULT 'Player',  -- normalisasi Grivy
   nickname_entered VARCHAR(64)  NOT NULL DEFAULT '',        -- teks asli pemain
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS session_players (
 -- sekaligus sumber leaderboard mingguan.
 CREATE TABLE IF NOT EXISTS game_history (
   id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  session_id         CHAR(12)     NOT NULL,      -- = game_session_id
+  session_id         VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   user_uid           VARCHAR(128) NOT NULL,
   nickname           VARCHAR(64)  NOT NULL,
   nickname_entered   VARCHAR(64)  NOT NULL DEFAULT '',
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS game_history (
 CREATE TABLE IF NOT EXISTS kiosk_events (
   id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   event        ENUM('game_start','game_end') NOT NULL,
-  session_id   CHAR(12)     NOT NULL,
+  session_id   VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   payload      MEDIUMTEXT   NOT NULL,           -- JSON body yang dikirim
   status       ENUM('pending','sent','failed') NOT NULL DEFAULT 'pending',
   attempts     SMALLINT UNSIGNED NOT NULL DEFAULT 0,

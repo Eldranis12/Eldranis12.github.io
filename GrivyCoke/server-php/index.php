@@ -137,13 +137,22 @@ if ($path === '/health') {
   $n = (int) db()->query('SELECT COUNT(*) FROM sessions')->fetchColumn();
   $t = (int) db()->query('SELECT COUNT(*) FROM game_history')->fetchColumn();
   $q = (int) db()->query('SELECT COUNT(*) FROM kiosk_events WHERE status = "pending"')->fetchColumn();
+  $f = (int) db()->query('SELECT COUNT(*) FROM kiosk_events WHERE status = "failed"')->fetchColumn();
+  $grivyUrl = (string) cfg('grivy_connect_url');
+  $grivyEnv = str_contains($grivyUrl, 'barcode-stage') ? 'stage'
+            : (str_contains($grivyUrl, 'grivy-barcode') ? 'production' : 'custom');
   send(200, ['ok' => true, 'sessions' => $n, 'games_recorded' => $t,
-             'kiosk_queue_pending' => $q, 'server_time' => date('c'), 'week' => week_key()]);
+             'kiosk_queue_pending' => $q,
+             'kiosk_queue_failed' => $f,
+             'grivy_env' => $grivyEnv,
+             'grivy_configured' => (string) cfg('grivy_token') !== '',
+             'kiosk_configured' => (string) cfg('kiosk_api_key') !== '',
+             'server_time' => date('c'), 'week' => week_key()]);
 }
 
 // ---------------- join ----------------
-// Dipanggil saat game di HP dibuka. Mengelompokkan per kiosk_id (device_id)
-// dengan window bergulir, lalu MENGEMBALIKAN game_session_id buatan server.
+// Flow 5 v4: kiosk sudah menentukan grup dan membuat game_session_id. Backend
+// memvalidasi pemain ke Grivy, lalu memakai ID tersebut tanpa perubahan.
 if ($method === 'POST' && $path === '/session/join') {
   $b   = read_body();
   $uid = mb_substr(field($b, 'user_uid', 'user_id'), 0, 128);
@@ -154,28 +163,78 @@ if ($method === 'POST' && $path === '/session/join') {
   $nickNorm = clip(field($b, 'nickname')) ?: 'Player';
   $nickRaw  = clip(field($b, 'nickname_entered')) ?: $nickNorm;
 
-  // API v4 �3: game_session_id kini dibuat kiosk & sama persis utk semua
-  // pemain seronde -- kunci grup PASTI, tak perlu lagi menebak lewat window.
-  // Kosong (link lama / kiosk belum kirim) -> fallback ke cara lama.
-  $gameSessionId = mb_substr(field($b, 'game_session_id'), 0, 191);
-  $isRoundLocked = $gameSessionId !== '';    // kunci PASTI -> satu ronde, sekali main
-  $key = $isRoundLocked ? 'gs:' . $gameSessionId : device_key_of($kioskId, $uid);
+  $gameSessionId = field($b, 'game_session_id');
+  if (mb_strlen($gameSessionId) > 191) fail(400, 'game_session_id terlalu panjang');
+  $hasRound = $gameSessionId !== '';
+  $legacyGrouping = !$hasRound && (bool) cfg('allow_legacy_grouping');
+  // Tanpa round ID tidak boleh lagi mengelompokkan berdasarkan device_id.
+  // Ini endpoint fallback saja; browser normal langsung memakai LocalSession.
+  $key = $hasRound ? 'gs:' . hash('sha256', $gameSessionId)
+       : ($legacyGrouping ? device_key_of($kioskId, $uid)
+                          : 'solo:' . hash('sha256', $waId ?: $uid));
   $durSec  = isset($b['duration']) ? max(0, (int) $b['duration']) : null;
   $maxP    = (int) cfg('max_players');
-  $windowM = (int) cfg('join_window_seconds') * 1000;
+  $lobby = null;
+
+  if ($hasRound) {
+    if ($waId === '') fail(400, 'wa_session_id wajib untuk Game Connect');
+    // URL Flow 5 adalah tiket satu ronde. Kalau ronde yang sama sudah mulai
+    // atau selesai, pemain lama hanya boleh melihat status/hasilnya; jangan
+    // panggil Game Connect lagi dan jangan membuka gameplay baru saat reload.
+    $existing = load_session($gameSessionId);
+    if ($existing) {
+      advance($existing);
+      if ($existing['phase'] !== 'waiting') {
+        if (!isset($existing['players'][$uid])) {
+          fail(409, 'ronde sudah dimulai; pemain baru tidak dapat bergabung');
+        }
+        try { kiosk_flush(3); } catch (Throwable $e) {}
+        send(200, public_state($existing) + [
+          'round_locked' => true,
+          'locked_phase' => $existing['phase'],
+        ]);
+      }
+    } else {
+      // Baris sesi aktif bisa sudah dibersihkan, tetapi arsipnya tetap menjadi
+      // bukti bahwa game_session_id ini pernah dipakai dan tidak boleh diulang.
+      $hist = db()->prepare(
+        'SELECT user_uid, nickname, nickname_entered, mode
+           FROM game_history WHERE session_id = ? ORDER BY rank_in_session ASC');
+      $hist->execute([$gameSessionId]);
+      $oldPlayers = $hist->fetchAll();
+      if ($oldPlayers) {
+        $known = array_filter($oldPlayers, fn($p) => $p['user_uid'] === $uid);
+        if (!$known) fail(409, 'ronde sudah selesai; pemain baru tidak dapat bergabung');
+        send(200, [
+          'session_id' => $gameSessionId, 'game_session_id' => $gameSessionId,
+          'phase' => 'ended', 'mode' => $oldPlayers[0]['mode'],
+          'final_mode' => $oldPlayers[0]['mode'], 'count' => count($oldPlayers),
+          'max' => (int) cfg('max_players'), 'ms_left' => 0,
+          'window_ms' => lobby_wait_ms(), 'lobby_source' => 'archive',
+          'round_locked' => true, 'locked_phase' => 'ended',
+          'players' => array_map(fn($p) => [
+            'user_uid' => $p['user_uid'],
+            'nickname' => $p['nickname_entered'] ?: $p['nickname'],
+            'nickname_entered' => $p['nickname_entered'] ?: $p['nickname'],
+          ], $oldPlayers),
+        ]);
+      }
+    }
+    $lobby = grivy_connect($waId, $gameSessionId);
+    if (empty($lobby['ok'])) {
+      $code = $lobby['error_code'] ?? null;
+      $status = $code === 24 || $code === 40 ? 409 : 502;
+      fail($status, 'Game Connect gagal' . ($code === null ? '' : " (code $code)"));
+    }
+  }
 
   $state = with_device_lock($key, function () use ($key, $uid, $kioskId, $waId, $nickNorm,
-                                                   $nickRaw, $durSec, $maxP, $windowM, $isRoundLocked) {
+                                                   $nickRaw, $durSec, $maxP, $hasRound,
+                                                   $gameSessionId, $lobby, $legacyGrouping) {
     db()->beginTransaction();
     try {
-      // Kunci game_session_id (kiosk API v4) = SATU ronde, sekali pakai --
-      // ambil sesi apa pun (phase apa pun) milik key ini, bukan cuma "waiting".
-      // Kunci lama (kiosk_id+window) TETAP hanya "waiting", karena kiosk itu
-      // sendiri memang dipakai berulang sepanjang hari utk ronde berbeda-beda.
-      $phaseFilter = $isRoundLocked ? '' : 'AND phase = "waiting"';
       $st = db()->prepare(
-        "SELECT id FROM sessions WHERE device_key = ? $phaseFilter
-          ORDER BY created_at DESC LIMIT 1 FOR UPDATE");
+        'SELECT id FROM sessions WHERE device_key = ? ORDER BY created_at DESC LIMIT 1 FOR UPDATE');
       $st->execute([$key]);
       $activeId = $st->fetchColumn();
 
@@ -183,13 +242,22 @@ if ($method === 'POST' && $path === '/session/join') {
       if ($activeId) { $s = load_session((string) $activeId, true); if ($s) advance($s); }
 
       if (!$s) {
-        $s = create_session($key, $durSec);
+        $s = create_session($key, $durSec, $hasRound ? $gameSessionId : null, !$hasRound);
       } elseif ($s['phase'] !== 'waiting') {
-        // Ronde sudah mulai/selesai. Kunci lama boleh buka sesi baru (kiosk
-        // dipakai lagi); kunci game_session_id TIDAK -- refresh URL yang sama
-        // tidak boleh membuka ronde baru (laporan vendor kiosk 11 Sep 2026:
-        // "refreshing the same game URL allows the player to play again").
-        if (!$isRoundLocked) $s = create_session($key, $durSec);
+        if ($legacyGrouping) {
+          $s = create_session($key, $durSec);
+        } elseif (!isset($s['players'][$uid])) {
+          db()->rollBack();
+          fail(409, 'ronde sudah dimulai; pemain baru tidak dapat bergabung');
+        } else {
+          // Guard kedua untuk race: ronde bisa berubah fase sesudah pemeriksaan
+          // awal tetapi sebelum lock database didapat.
+          db()->commit();
+          return public_state($s) + [
+            'round_locked' => true,
+            'locked_phase' => $s['phase'],
+          ];
+        }
       } elseif (!$s['duration_ms'] && $durSec) {
         $s['duration_ms'] = $durSec * 1000;
       }
@@ -206,8 +274,7 @@ if ($method === 'POST' && $path === '/session/join') {
           'nickname_entered' => $nickRaw, 'kiosk_id' => $kioskId, 'wa_session_id' => $waId,
           'score' => null, 'submitted' => 0, 'joined_at' => $now, 'submitted_at' => null,
         ];
-        // window bergulir: tiap pemain BARU join, buka lagi window penuh
-        $s['deadline'] = $now + $windowM;
+        if ($legacyGrouping) $s['deadline'] = $now + lobby_wait_ms();
       } elseif (isset($s['players'][$uid])) {
         // re-join (HP di-reload): perbarui nama, jangan reset window
         db()->prepare(
@@ -218,13 +285,20 @@ if ($method === 'POST' && $path === '/session/join') {
         $s['players'][$uid]['nickname_entered'] = $nickRaw;
       }
 
-      // slot penuh -> mulai sekarang, tak usah tunggu sisa window
-      if (count($s['players']) >= $maxP) $s['deadline'] = now_ms();
+      // Game Connect adalah sumber keputusan lobby. Jangan menunggu jika semua
+      // undangan sudah connect; jumlah >4 tetap aman meski kiosk seharusnya membatasi.
+      if ($lobby && (int) $lobby['invited_count'] > 0
+          && (int) $lobby['connected_count'] >= (int) $lobby['invited_count']) {
+        $s['deadline'] = now_ms();
+      }
+      if ((!$hasRound && !$legacyGrouping) || count($s['players']) >= $maxP) {
+        $s['deadline'] = now_ms();
+      }
 
       save_session($s);
       advance($s);
       db()->commit();
-      return public_state($s);
+      return public_state($s, $lobby);
     } catch (Throwable $e) {
       if (db()->inTransaction()) db()->rollBack();
       throw $e;
@@ -242,24 +316,31 @@ if ($method === 'POST' && $path === '/session/join') {
   send(200, $state);
 }
 
-// ---------------- grivy game connect (API v4 �5) ----------------
-// Wajib server-to-server (token dipakai juga utk voucher). Hasil dari sini
-// hanya info lobi Grivy sendiri -- tak dipakai utk keputusan game apa pun,
-// jadi kegagalan panggilan ini TIDAK menghentikan game (respons tetap 200).
-if ($method === 'POST' && $path === '/grivy/connect') {
-  $b   = read_body();
-  $wa  = field($b, 'wa_session_id');
-  $gsi = field($b, 'game_session_id');
-  $r   = ($wa !== '' && $gsi !== '') ? grivy_connect($wa, $gsi) : ['ok' => false, 'error' => 'wa_session_id/game_session_id wajib'];
-  send(200, $r);
-}
-
 // ---------------- state ----------------
 if ($method === 'GET' && $path === '/session/state') {
   $s = load_session((string) ($_GET['session_id'] ?? $_GET['game_session_id'] ?? ''));
   if (!$s) fail(404, 'sesi tidak ditemukan');
+  $lobby = null;
+  if (str_starts_with((string) $s['device_key'], 'gs:') && $s['phase'] === 'waiting') {
+    $uid = (string) ($_GET['user_uid'] ?? '');
+    $player = $s['players'][$uid] ?? null;
+    if (!$player || empty($player['wa_session_id'])) fail(400, 'user_uid/wa_session_id lobby tidak ditemukan');
+    $lobby = grivy_connect((string) $player['wa_session_id'], (string) $s['id']);
+    if (empty($lobby['ok'])) {
+      $code = $lobby['error_code'] ?? null;
+      fail($code === 24 || $code === 40 ? 409 : 502,
+           'Game Connect gagal' . ($code === null ? '' : " (code $code)"));
+    }
+    if ((int) $lobby['invited_count'] > 0
+        && (int) $lobby['connected_count'] >= (int) $lobby['invited_count']) {
+      $s['deadline'] = now_ms();
+    }
+  }
   advance($s);
-  send(200, public_state($s));
+  // /session/state sering menjadi request yang benar-benar mengubah waiting
+  // menjadi playing. Kirim Game Start pada request yang sama.
+  try { kiosk_flush(3); } catch (Throwable $e) {}
+  send(200, public_state($s, $lobby));
 }
 
 // ---------------- score ----------------
@@ -351,6 +432,9 @@ if ($method === 'GET' && $path === '/session/results') {
     ]);
   }
   advance($s);
+  // Jika grace period berakhir saat TY page mem-poll hasil, advance() baru
+  // membuat Game End di sini. Jangan biarkan event menunggu cron berikutnya.
+  try { kiosk_flush(3); } catch (Throwable $e) {}
   send(200, results_payload($s));
 }
 

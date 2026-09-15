@@ -11,10 +11,8 @@
 // di lib.php), baru dikirim di sini. Alasannya: request pemain tidak boleh
 // ikut menunggu API kiosk, dan panggilan yang gagal harus bisa dicoba ulang.
 //
-// Dipanggil dari:
-//   - cron  : cleanup.php (disarankan tiap 1-5 menit)
-//   - manual: GET /kiosk/flush?token=ADMIN_TOKEN
-//   - sesekali secara acak dari request /session/join (jaring pengaman)
+// Dipanggil langsung oleh request yang memicu transisi sesi (join/state,
+// score/results), serta oleh cleanup.php dan endpoint admin sebagai retry.
 // ============================================================
 
 declare(strict_types=1);
@@ -24,10 +22,10 @@ function kiosk_post(string $url, array $payload): array {
   $json    = json_encode($payload, JSON_UNESCAPED_UNICODE);
   $headers = ['Content-Type: application/json', 'Accept: application/json'];
 
-  // Auth opsional — sesuaikan begitu kiosk vendor mengirim detail auth-nya.
+  // Auth server-to-server. Dokumentasi ROM saat ini memakai X-API-Key.
   $key = (string) cfg('kiosk_api_key');
   if ($key !== '') {
-    $headerName = (string) (cfg('kiosk_api_key_header') ?: 'Authorization');
+    $headerName = (string) (cfg('kiosk_api_key_header') ?: 'X-API-Key');
     $headers[]  = $headerName . ': ' . $key;
   }
 

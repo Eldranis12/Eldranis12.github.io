@@ -14,8 +14,10 @@ return [
   'db_pass' => 'PASSWORD_ANDA',
   'db_port' => 3306,
 
-  // --- Aturan sesi (sama persis dgn env server Node lama) ---
-  'join_window_seconds'   => 15,   // window tunggu bergulir
+  // --- Aturan sesi Flow 5 v4 ---
+  'lobby_wait_seconds'    => 12,   // tunggu lobby Grivy (rekomendasi 10-12 dtk)
+  'join_window_seconds'   => 12,   // alias kompatibilitas config lama
+  'allow_legacy_grouping' => false,// hanya untuk test; produksi harus false
   'max_players'           => 4,    // maks pemain per sesi
   'game_seconds'          => 180,  // durasi game default
   'result_grace_seconds'  => 25,   // toleransi menunggu skor pemain lambat
@@ -40,23 +42,25 @@ return [
   'leaderboard_scoring' => 'cumulative',
 
   // --- API kiosk vendor (server-to-server, Q4) ---
-  // Kosongkan sampai kiosk vendor memberi endpoint + auth. Selama kosong,
+  // Isi dari dokumentasi Kiosk Vendor. Selama URL kosong,
   // kejadian TIDAK diantrekan sama sekali (tidak ada yang menumpuk).
-  'kiosk_start_url' => '',
-  'kiosk_end_url'   => '',
-  // Auth opsional. Contoh: 'Bearer xxx' dengan header 'Authorization',
-  // atau kunci polos dengan header 'X-Api-Key' — sesuaikan saat detail tiba.
+  'kiosk_start_url' => 'https://cokezerotheringan-ringan.com/romapi/v1/nongkrong/game-start',
+  'kiosk_end_url'   => 'https://cokezerotheringan-ringan.com/romapi/v1/nongkrong/game-end',
+  // Dokumentasi ROM terkini memakai kunci polos dalam header X-API-Key.
   'kiosk_api_key'        => '',
-  'kiosk_api_key_header' => 'Authorization',
+  'kiosk_api_key_header' => 'X-API-Key',
   'kiosk_timeout_seconds' => 10,
   'kiosk_max_attempts'    => 5,
 
-  // --- Grivy Game Connect (API Game Vendor v4 �5) ---
+  // --- Grivy Game Connect (API Game Vendor v4 Bagian 5) ---
   // Token statis per environment, dikirim apa adanya di header Authorization
   // (TANPA prefix "Bearer"). Token ini juga otorisasi voucher -- jangan pernah
-  // kirim ke klien (lihat �4 dokumen). Stage: lihat dokumen internal terbaru.
-  'grivy_connect_url' => 'https://us-central1-barcode-stage.cloudfunctions.net/partnerWaSessionGameConnect',
+  // kirim ke klien. Endpoint di bawah adalah Production; token diberikan
+  // terpisah oleh Grivy dan hanya boleh disimpan di config.php server.
+  'grivy_connect_url' => 'https://us-central1-grivy-barcode.cloudfunctions.net/partnerWaSessionGameConnect',
   'grivy_token'       => '',
+  'grivy_timeout_seconds' => 10,
+  'grivy_max_attempts'    => 3,
 
   // Timezone untuk riwayat & kunci minggu leaderboard.
   'timezone' => 'Asia/Jakarta',

@@ -6,7 +6,7 @@ const url = new URLSearchParams(location.search);
 
 // Base URL backend sesi + leaderboard (PHP + MySQL, folder server-php/,
 // di-deploy ke Hostinger/Niagahoster). Saat game dibuka di localhost (dev)
-// otomatis pakai server lokal :8787 — bisa `node server/server.js` atau
+// otomatis pakai server lokal :8787 melalui
 // `php -S 127.0.0.1:8787 server-php/router-dev.php`. Override kapan saja:
 // ?mp_url= (mis. ?mp_url=http://192.168.1.5:8787 untuk uji dari HP di LAN).
 //
@@ -83,15 +83,14 @@ export const CONFIG = {
   // multiplayer (email Mahda 2026-07: maks 4 pemain per sesi;
   // TY page multiplayer menampilkan poin semua pemain di sesi itu)
   maxPlayers: 4,
-  // jendela join bergulir (email Grivy 2026-07-14): tiap pemain join,
-  // buka lagi joinWindowSeconds untuk pemain berikutnya, sampai maxPlayers.
-  // Harus configurable — Grivy belum yakin 15 detik cukup. Default akan
-  // dipakai backend sesi; ?join_window= untuk override saat testing.
+  // Flow 5 v4: tunggu lobby Game Connect 10-12 detik. Mulai lebih cepat jika
+  // connected_game_users_count sudah sama dengan all_game_users_count.
+  // ?join_window= tetap tersedia untuk pengujian UI lokal.
   // (?wait= lama tetap didukung sebagai alias sampai backend sesi jadi.)
-  joinWindowSeconds: parseInt(url.get('join_window') || '15', 10),
+  joinWindowSeconds: parseInt(url.get('join_window') || '12', 10),
   waitWindowMs: parseInt(url.get('wait') || url.get('join_window') || '0', 10) * 1000, // window tunggu overlay, 0 = langsung mulai
 
-  // server multiplayer (folder server/). Kosong = mode lokal (single player /
+  // server multiplayer (folder server-php/). Kosong = mode lokal (single player /
   // simulasi ?others=). Diisi -> game join sesi, waiting room + ranking nyata.
   multiplayerUrl: (url.get('mp_url') || MP_URL_DEFAULT).replace(/\/+$/, ''),
 

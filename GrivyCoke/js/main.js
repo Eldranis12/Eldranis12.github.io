@@ -850,8 +850,8 @@ async function startGame() {
   draw();
 
   // ---- waiting room + penentuan mode (dokumen Grivy Bagian 5) ----
-  // REMOTE: join sesi ke server, polling sampai window habis / slot penuh,
-  // lalu server memutuskan single vs multi. LOCAL: simulasi via ?wait=/?others=.
+  // REMOTE: backend memanggil dan mem-poll Grivy Game Connect sampai semua
+  // undangan terhubung atau window habis. LOCAL: fallback tanpa round info.
   session = createSession();
   gameMode = 'single';
   const showLobby = session.remote || CONFIG.waitWindowMs > 0;
@@ -865,9 +865,23 @@ async function startGame() {
     if (session.remote) await session.join();
     const res = await session.waitForStart(updateWaiting);
     gameMode = res.mode;
+    if (res.locked) {
+      if (id !== loopId) return;
+      await showLockedRound(res.phase);
+      return;
+    }
   } catch (err) {
-    // server tak terjangkau -> jangan blokir pemain, jatuh ke single player
-    console.warn('[mp] gagal join/menunggu, fallback single player:', err);
+    // Link Flow 5 lengkap tidak boleh diam-diam menjadi game lokal: ronde
+    // seperti itu akan bisa dimainkan tanpa Game Start/Game End. Fallback
+    // single hanya dipilih createSession() ketika parameter ronde memang tak ada.
+    console.error('[flow5] gagal menghubungkan ronde:', err);
+    if (session.remote) {
+      running = false;
+      over = true;
+      $('#waiting-count').textContent = 'RONDE TIDAK DAPAT DIMULAI';
+      $('#waiting-timer').textContent = 'Silakan kembali ke kiosk dan coba lagi.';
+      return;
+    }
     gameMode = 'single';
   }
   if (id !== loopId) return; // sudah di-restart selama menunggu
@@ -900,6 +914,41 @@ function renderResults(rows) {
       <span class="score">${label}</span>
     </div>`;
   }).join('');
+}
+
+// Satu game_session_id hanya berlaku untuk satu ronde. Reload URL yang sama
+// menampilkan hasil lama (atau pesan bahwa ronde masih berjalan), bukan
+// menginisialisasi papan dan mengirim skor kedua kali.
+async function showLockedRound(phase) {
+  running = false;
+  over = true;
+
+  if (phase !== 'ended') {
+    $('#waiting-count').textContent = 'RONDE SEDANG BERJALAN';
+    $('#waiting-timer').textContent = 'Link ini tidak dapat dimainkan ulang.';
+    return;
+  }
+
+  $('#waiting-overlay').classList.add('hidden');
+  const fetched = await session.fetchResults();
+  const rows = fetched?.rows || [];
+  const mine = rows.find(r => r.me);
+  $('#final-score').textContent = mine?.score ?? 0;
+
+  const screen = $('#screen-result');
+  const holder = $('#session-results');
+  const isMulti = rows.length > 1 || gameMode === 'multi';
+  if (isMulti) {
+    screen.classList.add('multi');
+    $('.your-score').textContent = 'SCOREBOARD';
+    holder.classList.remove('hidden');
+    renderResults(rows);
+  } else {
+    screen.classList.remove('multi');
+    $('.your-score').textContent = 'YOUR SCORE';
+    holder.classList.add('hidden');
+  }
+  show('#screen-result');
 }
 
 async function endGame(reason = 'timeup') {
