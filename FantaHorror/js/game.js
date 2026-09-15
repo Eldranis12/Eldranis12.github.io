@@ -162,7 +162,7 @@ function triggerGrivyAction(action, campaignCode) {
 // SESSION_GAP_MS to slow the game down further.
 // Poster handed to the OS share sheet when the player taps SHARE.
 // (The source file really is double-extensioned: "...Share.jpg.jpeg".)
-const SHARE_IMAGE_URL = 'assets/fanta_horror_poster_share.jpg';
+const SHARE_IMAGE_URL = 'assets/fanta_horror_poster_share_legal.jpg'; // designer export, legal line baked in
 const SHARE_IMAGE_FILENAME = 'fanta-horror-enak-rebutan.jpg';
 const SHARE_LINK_URL = 'https://fantaurl.com/q/REF26';
 

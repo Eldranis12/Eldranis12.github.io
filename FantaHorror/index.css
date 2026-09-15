@@ -1841,3 +1841,25 @@ body {
   width: 38% !important;
   height: 8% !important;
 }
+
+/*
+  Coca-Cola / Soraya legal line (brief "Add Coke & Suzzana legal"), shared by every
+  screen. The PNG is exported at artboard scale -- 575px of the 1080px artboard -- so
+  its width is a plain percentage of the 6:13 canvas. Sits below the modal (200) and
+  the loading veil (500), and never takes taps.
+*/
+.legal-line {
+  position: absolute;
+  left: 50%;
+  bottom: 1.5%;
+  width: 53.24%;
+  height: auto;
+  transform: translateX(-50%);
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* Winner carries no Suzzanna lockup, so it gets the Coca-Cola-only line (575x38). */
+#app-container:has(#screen-win:not(.hidden)) .legal-line {
+  content: url('assets/legal_line_coke.png');
+}
