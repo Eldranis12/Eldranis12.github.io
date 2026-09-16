@@ -119,15 +119,17 @@ body {
 
   #app-container {
     /*
-      The artboard is kept exactly viewport-tall. It used to be allowed to grow to 1.10x
-      to narrow the side strips, but that traded away the bottom: the overflow is dealt
-      out 2:7, so 7/9 of it disappeared below the fold and squeezed the legal line to
-      27-35px from the screen edge on short phones (320x568, 375x667). Behind iOS
-      Safari's bottom address bar that reads as missing entirely. The strips no longer
-      need the help either -- .screen::before paints the real artwork across the whole
-      viewport, so a slightly wider strip costs nothing.
+      The UI band runs 2% (winner headline) to 93% (AMBIL VOUCHER) of the artboard, so
+      the artboard may only outgrow the viewport while 91% of it still fits: the cap is
+      1/0.91, rounded to 1.10. This modest extra width reduces the side strips without
+      distorting the artwork or pushing the CTA band outside the viewport.
+
+      This sizing is deliberately left alone by the legal line: shrinking the artboard to
+      exactly viewport-tall did keep the line on screen, but it also rescaled every
+      screen (a 320x568 handset lost 26px of artboard width), which read as the whole
+      page zooming. The line is pinned to the viewport instead -- see .legal-line.
     */
-    --fit-h: var(--vvh, 100dvh);
+    --fit-h: min(max(var(--vvh, 100dvh), 100vw * 13 / 6), var(--vvh, 100dvh) * 1.10);
     --fit-over: max(0px, var(--fit-h) - var(--vvh, 100dvh));
     /*
       That band is not centred in the artboard -- 2% of slack above, 7% below -- so
@@ -1854,25 +1856,51 @@ body {
 .legal-line {
   position: absolute;
   left: 50%;
-  /*
-    Anchored to the screen edge, not a share of the artboard. `bottom: 1.5%` left it
-    8.5px up on a 320x568 phone, and `viewport-fit=cover` means the last ~34px belong
-    to the home indicator -- the line sat underneath it and read as missing. The
-    artboard is viewport-tall now (see --fit-h), so its bottom edge is the screen's,
-    and a px offset past the safe-area inset lands where it should on every handset.
-  */
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
-  /*
-    53.24% of a 262px artboard is 140px -- a 575px-wide export at 24% scale, which is
-    below reading size for three lines of fine print. The floor keeps it legible on the
-    narrowest phones; the 92% ceiling stops that floor from touching the edges.
-  */
-  width: max(53.24%, 165px);
-  max-width: 92%;
+  bottom: 1.5%;
+  width: 53.24%;
   height: auto;
   transform: translateX(-50%);
   z-index: 50;
   pointer-events: none;
+}
+
+/*
+  Phones: the artboard may stand taller than the viewport (--fit-h), and its surplus is
+  dealt out 2:7, so its bottom edge can fall below the fold -- an absolutely positioned
+  line rides down with it and disappears. Pin the line to the viewport instead, and lift
+  the two bottom blocks clear of it. Shrinking the artboard would also have worked, but
+  it rescaled every screen, which read as the whole page zooming.
+
+  `fixed` escapes #app-container's overflow, because plain overflow is not a containing
+  block for fixed positioning -- the same reason .screen::before can paint past the box.
+  Declared after the base .legal-line rule so it wins.
+*/
+@media (max-width: 767px) and (orientation: portrait) {
+  .legal-line {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+    /* 53.24% of a short phone's artboard is ~140px, too small for four lines of fine
+       print; the floor keeps it readable and the ceiling keeps it off the edges. */
+    width: max(53.24vw, 165px);
+    max-width: 92vw;
+  }
+
+  /*
+    The artboard's own bottom band already reaches the fold on short phones (the 1.10x
+    cap deliberately fits 0-93%), so that band and the pinned line land on the same
+    pixels. These lifts clear it without touching --fit-h. Two different shares because
+    the blocks have different headroom: LP's CARA BERMAIN sits only 23px under the
+    action cards, while Lose's CTA has to move further (its button ended 16px into the
+    line). Both are zero on tall phones, where --fit-over is zero.
+  */
+  #screen-lp .lp-footer {
+    transform: translateY(calc(var(--fit-over, 0px) * -0.21));
+  }
+
+  #screen-win .result-actions,
+  #screen-lose .result-actions {
+    transform: translateY(calc(var(--fit-over, 0px) * -0.39));
+  }
 }
 
 /* Winner carries no Suzzanna lockup, so it gets the Coca-Cola-only line (575x38). */
