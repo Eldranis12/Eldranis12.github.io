@@ -495,7 +495,11 @@ body {
   width: 100%;
   height: auto;
   display: block;
-  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.7));
+  /*
+    No drop-shadow: several Android browsers fall back to the element's bounding box
+    instead of the alpha channel, which printed a visible rectangle around every
+    rounded card. The artwork already carries its own glow.
+  */
 }
 
 .img-btn:active {
@@ -1914,11 +1918,11 @@ body {
     line). Both are zero on tall phones, where --fit-over is zero.
   */
   #screen-lp .lp-footer {
-    transform: translateY(calc(var(--fit-over, 0px) * -0.21));
+    transform: translateY(calc(-1 * min(var(--fit-over, 0px) * 0.21, var(--fit-h, 0px) * 0.019)));
   }
 
   #screen-win .result-actions {
-    transform: translateY(calc(var(--fit-over, 0px) * -0.39));
+    transform: translateY(calc(-1 * min(var(--fit-over, 0px) * 0.39, var(--fit-h, 0px) * 0.035)));
   }
 
   /*
@@ -1926,7 +1930,7 @@ body {
     same lift as Win instead of the old clamp that kept it off the baked-in artwork.
   */
   #screen-lose .lose-logo-suzzanna {
-    transform: translateY(calc(var(--fit-over, 0px) * -0.07));
+    transform: translateY(calc(-1 * min(var(--fit-over, 0px) * 0.07, var(--fit-h, 0px) * 0.006)));
   }
 
   /*
@@ -1935,7 +1939,7 @@ body {
     band. The wider share spends that slack and leaves both gaps in the same range.
   */
   #screen-lose .result-actions {
-    transform: translateY(calc(var(--fit-over, 0px) * -0.72));
+    transform: translateY(calc(-1 * min(var(--fit-over, 0px) * 0.72, var(--fit-h, 0px) * 0.065)));
   }
 
   /* Mobile paints the clean plate for every Lose state, so the layer shows on all. */
