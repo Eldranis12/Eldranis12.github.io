@@ -119,12 +119,15 @@ body {
 
   #app-container {
     /*
-      The UI band runs 2% (winner headline) to 93% (AMBIL VOUCHER) of the artboard, so
-      the artboard may only outgrow the viewport while 91% of it still fits: the cap is
-      1/0.91, rounded to 1.10. This modest extra width reduces the side strips without
-      distorting the artwork or pushing the CTA band outside the viewport.
+      The artboard is kept exactly viewport-tall. It used to be allowed to grow to 1.10x
+      to narrow the side strips, but that traded away the bottom: the overflow is dealt
+      out 2:7, so 7/9 of it disappeared below the fold and squeezed the legal line to
+      27-35px from the screen edge on short phones (320x568, 375x667). Behind iOS
+      Safari's bottom address bar that reads as missing entirely. The strips no longer
+      need the help either -- .screen::before paints the real artwork across the whole
+      viewport, so a slightly wider strip costs nothing.
     */
-    --fit-h: min(max(var(--vvh, 100dvh), 100vw * 13 / 6), var(--vvh, 100dvh) * 1.10);
+    --fit-h: var(--vvh, 100dvh);
     --fit-over: max(0px, var(--fit-h) - var(--vvh, 100dvh));
     /*
       That band is not centred in the artboard -- 2% of slack above, 7% below -- so
@@ -1851,8 +1854,21 @@ body {
 .legal-line {
   position: absolute;
   left: 50%;
-  bottom: 1.5%;
-  width: 53.24%;
+  /*
+    Anchored to the screen edge, not a share of the artboard. `bottom: 1.5%` left it
+    8.5px up on a 320x568 phone, and `viewport-fit=cover` means the last ~34px belong
+    to the home indicator -- the line sat underneath it and read as missing. The
+    artboard is viewport-tall now (see --fit-h), so its bottom edge is the screen's,
+    and a px offset past the safe-area inset lands where it should on every handset.
+  */
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  /*
+    53.24% of a 262px artboard is 140px -- a 575px-wide export at 24% scale, which is
+    below reading size for three lines of fine print. The floor keeps it legible on the
+    narrowest phones; the 92% ceiling stops that floor from touching the edges.
+  */
+  width: max(53.24%, 165px);
+  max-width: 92%;
   height: auto;
   transform: translateX(-50%);
   z-index: 50;
