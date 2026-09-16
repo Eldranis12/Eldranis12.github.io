@@ -1926,7 +1926,7 @@ body {
     same lift as Win instead of the old clamp that kept it off the baked-in artwork.
   */
   #screen-lose .lose-logo-suzzanna {
-    transform: translateY(calc(var(--fit-over, 0px) * -0.17));
+    transform: translateY(calc(var(--fit-over, 0px) * -0.07));
   }
 
   /*
