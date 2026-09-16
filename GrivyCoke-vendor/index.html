@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Coke Hangout — Tetris</title>
+<link rel="preload" href="assets/img/confetti-new.webp" as="image" type="image/webp">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+
+    <!-- ============ SCREEN 1: CARA BERMAIN ============ -->
+    <section id="screen-howto" class="screen dark">
+      <img class="deco deco-tl" src="assets/img/deco-2.png" alt="">
+      <img class="deco deco-tr" src="assets/img/deco-1.png" alt="">
+      <div class="fit">
+      <div class="howto-content">
+        <h1>Cara bermain</h1>
+        <p class="howto-desc">Susun balok hingga membentuk satu baris penuh untuk mendapatkan poin. Jangan sampai balok mencapai bagian atas.</p>
+        <h2>Kontrol</h2>
+        <ul class="controls-list">
+          <li><img src="assets/img/btn-left.png" alt=""><span>Geser ke kiri</span></li>
+          <li><img src="assets/img/btn-right.png" alt=""><span>Geser ke kanan</span></li>
+          <li><img src="assets/img/btn-rotate.png" alt=""><span>Putar balok</span></li>
+          <li><img src="assets/img/btn-down.png" alt=""><span>Turun cepat</span></li>
+          <li><img src="assets/img/btn-drop.png" alt=""><span>Jatuhkan langsung</span></li>
+        </ul>
+        <button id="btn-start" class="btn-image"><img src="assets/img/btn-mulai.png" alt="Mulai"></button>
+      </div>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 2: GAME ============ -->
+    <section id="screen-game" class="screen red hidden">
+      <div class="fit">
+      <img class="game-logo" src="assets/img/logo.png" alt="Coca-Cola">
+
+      <div class="panel score-panel">
+        <div class="panel-label">SCORE</div>
+        <div id="hud-score" class="panel-value">0</div>
+      </div>
+
+      <div class="panel time-panel">
+        <svg class="clock-icon" viewBox="0 0 48 48" fill="none">
+          <circle cx="24" cy="24" r="20" stroke="white" stroke-width="4"/>
+          <path d="M24 13 V25 L32 30" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="panel-label">TIME</div>
+        <div id="hud-time" class="panel-value">3:00</div>
+      </div>
+
+      <div class="panel next-panel">
+        <div class="panel-label">NEXT</div>
+        <div id="next-queue"></div>
+      </div>
+
+      <div id="board-wrap">
+        <canvas id="board" width="600" height="1200"></canvas>
+        <div id="popup-layer"></div>
+      </div>
+
+      <div class="game-controls">
+        <button class="btn-ctl" id="ctl-left"><img src="assets/img/btn-left.png" alt="Kiri"></button>
+        <button class="btn-ctl" id="ctl-right"><img src="assets/img/btn-right.png" alt="Kanan"></button>
+        <button class="btn-ctl" id="ctl-rotate"><img src="assets/img/btn-rotate.png" alt="Putar"></button>
+        <button class="btn-ctl" id="ctl-down"><img src="assets/img/btn-down.png" alt="Turun"></button>
+        <button class="btn-ctl" id="ctl-drop"><img src="assets/img/btn-drop.png" alt="Jatuhkan"></button>
+      </div>
+
+      </div>
+      <!-- swoosh & copyright di level screen supaya full dari tepi ke tepi -->
+      <img class="swoosh" src="assets/img/swoosh.png" alt="">
+      <img class="copyright" src="assets/img/copyright.png" alt="">
+
+      <!-- waiting screen multiplayer: layar GELAP SOLID (sama seperti Cara
+           Bermain, bukan tumpukan transparan di atas board) supaya board di
+           belakang benar-benar tidak kelihatan (feedback: "ga sesuai" — board
+           masih kebaca lewat overlay lama). Botol coke = loading state. -->
+      <div id="waiting-overlay" class="hidden">
+        <img class="deco deco-tl" src="assets/img/deco-2.png" alt="">
+        <img class="deco deco-tr" src="assets/img/deco-1.png" alt="">
+        <h1>Siap Bertanding?</h1>
+        <div class="waiting-copy">
+          <p class="waiting-text" id="waiting-count">Menunggu pemain lain…</p>
+          <p class="waiting-sub">Begitu semua siap, permainan dimulai!</p>
+          <p class="waiting-timer" id="waiting-timer"></p>
+        </div>
+        <div class="bottle-loader">
+          <!-- botol loading pakai ASET ASLI dari desain (bukan reka ulang):
+               Asset 31 = siluet botol putih (dasar + mask cairan), Asset 32
+               = logo merah. Cairan merah dipotong (CSS mask) ke siluet
+               Asset 31 supaya bentuknya PERSIS sama seperti desain, lalu
+               dinaikkan sesuai jumlah pemain siap dengan tepi bergelombang
+               (feedback: "animasi isi botol bergelombang"). Logo satu warna
+               saja, statis -- feedback: "jangan jadi merah putih" (efek
+               logo ganti warna dihapus, terlihat mengganggu). -->
+          <div class="waiting-bottle">
+            <img class="bl-base" src="assets/img/bottle-loading.png" alt="">
+            <img class="bl-logo-red" src="assets/img/bottle-loading-logo-red.png" alt="">
+            <div class="bl-liquid-mask">
+              <div id="waiting-liquid" class="bl-liquid-level">
+                <svg class="bl-wave-svg" viewBox="0 0 180 709" preserveAspectRatio="none">
+                  <path class="bl-wave-path" d="M-180,10
+                    q22,-14 45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0 t45,0
+                    L540,760 L-180,760 Z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 3: YOUR SCORE ============ -->
+    <section id="screen-result" class="screen red hidden">
+      <!-- deco di level screen (bukan .fit) supaya posisinya sama persis
+           dengan halaman tutorial di semua ukuran layar -->
+      <img class="deco deco-tl" src="assets/img/deco-2.png" alt="">
+      <img class="deco deco-tr" src="assets/img/deco-1.png" alt="">
+      <div class="fit">
+      <div class="result-content">
+        <img class="line" src="assets/img/line-score.png" alt="">
+        <div class="your-score">YOUR SCORE</div>
+        <div id="final-score">0</div>
+        <img class="line" src="assets/img/line-score.png" alt="">
+        <div id="session-results" class="hidden"></div>
+        <h2>Raih Skor Tertinggi dan<br>Dapatkan Hadiah!</h2>
+        <p>Kumpulkan skor, dan jadilah juara mingguan<br>untuk mendapatkan hadiah menarik.</p>
+      </div>
+      <img class="bottle" src="assets/img/bottle.png" alt="">
+      </div>
+      <!-- confetti di level screen (bukan .fit) supaya tidak ikut zoom .fit
+           dan selalu menutupi penuh sama persis seperti background -->
+      <img id="confetti" alt="">
+      <img class="swoosh" src="assets/img/swoosh.png" alt="">
+      <img class="copyright" src="assets/img/copyright.png" alt="">
+    </section>
+
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

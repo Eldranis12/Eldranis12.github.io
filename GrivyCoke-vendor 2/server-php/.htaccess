@@ -1,0 +1,28 @@
+# ============================================================
+# Semua request -> index.php (router API).
+# Taruh folder ini di public_html, mis. public_html/coke-api/
+# ============================================================
+
+# Jangan tampilkan isi folder
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # file/folder yang benar-benar ada tetap dilayani apa adanya
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# Lindungi berkas yang tidak boleh diakses publik
+<FilesMatch "^(config\.php|config\.example\.php|schema\.sql|.*\.md)$">
+  Require all denied
+</FilesMatch>
+
+# Fallback untuk Apache 2.2 (sebagian shared hosting lama)
+<IfModule !mod_authz_core.c>
+  <FilesMatch "^(config\.php|config\.example\.php|schema\.sql|.*\.md)$">
+    Order allow,deny
+    Deny from all
+  </FilesMatch>
+</IfModule>

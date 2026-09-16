@@ -1,0 +1,1085 @@
+// ============================================================
+// UI + game loop — render papan di canvas, layar & efek sesuai
+// mockup FA_Tetris Gamification (artboard 1080x2340).
+// ============================================================
+
+import { CONFIG, PLAYER } from './config.js';
+import { Tetris, SHAPES } from './tetris.js';
+import { notifyGameStart, notifyGameEnd, notifyScoreUpdate, notifyGameExit } from './kiosk.js';
+import { playSfx } from './audio.js';
+import { createSession } from './session.js';
+
+const $ = sel => document.querySelector(sel);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s).replace(/[<>&"]/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;' }[c]));
+
+// ---------- skala stage ke viewport ----------
+// Lebar desain tetap 1080; tinggi mengikuti layar supaya tidak ada
+// letterbox hitam. Elemen bawah (swoosh, copyright, botol) sudah
+// di-anchor ke bottom sehingga aman untuk tinggi berapa pun.
+// Pakai visualViewport kalau ada: window.innerHeight bisa salah/telat
+// update di beberapa browser Android (toolbar dinamis, gesture nav) dan
+// bikin stage ke-render lebih besar dari layar (feedback S24FE).
+function viewportSize() {
+  const vv = window.visualViewport;
+  return vv ? { w: vv.width, h: vv.height } : { w: innerWidth, h: innerHeight };
+}
+function fitStage() {
+  const stage = $('#stage');
+  const { w: vw, h: vh } = viewportSize();
+  let s = vw / 1080;
+  let H = Math.round(vh / s);
+  if (vw > vh) {
+    // layar beneran landscape (desktop/rotate): fit tinggi, bar di samping.
+    // Dulu dicek pakai "H < 1900" (tinggi desain hasil fit-width) -- tapi di
+    // HP portrait dengan address bar/tab bar Safari kelihatan, visualViewport
+    // tingginya ikut susut sehingga H gampang jatuh di bawah 1900 padahal
+    // layarnya portrait biasa -> stage salah masuk mode fit-height dan jadi
+    // kecil dengan bar hitam kiri-kanan (feedback iOS Safari).
+    s = vh / 2340;
+    H = 2340;
+  }
+  stage.style.width = '1080px';
+  stage.style.height = H + 'px';
+  if ('zoom' in stage.style) {
+    stage.style.zoom = s;            // zoom ikut layout -> tidak ada overflow
+  } else {
+    stage.style.transform = `scale(${s})`;
+  }
+
+  // layar lebih pendek dari desain 2340 -> kecilkan konten proporsional
+  const k = Math.min(1, H / 2340);
+  for (const fit of document.querySelectorAll('.fit')) {
+    fit.style.zoom = k;
+    fit.style.height = Math.round(H / k) + 'px';
+  }
+}
+addEventListener('resize', fitStage);
+addEventListener('orientationchange', () => setTimeout(fitStage, 60));
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', fitStage);
+  visualViewport.addEventListener('scroll', fitStage);
+}
+fitStage();
+
+// ---------- preload gambar ----------
+const IMG = {};
+function loadImages(map) {
+  return Promise.all(Object.entries(map).map(([key, src]) => new Promise(res => {
+    const im = new Image();
+    im.onload = () => { IMG[key] = im; res(); };
+    im.onerror = () => { console.warn('gagal load', src); res(); };
+    im.src = src;
+  })));
+}
+const imagesReady = loadImages({
+  red: 'assets/img/block-red.png',
+  white: 'assets/img/block-white.png',
+  trailRed: 'assets/img/trail-red.png',
+  trailWhite: 'assets/img/trail-white.png',
+  rowRed: 'assets/img/row-red.png',
+  rowWhite: 'assets/img/row-white.png',
+  bubbleRed: 'assets/img/bubble-red.png',
+  bubbleWhite: 'assets/img/bubble-white.png',
+  bub1: 'assets/img/bubbles/bubble-1.png',
+  bub2: 'assets/img/bubbles/bubble-2.png',
+  bub3: 'assets/img/bubbles/bubble-3.png',
+  bub4: 'assets/img/bubbles/bubble-4.png',
+  bub5: 'assets/img/bubbles/bubble-5.png',
+  bub6: 'assets/img/bubbles/bubble-6.png',
+  bub7: 'assets/img/bubbles/bubble-7.png',
+  bub8: 'assets/img/bubbles/bubble-8.png',
+  bub9: 'assets/img/bubbles/bubble-9.png',
+  fizz: 'assets/img/bubbles/fizz.png',
+  bottleSweep: 'assets/img/bubbles/bottle.png',
+  sweepLine1: 'assets/img/bubbles/line-1.png',
+  sweepLine2: 'assets/img/bubbles/line-2.png',
+  sweepLine3: 'assets/img/bubbles/line-3.png',
+});
+
+// Gelembung selalu merah (feedback: "bubble ga perlu ada yg putih, tetep
+// merah"), dipakai untuk baris merah maupun putih.
+const BUBBLE_KEYS = ['bub1','bub2','bub3','bub4','bub5','bub6','bub7','bub8','bub9'];
+const BUBBLE_SET = [];
+
+imagesReady.then(() => {
+  for (const k of BUBBLE_KEYS) if (IMG[k]) BUBBLE_SET.push(IMG[k]);
+});
+
+// ---------- state ----------
+const CELL = CONFIG.cell;
+const canvas = $('#board');
+const ctx = canvas.getContext('2d');
+
+let game = null;
+let session = null;      // SessionService (remote/local) — lihat js/session.js
+let gameMode = 'single'; // 'single' | 'multi' (ditentukan setelah waiting room)
+let running = false;
+let over = false;
+let timeLeft = CONFIG.gameSeconds;
+let dropTimer = 0;
+let lockTimer = -1;      // -1 = belum mendarat
+let lockResets = 0;
+let softDropping = false;
+let lastTs = 0;
+let lastTickSecond = -1; // detik terakhir yang sudah bunyi "tick" (10 detik terakhir)
+let elapsed = 0;
+
+// animasi
+let clearAnim = null;     // { rows, color, t }
+let trails = [];          // { x, y, w, color, t }  efek gradasi jatuh
+let bubbles = [];         // partikel gelembung line clear
+let fizzBursts = [];      // lembaran semburan fizz (asset Fizz bubble.png)
+let pendingSpawn = false;
+
+// ---------- layar ----------
+function show(id) {
+  for (const s of document.querySelectorAll('.screen')) s.classList.add('hidden');
+  $(id).classList.remove('hidden');
+}
+
+// ---------- waiting room (lobby multiplayer) ----------
+// Render status join dari server: jumlah pemain, hitung mundur window,
+// daftar nickname yang sudah bergabung di sesi ini.
+function updateWaiting(st) {
+  const count = st.count ?? (st.players ? st.players.length : 1);
+  const max = st.max ?? CONFIG.maxPlayers;
+  // mockup: "N dari 4 pemain sudah siap" (roster dihilangkan supaya sesuai
+  // desain; botol = indikator loading). Countdown TETAP ditampilkan
+  // (feedback: "countdown menunggu player jangan dihilangkan").
+  const cEl = $('#waiting-count');
+  if (cEl) cEl.textContent = `${count} dari ${max} pemain sudah siap`;
+  const tEl = $('#waiting-timer');
+  if (tEl) {
+    const sec = Math.ceil((st.ms_left ?? 0) / 1000);
+    tEl.textContent = sec > 0 ? `Mulai dalam ${sec} detik…` : '';
+  }
+  // isi botol naik sesuai proporsi pemain siap (feedback: "animasi isi
+  // botol bergelombang"). translateY dihitung di JS & di-set langsung
+  // (bukan calc()+custom property) supaya konsisten di semua browser.
+  // Tinggi dibaca dari elemen langsung (bukan angka tetap) supaya selalu
+  // sinkron dengan ukuran .waiting-bottle di CSS.
+  const liquid = $('#waiting-liquid');
+  const bottleEl = $('.waiting-bottle');
+  if (liquid && bottleEl) {
+    const pct = Math.min(1, count / max);
+    const h = bottleEl.offsetHeight || 485;
+    liquid.style.transform = `translateY(${Math.round(h * (1 - pct))}px)`;
+  }
+}
+
+// ---------- HUD ----------
+function fmtTime(s) {
+  const m = Math.floor(s / 60), ss = Math.floor(s % 60);
+  return `${m}:${String(ss).padStart(2, '0')}`;
+}
+function updateHud() {
+  $('#hud-score').textContent = game.score;
+  const t = Math.max(0, timeLeft);
+  $('#hud-time').textContent = fmtTime(t);
+
+  // feedback 13 Jul: 10 detik terakhir -> angka time berkedip + tick sound
+  const secLeft = Math.ceil(t);
+  const lastTen = running && !over && t > 0 && secLeft <= 10;
+  $('#hud-time').classList.toggle('blink', lastTen);
+  if (lastTen && secLeft !== lastTickSecond) {
+    lastTickSecond = secLeft;
+    playSfx('tick');
+  }
+}
+
+// ---------- NEXT queue (mini canvas per balok) ----------
+function renderNext() {
+  const holder = $('#next-queue');
+  holder.innerHTML = '';
+  const mini = 26; // px per sel mini
+  for (const q of game.queue.slice(0, 3)) {
+    const m = SHAPES[q.name];
+    let minX = 9, maxX = -1, minY = 9, maxY = -1;
+    m.forEach((row, y) => row.forEach((v, x) => {
+      if (v) { minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+               minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+    }));
+    const c = document.createElement('canvas');
+    c.width = (maxX - minX + 1) * mini;
+    c.height = (maxY - minY + 1) * mini;
+    c.style.width = c.width + 'px';
+    const g = c.getContext('2d');
+    const img = IMG[q.color];
+    m.forEach((row, y) => row.forEach((v, x) => {
+      if (v) g.drawImage(img, (x - minX) * mini, (y - minY) * mini, mini, mini);
+    }));
+    // slot ukuran tetap: balok apapun bentuknya dipusatkan, supaya 3 slot
+    // rapi mengisi tinggi box NEXT (feedback 13 Jul: ada ruang kosong)
+    const slot = document.createElement('div');
+    slot.className = 'next-slot';
+    slot.appendChild(c);
+    holder.appendChild(slot);
+  }
+}
+
+// feedback 13 Jul: sound per kata (file menyusul, lihat js/audio.js)
+const WORD_SFX = {
+  'Mantap!': 'mantap',
+  'Keren!': 'keren',
+  'Gokil!': 'gokil',
+  'Sempurna!': 'sempurna',
+  'Perfect!': 'perfect',
+};
+
+// ---------- popup kata (Mantap! +100 dst) ----------
+// koordinat grid di dalam #board-wrap (canvas #board di offset 58,58,
+// tiap sel CELL px — lihat #board di style.css)
+const GRID_X = 58, GRID_Y = 58;
+const GRID_W = CONFIG.cols * CELL;   // 600
+const GRID_H = CONFIG.rows * CELL;   // 1200
+
+// feedback 14 Jul: kata + combo disusun bertumpuk rapi dalam SATU grup
+// (tidak saling menimpa), muncul di dekat balok yang melengkapi baris
+// (horizontal mengikuti kolom balok terakhir), dan sedikit DI ATAS efek
+// line clear (tidak menimpa baris yang dihapus).
+function popupGroup(items, centerCol, rowTop, rowCount) {
+  const group = document.createElement('div');
+  group.className = 'popup-group';
+  group.style.left = '-9999px'; // sembunyikan sampai ukuran terukur
+  for (const it of items) {
+    const el = document.createElement('div');
+    el.className = 'popup' + (it.combo ? ' combo' : '');
+    el.innerHTML = `${it.word}<br><span class="pts">+${it.pts}</span>`;
+    group.appendChild(el);
+  }
+  $('#popup-layer').appendChild(group);
+
+  const w = group.offsetWidth, h = group.offsetHeight, gap = 18;
+  const cellX = GRID_X + centerCol * CELL;
+  const topRowY = GRID_Y + rowTop * CELL;
+  const bottomRowY = GRID_Y + (rowTop + rowCount) * CELL;
+
+  // horizontal: pusatkan di balok, jaga tetap di dalam papan
+  let left = cellX - w / 2;
+  left = Math.max(GRID_X + 4, Math.min(GRID_X + GRID_W - w - 4, left));
+
+  // vertikal: utamakan di atas baris; kalau tak muat, taruh di bawahnya
+  let top = topRowY - gap - h;
+  if (top < GRID_Y + 4) top = Math.min(bottomRowY + gap, GRID_Y + GRID_H - h - 4);
+
+  group.style.left = left + 'px';
+  group.style.top = top + 'px';
+  setTimeout(() => group.remove(), 1200);
+}
+
+// popup di tengah papan (Perfect! — baris sudah hilang saat ini dipanggil)
+function popupCenter(word, pts) {
+  const group = document.createElement('div');
+  group.className = 'popup-group center';
+  const el = document.createElement('div');
+  el.className = 'popup';
+  el.innerHTML = `${word}<br><span class="pts">+${pts}</span>`;
+  group.appendChild(el);
+  $('#popup-layer').appendChild(group);
+  setTimeout(() => group.remove(), 1200);
+}
+
+// kolom tengah balok (dipakai untuk menempatkan popup di dekat balok terakhir)
+function pieceCenterCol(p) {
+  let minC = 99, maxC = -1;
+  p.matrix.forEach((row, y) => row.forEach((v, x) => {
+    if (v) { const gx = p.x + x; if (gx < minC) minC = gx; if (gx > maxC) maxC = gx; }
+  }));
+  return (minC + maxC + 1) / 2;
+}
+
+// ---------- render papan ----------
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // grid & border sudah ada di asset board.png (background #board-wrap)
+
+  // efek gradasi jatuh (trail)
+  for (const t of trails) {
+    const img = t.color === 'red' ? IMG.trailRed : IMG.trailWhite;
+    ctx.globalAlpha = t.t;
+    ctx.drawImage(img, t.x, t.y - t.h, t.w, t.h);
+    ctx.globalAlpha = 1;
+  }
+
+  // balok terkunci
+  // animasi clear: fase 1 (30% awal) baris sudah berubah warna balok terakhir,
+  // fase 2 balok hilang dari kiri ke kanan
+  const clearing = new Set(clearAnim ? clearAnim.rows : []);
+  const prog = clearAnim ? Math.max(0, (0.7 - clearAnim.t) / 0.7) : 0;
+  for (let y = 0; y < CONFIG.rows; y++) {
+    for (let x = 0; x < CONFIG.cols; x++) {
+      const cellColor = game.grid[y][x];
+      if (!cellColor) continue;
+      if (clearing.has(y)) {
+        const cut = prog * (CONFIG.cols + 3) - x;
+        const a = Math.max(0, Math.min(1, 1 - cut));
+        if (a <= 0) continue;
+        ctx.globalAlpha = a;
+        ctx.drawImage(IMG[cellColor], x * CELL, y * CELL, CELL, CELL);
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.drawImage(IMG[cellColor], x * CELL, y * CELL, CELL, CELL);
+      }
+    }
+  }
+
+  // overlay stroke: satu kotak per kelompok baris berurutan (multi-baris =
+  // satu kotak lebih tinggi, sesuai spec sheet .ai).
+  // PNG row-red/white 1817x377 punya margin glow besar; kotak solidnya di
+  // bbox (94,95)-(1720,280) -> skala supaya kotak solid pas menutup baris.
+  if (clearAnim) {
+    const img = clearAnim.color === 'red' ? IMG.rowRed : IMG.rowWhite;
+    const fadeIn = Math.min(1, (1 - clearAnim.t) * 5);
+    const fadeOut = Math.min(1, clearAnim.t * 5);
+    ctx.globalAlpha = Math.min(fadeIn, fadeOut);
+    for (const [top, count] of clearAnim.groups) {
+      const tx = -4, tw = canvas.width + 8;          // target kotak solid
+      const ty = top * CELL - 4, th = count * CELL + 8;
+      const sx = tw / (1720 - 94), sy = th / (280 - 95);
+      ctx.drawImage(img, tx - 94 * sx, ty - 95 * sy, 1817 * sx, 377 * sy);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // garis kecepatan (asset Line 1-3): meregang dari kiri sampai posisi botol
+  if (clearAnim && IMG.sweepLine1) {
+    const lines = [IMG.sweepLine1, IMG.sweepLine2, IMG.sweepLine3];
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const [top, count] of clearAnim.groups) {
+      const bandY = top * CELL, bandH = count * CELL;
+      const w = Math.max(0, clearAnim.sweepX);
+      for (let i = 0; i < lines.length; i++) {
+        const img = lines[i];
+        if (!img) continue;
+        const h = CELL * (0.5 + i * 0.12);
+        const cy = bandY + bandH * (0.28 + i * 0.22);
+        ctx.globalAlpha = Math.min(1, clearAnim.t * 3) * (0.5 - i * 0.1);
+        ctx.drawImage(img, w - w * (0.9 + i * 0.05), cy - h / 2, w * (0.9 + i * 0.05), h);
+      }
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  // semburan fizz di belakang gelembung (kabut karbonasi)
+  for (const f of fizzBursts) {
+    if (f.delay > 0) continue;
+    const img = IMG.fizz;
+    if (!img) continue;
+    const k = 1 - f.t;                       // 0 -> 1 sepanjang umur
+    const w = f.w * (0.75 + k * 0.5);
+    const h = w * (177 / 525);
+    ctx.save();
+    // 'lighter' supaya terbaca sebagai kabut/kilau, bukan lapisan abu-abu solid
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.min(1, f.t * 1.6) * 0.3;
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.rot);
+    if (f.flip) ctx.scale(-1, 1);
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // gelembung: selalu merah, terlempar ke belakang botol lalu naik berayun,
+  // berputar, membesar, dan pecah
+  for (const b of bubbles) {
+    if (b.delay > 0) continue;
+    const img = BUBBLE_SET.length ? BUBBLE_SET[b.img % BUBBLE_SET.length] : IMG.bubbleRed;
+    if (!img) continue;
+    const k = 1 - b.t;
+    // pop di ujung umur: sedikit melar lalu hilang
+    const pop = b.t < 0.18 ? 1 + (0.18 - b.t) * 3.2 : 1;
+    const r = b.r * (1 + k * b.grow) * pop;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, b.t * 2.2);
+    ctx.translate(b.x, b.y);
+    ctx.rotate(b.rot);
+    ctx.drawImage(img, -r, -r, r * 2, r * 2);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // botol Coca-Cola yang menyapu baris — digambar paling atas, di depan jejak
+  if (clearAnim && IMG.bottleSweep) {
+    const k = 1 - clearAnim.t;
+    for (const [top, count] of clearAnim.groups) {
+      const bandY = top * CELL, bandH = count * CELL;
+      const h = Math.max(bandH * 1.25, CELL * 2.3);
+      const w = h * (104 / 271);
+      // sedikit bergoyang & miring supaya tidak terasa digeser kaku
+      const bob = Math.sin(k * Math.PI * 3) * CELL * 0.12;
+      const tilt = Math.sin(k * Math.PI * 2) * 0.12 - 0.1;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, k * 8, clearAnim.t * 4);
+      ctx.translate(clearAnim.sweepX, bandY + bandH / 2 + bob);
+      ctx.rotate(tilt);
+      ctx.drawImage(IMG.bottleSweep, -w / 2, -h / 2, w, h);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // saat animasi clear berjalan, balok terakhir sudah menyatu ke grid —
+  // jangan digambar lagi sebagai balok aktif (feedback: "balok yang
+  // melengkapi baris tidak ikut hilang")
+  const p = game.piece;
+  if (p && !over && !clearAnim) {
+    const gy = game.ghostY();
+
+    // bayangan balok (silhouette)
+    if (gy > p.y) {
+      drawSilhouette(p.matrix, p.x, gy);
+      drawDots(p, gy);
+    }
+
+    // balok aktif
+    for (let y = 0; y < p.matrix.length; y++)
+      for (let x = 0; x < p.matrix[y].length; x++)
+        if (p.matrix[y][x] && p.y + y >= 0)
+          ctx.drawImage(IMG[p.color], (p.x + x) * CELL, (p.y + y) * CELL, CELL, CELL);
+  }
+}
+
+// siluet bayangan: bentuk balok menyatu dengan satu outline putih
+// (digambar via offscreen canvas + dilasi supaya outline hanya di tepi luar)
+const silCanvas = document.createElement('canvas');
+silCanvas.width = 5 * CELL + 24;
+silCanvas.height = 5 * CELL + 24;
+const silCtx = silCanvas.getContext('2d');
+
+function drawSilhouette(m, px, py) {
+  const pad = 12;
+  silCtx.clearRect(0, 0, silCanvas.width, silCanvas.height);
+  silCtx.beginPath();
+  for (let y = 0; y < m.length; y++)
+    for (let x = 0; x < m[y].length; x++)
+      if (m[y][x])
+        silCtx.roundRect(pad + x * CELL, pad + y * CELL, CELL + 1, CELL + 1, 12);
+  silCtx.fillStyle = '#fff';
+  silCtx.fill();
+
+  const dx = px * CELL - pad, dy = py * CELL - pad;
+  // outline: gambar bentuk putih diperbesar ke 8 arah
+  for (const [ox, oy] of [[-3,0],[3,0],[0,-3],[0,3],[-2,-2],[2,-2],[-2,2],[2,2]])
+    ctx.drawImage(silCanvas, dx + ox, dy + oy);
+  // isi: warna gelap semi transparan menimpa bagian dalam
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  silCtx.globalCompositeOperation = 'source-in';
+  silCtx.fillStyle = 'rgb(82, 38, 32)';
+  silCtx.fillRect(0, 0, silCanvas.width, silCanvas.height);
+  silCtx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(silCanvas, dx, dy);
+  ctx.restore();
+}
+
+function drawDots(p, gy) {
+  // titik-titik dari balok aktif ke bayangan
+  let cx = 0, count = 0, bottom = 0;
+  for (let y = 0; y < p.matrix.length; y++)
+    for (let x = 0; x < p.matrix[y].length; x++)
+      if (p.matrix[y][x]) { cx += p.x + x + 0.5; count++; bottom = Math.max(bottom, p.y + y + 1); }
+  cx = (cx / count) * CELL;
+  const y0 = bottom * CELL + 14;
+  const y1 = gy * CELL - 8;
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  for (let y = y0; y < y1; y += 34) {
+    ctx.beginPath(); ctx.arc(cx, y, 5, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// ---------- efek ----------
+function addTrail(distance, alpha = 0.9) {
+  // gradasi per kolom mengikuti siluet balok (sesuai contoh spec sheet .ai):
+  // tiap kolom balok dapat gradasi dari sel teratasnya ke atas
+  const p = game.piece;
+  const tops = {}; // kolom grid -> baris teratas yang terisi
+  p.matrix.forEach((row, y) => row.forEach((v, x) => {
+    if (!v) return;
+    const gx = p.x + x, gy = p.y + y;
+    if (tops[gx] === undefined || gy < tops[gx]) tops[gx] = gy;
+  }));
+  const h = Math.min(distance, 4) * CELL;
+  for (const [gx, topY] of Object.entries(tops)) {
+    trails.push({
+      x: gx * CELL,
+      w: CELL,
+      y: topY * CELL,
+      h,
+      color: p.color,
+      t: alpha,
+    });
+  }
+}
+
+// Efek line clear: botol Coca-Cola menyapu baris dari kiri ke kanan dan
+// meninggalkan jejak buih karbonasi di belakangnya (feedback 12 Agu:
+// "harusnya ada botolnya", "bubblenya kyk efek trail gitu").
+// Botolnya yang jalan kiri->kanan; gelembungnya sendiri tidak kaku — begitu
+// lepas dari botol ia menyembur ke belakang, naik berayun, berputar, membesar,
+// lalu pecah. Asset: assets/img/bubbles/bottle.png, bubble-1..9.png, fizz.png.
+
+// posisi botol 0..1 sepanjang baris; cepat di awal lalu melambat di ujung
+function sweepPos(t) {
+  const k = 1 - t;                    // clearAnim.t turun 1 -> 0
+  return 1 - Math.pow(1 - k, 2.2);
+}
+
+function emitSweepTrail(groups, dt) {
+  const ds = dt / 1000;
+  for (const [top, count] of groups) {
+    const bandY = top * CELL;
+    const bandH = count * CELL;
+    const bx = clearAnim.sweepX;
+    // gelembung menetes dari badan botol, makin banyak untuk clear multi-baris
+    const n = Math.round((190 * count) * ds);
+    for (let i = 0; i < n; i++) {
+      const big = Math.random() < 0.16;
+      bubbles.push({
+        // muncul tepat di belakang botol, tersebar setinggi baris
+        x: bx - Math.random() * CELL * 1.1,
+        y: bandY + Math.random() * bandH,
+        r: (big ? 15 : 4) + Math.random() * (big ? 18 : 13),
+        // terlempar ke belakang botol lalu mereda -> jejak tertinggal
+        vx: -(60 + Math.random() * 220),
+        vy: (Math.random() - 0.55) * 200,
+        buoy: 130 + Math.random() * 280,         // percepatan naik (px/s^2)
+        drag: 2.0 + Math.random() * 1.6,         // lemparan cepat mereda
+        wob: 20 + Math.random() * 50,            // amplitudo goyangan px/s
+        wobF: 3 + Math.random() * 5,             // frekuensi goyangan
+        phase: Math.random() * Math.PI * 2,
+        rot: Math.random() * Math.PI * 2,
+        vrot: (Math.random() - 0.5) * 3.4,
+        grow: 0.35 + Math.random() * 0.6,        // pengembangan sepanjang umur
+        img: Math.floor(Math.random() * 9),
+        delay: 0,
+        age: 0,
+        t: 1,
+        life: 0.5 + Math.random() * 0.7,
+      });
+    }
+
+    // kabut fizz tipis, ikut menempel di jejak botol
+    if (Math.random() < 26 * ds * count) {
+      fizzBursts.push({
+        x: bx - CELL * (0.6 + Math.random()),
+        y: bandY + bandH * (0.2 + Math.random() * 0.6),
+        w: CELL * (4 + Math.random() * 4),
+        flip: Math.random() < 0.5,
+        rot: (Math.random() - 0.5) * 0.3,
+        drift: -(40 + Math.random() * 120),
+        rise: 40 + Math.random() * 90,
+        delay: 0,
+        t: 1,
+        life: 0.4 + Math.random() * 0.3,
+      });
+    }
+  }
+}
+
+// ---------- penempatan balok ----------
+function placePiece(landMode = 'normal') {
+  const res = game.lock();
+  lockTimer = -1;
+  lockResets = 0;
+
+  // Feedback 07 Jul: setiap balok yang turun bernilai 1 poin
+  game.score += 1;
+
+  if (res.rows.length > 0) {
+    game.score += res.points + res.comboPoints;
+    const sorted = [...res.rows].sort((a, b) => a - b);
+    const rowTop = sorted[0], rowCount = sorted.length;
+
+    // kata utama + combo disusun bertumpuk rapi, dekat balok terakhir yang
+    // melengkapi baris, sedikit di atas efek line clear (feedback 14 Jul)
+    const centerCol = pieceCenterCol(game.piece);
+    const items = [{ word: res.word, pts: res.points }];
+    if (res.comboWord) items.push({ word: res.comboWord, pts: res.comboPoints, combo: true });
+    popupGroup(items, centerCol, rowTop, rowCount);
+    playSfx(WORD_SFX[res.word]);
+
+    // baris penuh berubah warna mengikuti balok terakhir yang melengkapinya
+    for (const y of res.rows)
+      game.grid[y] = Array(CONFIG.cols).fill(res.lastColor);
+
+    // kelompokkan baris berurutan -> satu kotak efek per kelompok
+    const groups = [];
+    for (const y of sorted) {
+      const g = groups[groups.length - 1];
+      if (g && y === g[0] + g[1]) g[1]++;
+      else groups.push([y, 1]);
+    }
+
+    clearAnim = { rows: res.rows, groups, color: res.lastColor, t: 1, sweepX: 0 };
+    pendingSpawn = true; // spawn setelah animasi
+    playSfx('clear');
+  } else {
+    // suara mendarat normal saat balok terkunci oleh gravitasi;
+    // varian cepat/sangat cepat dibunyikan saat tombol ditekan (tanpa delay)
+    if (landMode === 'normal') playSfx('landNormal');
+    game.spawn();
+    renderNext();
+  }
+  updateHud();
+  if (session && session.remote && game) session.syncScore(game.score);
+  notifyScoreUpdate(session && session.sessionId ? session.sessionId : '', game.score);
+  if (game.topOut) endGame('topout');
+}
+
+// ---------- loop ----------
+let loopId = 0; // mencegah loop ganda saat startGame dipanggil ulang
+
+function tick(ts, id) {
+  if (!running || id !== loopId) return;
+  const dt = Math.min(50, ts - lastTs);
+  lastTs = ts;
+  elapsed += dt / 1000;
+  timeLeft = CONFIG.gameSeconds - elapsed;
+
+  if (timeLeft <= 0) { updateHud(); endGame('timeup'); return; }
+
+  // update efek
+  trails = trails.filter(t => (t.t -= dt / 400) > 0);
+  const ds = dt / 1000;
+  fizzBursts = fizzBursts.filter(f => {
+    if (f.delay > 0) { f.delay -= ds; return true; }
+    f.x += f.drift * ds;
+    f.y -= f.rise * ds;
+    f.t -= ds / f.life;
+    return f.t > 0;
+  });
+  bubbles = bubbles.filter(b => {
+    if (b.delay > 0) { b.delay -= ds; return true; }
+    b.age += ds;
+    // semburan awal mereda (drag), lalu gaya apung mengambil alih ke atas
+    const damp = Math.exp(-b.drag * ds);
+    b.vx *= damp;
+    b.vy = b.vy * damp - b.buoy * ds;
+    // goyangan horizontal supaya jalurnya berkelok, bukan garis lurus
+    b.x += (b.vx + Math.sin(b.age * b.wobF + b.phase) * b.wob) * ds;
+    b.y += b.vy * ds;
+    b.rot += b.vrot * ds;
+    b.t -= ds / b.life;
+    return b.t > 0 && b.y > -60 && b.x > -80 && b.x < canvas.width + 80;
+  });
+
+  if (clearAnim) {
+    // botol menyapu baris + menyemburkan jejak buih di belakangnya
+    clearAnim.sweepX = sweepPos(clearAnim.t) * (canvas.width + CELL * 1.6) - CELL * 0.8;
+    emitSweepTrail(clearAnim.groups, dt);
+    clearAnim.t -= dt / CONFIG.clearAnimMs;
+    if (clearAnim.t <= 0) {
+      const perfect = game.clearRows(clearAnim.rows);
+      if (perfect) {
+        game.score += CONFIG.perfectClearBonus;
+        popupCenter('Perfect!', CONFIG.perfectClearBonus);
+        playSfx('perfect');
+      }
+      clearAnim = null;
+      if (pendingSpawn) {
+        pendingSpawn = false;
+        game.spawn();
+        renderNext();
+        if (game.topOut) { updateHud(); endGame('topout'); return; }
+      }
+      updateHud();
+    }
+  } else {
+    // gravitasi (kecepatan konstan)
+    dropTimer += dt;
+    const interval = softDropping ? CONFIG.softDropMs : CONFIG.gravityMs;
+    if (dropTimer >= interval) {
+      dropTimer = 0;
+      if (game.softStep()) {
+        lockTimer = -1;
+        // turun cepat: efek gradasi mengikuti balok tiap langkah
+        if (softDropping) addTrail(2.5, 0.45);
+      } else if (lockTimer < 0) {
+        lockTimer = 0;
+      }
+    }
+    if (lockTimer >= 0) {
+      lockTimer += dt;
+      if (lockTimer >= CONFIG.lockDelayMs) {
+        // cek ulang: kalau balok sudah digeser keluar tepian dan masih bisa
+        // turun, jangan dikunci di udara (bug balok melayang)
+        const p = game.piece;
+        if (!game.collides(p.matrix, p.x, p.y + 1)) {
+          lockTimer = -1;
+        } else {
+          placePiece(softDropping ? 'fast' : 'normal');
+        }
+      }
+    }
+  }
+
+  updateHud();
+  draw();
+  requestAnimationFrame(ts2 => tick(ts2, id));
+}
+
+// ---------- input ----------
+function afterShift() {
+  // setelah bergeser/berputar: kalau balok bisa turun lagi (keluar dari
+  // tepian), batalkan lock supaya tidak terkunci melayang
+  const p = game.piece;
+  if (!game.collides(p.matrix, p.x, p.y + 1)) {
+    lockTimer = -1;
+  } else if (lockTimer >= 0 && lockResets < CONFIG.maxLockResets) {
+    lockTimer = 0; lockResets++;
+  }
+}
+function tryMove(dx) {
+  if (!running || over || clearAnim) return;
+  if (game.move(dx)) { playSfx('move'); afterShift(); }
+}
+function tryRotate() {
+  if (!running || over || clearAnim) return;
+  if (game.rotate()) { playSfx('rotate'); afterShift(); }
+}
+function doHardDrop() {
+  if (!running || over || clearAnim) return;
+  playSfx('landHard'); // langsung saat tombol ditekan, tanpa delay
+  const dist = game.hardDrop();
+  if (dist > 0) addTrail(dist);
+  placePiece('hard');
+}
+function startSoftDrop() {
+  if (softDropping) return;
+  softDropping = true;
+  if (running && !over) playSfx('landFast'); // langsung saat tombol ditekan
+}
+
+function bindHold(el, onPress, repeatMs) {
+  let iv = null;
+  const start = e => {
+    e.preventDefault();
+    onPress();
+    if (repeatMs) iv = setInterval(onPress, repeatMs);
+  };
+  const stop = () => { if (iv) { clearInterval(iv); iv = null; } };
+  el.addEventListener('pointerdown', start);
+  el.addEventListener('pointerup', stop);
+  el.addEventListener('pointercancel', stop);
+  el.addEventListener('pointerleave', stop);
+}
+
+bindHold($('#ctl-left'),  () => tryMove(-1), 140);
+bindHold($('#ctl-right'), () => tryMove(1), 140);
+$('#ctl-rotate').addEventListener('pointerdown', e => { e.preventDefault(); tryRotate(); });
+$('#ctl-drop').addEventListener('pointerdown', e => { e.preventDefault(); doHardDrop(); });
+
+const dnBtn = $('#ctl-down');
+dnBtn.addEventListener('pointerdown', e => { e.preventDefault(); startSoftDrop(); });
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
+  dnBtn.addEventListener(ev, () => { softDropping = false; });
+
+addEventListener('keydown', e => {
+  if (e.repeat && (e.key === ' ' || e.key === 'ArrowUp')) return;
+  switch (e.key) {
+    case 'ArrowLeft': tryMove(-1); break;
+    case 'ArrowRight': tryMove(1); break;
+    case 'ArrowUp': case 'x': tryRotate(); break;
+    case 'ArrowDown': startSoftDrop(); break;
+    case ' ': e.preventDefault(); doHardDrop(); break;
+  }
+});
+addEventListener('keyup', e => {
+  if (e.key === 'ArrowDown') softDropping = false;
+});
+
+// cegah menu context "download image" saat tombol ditahan lama di HP
+addEventListener('contextmenu', e => e.preventDefault());
+
+// ---------- confetti (TY page) — sequence resmi dari desain ----------
+// 279 PNG sumber digabung menjadi satu animated WebP transparan supaya tidak
+// perlu mengunduh dan menyimpan ratusan frame terpisah di memori browser.
+// Elemen diganti dengan clone setiap pemutaran agar animasi selalu mulai dari
+// frame pertama, sedangkan file WebP tetap dapat dipakai dari cache browser.
+const CONFETTI_ASSET = 'assets/img/confetti-new.webp';
+const CONFETTI_DURATION_MS = 9300;
+let confettiImage = $('#confetti');
+let confettiTimer = 0;
+let confettiRun = 0;
+
+function startConfetti(durationMs = CONFETTI_DURATION_MS) {
+  const run = ++confettiRun;
+  clearTimeout(confettiTimer);
+
+  const next = confettiImage.cloneNode(false);
+  next.classList.remove('active');
+  next.removeAttribute('src');
+  confettiImage.replaceWith(next);
+  confettiImage = next;
+
+  requestAnimationFrame(() => {
+    if (run !== confettiRun) return;
+    confettiImage.src = CONFETTI_ASSET;
+    confettiImage.classList.add('active');
+    confettiTimer = setTimeout(() => {
+      if (run === confettiRun) confettiImage.classList.remove('active');
+    }, durationMs);
+  });
+}
+
+// ---------- alur game ----------
+async function startGame() {
+  await imagesReady;
+
+  const id = ++loopId;   // matikan loop lama kalau ada
+  game = new Tetris();
+  window.__game = game; // akses debug/QA
+  running = true;
+  over = false;
+  timeLeft = CONFIG.gameSeconds;
+  elapsed = 0;
+  dropTimer = 0;
+  lockTimer = -1;
+  lastTickSecond = -1;
+  trails = []; bubbles = []; fizzBursts = []; clearAnim = null; pendingSpawn = false;
+  $('#popup-layer').innerHTML = '';
+  $('#hud-time').classList.remove('blink');
+
+  show('#screen-game');
+  renderNext();
+  updateHud();
+  draw();
+
+  // ---- waiting room + penentuan mode (dokumen Grivy Bagian 5) ----
+  // REMOTE: backend memanggil dan mem-poll Grivy Game Connect sampai semua
+  // undangan terhubung atau window habis. LOCAL: fallback tanpa round info.
+  session = createSession();
+  gameMode = 'single';
+  const showLobby = session.remote || CONFIG.waitWindowMs > 0;
+  if (showLobby) {
+    $('#waiting-overlay').classList.remove('hidden');
+    updateWaiting({ count: 1, max: CONFIG.maxPlayers,
+      players: [{ user_uid: PLAYER.userId, nickname: PLAYER.nickname }],
+      ms_left: session.remote ? CONFIG.joinWindowSeconds * 1000 : CONFIG.waitWindowMs });
+  }
+  try {
+    if (session.remote) await session.join();
+    const res = await session.waitForStart(updateWaiting);
+    gameMode = res.mode;
+    if (res.locked) {
+      if (id !== loopId) return;
+      await showLockedRound(res.phase);
+      return;
+    }
+  } catch (err) {
+    // Link Flow 5 lengkap tidak boleh diam-diam menjadi game lokal: ronde
+    // seperti itu akan bisa dimainkan tanpa Game Start/Game End. Fallback
+    // single hanya dipilih createSession() ketika parameter ronde memang tak ada.
+    console.error('[flow5] gagal menghubungkan ronde:', err);
+    if (session.remote) {
+      running = false;
+      over = true;
+      $('#waiting-count').textContent = 'RONDE TIDAK DAPAT DIMULAI';
+      $('#waiting-timer').textContent = 'Silakan kembali ke kiosk dan coba lagi.';
+      return;
+    }
+    gameMode = 'single';
+  }
+  if (id !== loopId) return; // sudah di-restart selama menunggu
+  $('#waiting-overlay').classList.add('hidden');
+
+  notifyGameStart(session && session.sessionId ? session.sessionId : '');
+  lastTs = performance.now();
+  requestAnimationFrame(ts => tick(ts, id));
+}
+
+// render ranking TY page.
+//   - masih main            -> "bermain…" (bukan skor 0) supaya jelas menyusul
+//   - putus / tidak selesai -> "diskualifikasi" (Kiosk Vendor Feedback Q5:
+//     pemain yang disconnect atau tidak menyelesaikan game didiskualifikasi,
+//     skor terakhirnya tidak dipakai)
+function renderResults(rows) {
+  const list = rows.slice(0, CONFIG.maxPlayers).sort((a, b) => {
+    if (!!a.disqualified !== !!b.disqualified) return a.disqualified ? 1 : -1;
+    const sa = a.submitted !== false, sb = b.submitted !== false;
+    if (sa !== sb) return sa ? -1 : 1;        // yang sudah selesai di atas
+    return (b.score || 0) - (a.score || 0);
+  });
+  $('#session-results').innerHTML = list.map((r, i) => {
+    const pending = r.submitted === false && !r.disqualified;
+    const label = r.disqualified ? 'diskualifikasi' : (pending ? 'bermain…' : r.score);
+    return `
+    <div class="result-row${r.me ? ' me' : ''}${pending ? ' pending' : ''}${r.disqualified ? ' dq' : ''}">
+      <span class="rank">${r.disqualified ? '—' : '#' + (i + 1)}</span>
+      <span class="name">${esc(r.nickname)}</span>
+      <span class="score">${label}</span>
+    </div>`;
+  }).join('');
+}
+
+// Satu game_session_id hanya berlaku untuk satu ronde. Reload URL yang sama
+// menampilkan hasil lama (atau pesan bahwa ronde masih berjalan), bukan
+// menginisialisasi papan dan mengirim skor kedua kali.
+async function showLockedRound(phase) {
+  running = false;
+  over = true;
+
+  if (phase !== 'ended') {
+    $('#waiting-count').textContent = 'RONDE SEDANG BERJALAN';
+    $('#waiting-timer').textContent = 'Link ini tidak dapat dimainkan ulang.';
+    return;
+  }
+
+  $('#waiting-overlay').classList.add('hidden');
+  const fetched = await session.fetchResults();
+  const rows = fetched?.rows || [];
+  const mine = rows.find(r => r.me);
+  $('#final-score').textContent = mine?.score ?? 0;
+
+  const screen = $('#screen-result');
+  const holder = $('#session-results');
+  const isMulti = rows.length > 1 || gameMode === 'multi';
+  if (isMulti) {
+    screen.classList.add('multi');
+    $('.your-score').textContent = 'SCOREBOARD';
+    holder.classList.remove('hidden');
+    renderResults(rows);
+  } else {
+    screen.classList.remove('multi');
+    $('.your-score').textContent = 'YOUR SCORE';
+    holder.classList.add('hidden');
+  }
+  show('#screen-result');
+}
+
+async function endGame(reason = 'timeup') {
+  if (over) return;
+  over = true;
+  running = false;
+  const gen = loopId;   // token: batalkan kalau game di-restart selama await
+  draw();
+
+  // kirim skor akhir ke server sesi (mengalir ke ranking). Single/local pun
+  // aman: LocalSession menyimpan skor, RemoteSession POST /session/score.
+  if (session) session.submitScore(game.score);
+
+  // teks penutup di board dulu (delay 2 detik) sebelum pindah ke Your Score:
+  //  - waktu habis  -> "Yah, Waktunya Habis!"  (feedback 13 Jul)
+  //  - papan penuh  -> "Papan Penuh!"
+  let minDelay = 900;
+  const overText = reason === 'timeup' ? 'Yah, Waktunya Habis!'
+                 : reason === 'topout' ? 'Papan Penuh!'
+                 : null;
+  if (overText) {
+    const el = document.createElement('div');
+    el.className = 'time-up-text';   // gaya sama: putih + stroke merah + shadow
+    el.textContent = overText;
+    $('#popup-layer').appendChild(el);
+    minDelay = 2000;
+  }
+
+  await sleep(minDelay);
+  if (gen !== loopId) return; // sudah di-restart -> jangan tampilkan hasil lama
+
+  $('#final-score').textContent = game.score;
+  const holder = $('#session-results');
+  const screen = $('#screen-result');
+  const isMulti = gameMode === 'multi' || (session && session.mode === 'multi');
+  const fallback = [{ nickname: PLAYER.nickname, score: game.score, me: true, submitted: true }];
+
+  // Tampilkan TY page LANGSUNG (tidak menunggu pemain lain -> tidak "nyangkut").
+  // Multi: judul "SCOREBOARD" + panel ranking (desain Happy). Single: "YOUR SCORE".
+  if (isMulti) {
+    screen.classList.add('multi');
+    $('.your-score').textContent = 'SCOREBOARD';
+    holder.classList.remove('hidden');
+    renderResults(fallback);         // render awal: skor sendiri
+  } else {
+    screen.classList.remove('multi');
+    $('.your-score').textContent = 'YOUR SCORE';
+    holder.classList.add('hidden');
+  }
+
+  show('#screen-result');
+  playSfx('success');   // Big Band Celebration bersamaan confetti
+  startConfetti();
+
+  // multiplayer: pantau skor pemain lain -> ranking update HIDUP sampai sesi
+  // selesai (semua submit / grace habis). Pemain yang selesai duluan otomatis
+  // melihat skor final semua orang tanpa refresh.
+  if (isMulti && session) {
+    const finalRows = await session.watchResults(rows => {
+      if (gen === loopId) renderResults(rows);
+    }).catch(() => fallback);
+    if (gen !== loopId) return;
+    renderResults(finalRows);
+    notifyGameEnd(session && session.sessionId ? session.sessionId : '', finalRows.map(({ nickname, score }) => ({ nickname, score })));
+  } else {
+    notifyGameEnd(session && session.sessionId ? session.sessionId : '', fallback.map(({ nickname, score }) => ({ nickname, score })));
+  }
+}
+
+function handleExit() {
+  if (running && !over && session && session.sessionId) {
+    const currentScore = (game && typeof game.score === 'number') ? game.score : 0;
+    session.submitScore(currentScore, true);
+    notifyGameExit(session.sessionId, currentScore);
+  }
+}
+window.addEventListener('pagehide', handleExit);
+window.addEventListener('beforeunload', handleExit);
+
+async function refreshScoreboardOnFocus() {
+  const resultScreen = $('#screen-result');
+  if (resultScreen && !resultScreen.classList.contains('hidden') && session && session.fetchResults) {
+    const res = await session.fetchResults();
+    if (res && res.rows) {
+      renderResults(res.rows);
+    }
+  }
+}
+window.addEventListener('focus', refreshScoreboardOnFocus);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    handleExit();
+  } else if (document.visibilityState === 'visible') {
+    refreshScoreboardOnFocus();
+  }
+});
+
+$('#btn-start').addEventListener('click', () => { playSfx('start'); startGame(); });
+
+// ---- preview QA: buka ?preview=ty (multi) / ?preview=ty1 (single) /
+// ?preview=wait (waiting screen) untuk melihat layar tanpa main dulu (data
+// contoh). Aman utk produksi: hanya jalan kalau param preview diisi. ----
+(function previewTY() {
+  const mode = new URLSearchParams(location.search).get('preview');
+  if (mode === 'wait') {                 // layar loading (botol terisi coke)
+    show('#screen-game');
+    $('#waiting-overlay').classList.remove('hidden');
+    updateWaiting({ count: 2, max: 4, ms_left: 9000 });
+    return;
+  }
+  if (mode !== 'ty' && mode !== 'ty1') return;
+  const screen = $('#screen-result');
+  if (mode === 'ty1') {
+    screen.classList.remove('multi');
+    $('.your-score').textContent = 'YOUR SCORE';
+    $('#final-score').textContent = '12500';
+    $('#session-results').classList.add('hidden');
+  } else {
+    screen.classList.add('multi');
+    $('.your-score').textContent = 'SCOREBOARD';
+    $('#session-results').classList.remove('hidden');
+    renderResults([
+      { nickname: 'User name', score: 15000, submitted: true },
+      { nickname: PLAYER.nickname || 'User name', score: 7000, me: true, submitted: true },
+      { nickname: 'User name', score: 5000, submitted: true },
+      { nickname: 'User name', score: 1000, submitted: true },
+    ]);
+  }
+  show('#screen-result');
+  startConfetti();
+})();
+
+window.__endGame = endGame; // hook debug/QA
+window.__confetti = { start: startConfetti, element: () => confettiImage }; // hook debug/QA

@@ -1,0 +1,690 @@
+/* ================================================================
+   Coke Hangout — Tetris  |  design space: 1080 x 2340 (artboard)
+   The #stage keeps the artboard coordinate system and is scaled
+   to fit the real viewport in js/main.js.
+   ================================================================ */
+
+/* Font resmi TCCC Unity (feedback: angka/HUD pakai Cond, sisanya Head) */
+@font-face {
+  font-family: 'TCCC Unity Cond';
+  src: url('../assets/fonts/TCCCUnityCond-Medium.ttf') format('truetype');
+  font-weight: 400 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'TCCC Unity Head';
+  src: url('../assets/fonts/TCCCUnityHead-Medium.ttf') format('truetype');
+  /* batas atas dilebarkan ke 650 (bukan 600 pas): beberapa Android tampak
+     memperlakukan batas atas range sebagai eksklusif, jadi request weight:600
+     (dipakai teks "Kumpulkan...") gagal cocok ke face ini dan kepental ke
+     face Bold di bawah (700 900) -- iOS Safari inklusif jadi normal di sana. */
+  font-weight: 400 650;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'TCCC Unity Head';
+  src: url('../assets/fonts/TCCCUnityHead-Bold.ttf') format('truetype');
+  font-weight: 700 900;
+  font-display: swap;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --coke-red: #e4051f;
+  --dark: #171519;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: 'TCCC Unity Head', 'Montserrat', sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* cegah menu "download/share image" saat tombol ditahan lama di HP */
+img {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+#viewport {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#stage {
+  position: relative;
+  width: 1080px;
+  height: 2340px;
+  flex: none;
+  transform-origin: center center;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.screen.dark { background: var(--dark); }
+.screen.red {
+  background-color: var(--coke-red);
+  background-position: top center;
+  background-size: auto 100%;
+  background-repeat: no-repeat;
+}
+#screen-game { background-image: url('../assets/img/bg-game-expanded.jpg'); }
+#screen-result { background-image: url('../assets/img/bg-result-single-expanded.jpg'); }
+#screen-result.multi { background-image: url('../assets/img/bg-result-multi-expanded.jpg'); }
+.hidden { display: none !important; }
+
+/* konten layar diskalakan proporsional bila layar lebih pendek dari
+   rasio desain; background .screen tetap full-bleed */
+.fit {
+  position: relative;
+  width: 1080px;
+  height: 100%;
+  margin: 0 auto;
+}
+
+/* ---------------- decorations ---------------- */
+.deco {
+  position: absolute;
+  pointer-events: none;
+}
+/* PNG deco punya padding transparan (deco-2 konten mulai x=110/705,
+   deco-1 berakhir x=805/862) -> geser keluar supaya konten nempel tepi
+   layar (feedback 07 Jul: "seperti ada margin kiri kanan") */
+.deco-tl { left: -37px;  top: 105px; width: 235px; }
+.deco-tr { right: -21px; top: -18px; width: 315px; }
+
+/* ---------------- screen 1: cara bermain ---------------- */
+.howto-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 470px;
+  color: #fff;
+}
+.howto-content h1 {
+  font-size: 100px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.howto-desc {
+  /* feedback 07 Jul: deskripsi maksimal 3 baris */
+  margin-top: 60px;
+  width: 960px;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.howto-content h2 {
+  margin-top: 90px;
+  font-size: 72px;
+  font-weight: 800;
+}
+.controls-list {
+  list-style: none;
+  margin-top: 55px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  align-items: flex-start;
+}
+.controls-list li {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+.controls-list img { width: 90px; height: 90px; }
+.controls-list span {
+  font-size: 42px;
+  font-weight: 700;
+}
+.btn-image {
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-top: 130px;
+}
+.btn-image img { width: 400px; display: block; }
+.btn-image:active { transform: scale(0.96); }
+
+/* ---------------- screen 2: game ---------------- */
+.game-logo {
+  position: absolute;
+  top: 155px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 350px;
+}
+
+.panel {
+  position: absolute;
+  background: rgba(43, 5, 5, 0.55);
+  border: 3px solid #fff;
+  border-radius: 28px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.panel-label {
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
+  font-weight: 600;
+  font-size: 40px;
+  letter-spacing: 2px;
+}
+.panel-value {
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
+  font-weight: 600;
+  font-size: 56px;
+  line-height: 1.1;
+}
+/* feedback 13 Jul: time berkedip di 10 detik terakhir */
+.panel-value.blink { animation: time-blink 1s steps(1, end) infinite; }
+@keyframes time-blink {
+  0%, 49%  { opacity: 1; color: #fff; }
+  50%, 100% { opacity: 1; color: #ffd7d7; }
+}
+.score-panel { left: 42px;  top: 452px; width: 150px; height: 155px; }
+.time-panel  { left: 42px;  top: 645px; width: 150px; height: 230px; gap: 2px; }
+.clock-icon  { width: 52px; height: 52px; margin-bottom: 6px; }
+/* feedback 07 Jul: box NEXT sama tinggi dengan box score + time
+   (452..875), margin antar elemen dirapikan */
+.next-panel  {
+  right: 42px; top: 452px; width: 150px; height: 423px;
+  justify-content: flex-start;
+  padding: 26px 0 20px;
+}
+/* feedback 13 Jul: slot ukuran tetap + space-evenly supaya 3 balok next
+   mengisi penuh tinggi box (sebelumnya ada ruang kosong di bawah karena
+   tinggi tiap balok berbeda-beda) */
+#next-queue {
+  margin-top: 10px;
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: center;
+}
+.next-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 110px;
+}
+.next-slot canvas { display: block; }
+
+/* panel papan memakai asset FA_BG GAME (border + grid sudah di gambar);
+   cell asli 160px, grid mulai 154px dari tepi -> skala 60/160 = 0.375 */
+#board-wrap {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 312px;
+  width: 716px;
+  height: 1325px;
+  background: url('../assets/img/board.png') 0 0 / 100% 100% no-repeat;
+}
+#board {
+  position: absolute;
+  left: 58px;
+  top: 58px;
+  width: 600px;
+  height: 1200px;
+}
+
+#popup-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* feedback 14 Jul: kata + combo dibungkus satu grup, disusun bertumpuk
+   rapi (tidak saling menimpa); posisi diatur inline dari js/main.js */
+.popup-group {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.popup-group.center {
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+}
+/* feedback 07 Jul: kata popup fill putih dengan stroke merah (sesuai KV)
+   feedback 13 Jul: drop shadow (raw file efek menyusul dari desain,
+   didekati dengan filter supaya tidak menunggu asset) */
+.popup {
+  color: #fff;
+  font-weight: 800;
+  font-size: 64px;
+  text-align: center;
+  line-height: 1.25;
+  white-space: nowrap;
+  -webkit-text-stroke: 6px #b00013;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .5));
+  animation: popup 1.1s ease-out forwards;
+}
+.popup .pts { font-size: 56px; }
+/* feedback: teks combo style sama dengan popup utama (putih + stroke merah) */
+.popup.combo { font-size: 48px; }
+.popup.combo .pts { font-size: 42px; }
+
+/* feedback 13 Jul: teks waktu habis, tampil 2 detik sebelum pindah ke TY.
+   Stroke merah + drop-shadow, konsisten dgn popup kata (fill putih, stroke
+   merah) — sekaligus menjaga keterbacaan saat menimpa balok. */
+.time-up-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 60px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 66px;
+  line-height: 1.25;
+  -webkit-text-stroke: 6px #b00013;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .5));
+  animation: time-up-in .35s ease-out forwards;
+}
+@keyframes time-up-in {
+  0%   { opacity: 0; transform: scale(.7); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes popup {
+  0%   { opacity: 0; transform: scale(.6); }
+  15%  { opacity: 1; transform: scale(1.08); }
+  25%  { transform: scale(1); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-40px) scale(1); }
+}
+
+/* waiting screen multiplayer: layar gelap SOLID sama seperti "Cara Bermain"
+   (deco pojok + watermark logo), "Siap Bertanding?", botol coca-cola sebagai
+   loading state. Background solid (BUKAN rgba tembus pandang) supaya board
+   di belakang benar-benar tersembunyi — sebelumnya translucent dan board
+   masih kebaca (feedback). */
+#waiting-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--dark);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 0 60px;
+}
+#waiting-overlay h1 {
+  color: #fff;
+  font-size: 88px;
+  font-weight: 800;
+  text-align: center;
+}
+/* teks status + subjudul dikelompokkan rapat jadi satu blok (mockup) */
+.waiting-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: -4px;
+}
+.waiting-text {
+  color: #fff;
+  font-size: 35px;
+  font-weight: 600;
+  text-align: center;
+}
+/* subtitle mockup: "Begitu semua siap, permainan dimulai!" */
+.waiting-sub {
+  color: #fff;
+  font-size: 35px;
+  font-weight: 600;
+  text-align: center;
+  max-width: 960px;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+/* countdown window tunggu */
+.waiting-timer {
+  margin-top: 8px;
+  color: #fff;
+  font-size: 30px;
+  font-weight: 700;
+  text-align: center;
+}
+/* --- botol sebagai loading state: coke terisi dari bawah ke atas (mockup) --- */
+.bottle-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 36px;
+}
+/* botol loading pakai ASET ASLI (assets/img/bottle-loading*.png, 180x672) --
+   dua percobaan sebelumnya (SVG hasil reka ulang tangan) bentuknya meleset
+   dari desain asli (feedback "masih salah" 2x). Sekarang siluetnya PERSIS
+   dari file asli, di-pakai sebagai CSS mask supaya cairan animasi bisa
+   dipotong ke bentuk itu tanpa perlu trace ulang jadi path. */
+.waiting-bottle {
+  position: relative;
+  width: 130px;
+  height: 485px;                      /* 130 * 672/180, rasio kanvas asli */
+}
+.waiting-bottle img { position: absolute; display: block; }
+.bl-base { inset: 0; width: 100%; height: 100%; }
+/* posisi logo persis seperti di desain asli (diukur dari Asset 34: bbox
+   logo dalam kanvas 180x672 -> x20 y304 w136 h42, dipakai sbg persentase).
+   Satu warna saja, statis, diam di tempat (feedback: "jangan jadi merah
+   putih" -- efek logo ganti warna sebelumnya dihapus). */
+.bl-logo-red {
+  left: 11.11%; top: 45.24%; width: 75.56%; height: auto;
+}
+.bl-liquid-mask {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: url('../assets/img/bottle-loading.png');
+  mask-image: url('../assets/img/bottle-loading.png');
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+/* cairan naik ke level yang dihitung & di-set langsung (translateY inline)
+   dari js/main.js updateWaiting() -- dihitung di JS (bukan calc()+custom
+   property CSS) karena kombinasi itu tidak konsisten recompute pada
+   transform di sebagian browser. */
+.bl-liquid-level {
+  position: absolute;
+  inset: 0;
+  transition: transform 1s ease-out;
+}
+.bl-wave-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.bl-wave-path {
+  fill: var(--coke-red);
+  animation: bottle-wave-scroll 2.2s linear infinite;
+}
+@keyframes bottle-wave-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-90px); }   /* -1 periode gelombang: loop mulus */
+}
+
+
+/* layout baru: kiri/kanan berpasangan di kiri-atas dengan turun di
+   bawahnya (tersentral), putar di kanan-atas dengan jatuhkan di
+   bawahnya -- sesuai referensi mockup */
+.game-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2; /* render di atas .swoosh supaya tombol besar tidak "tertutup" gelombang dekoratif */
+}
+/* PNG tombol punya bingkai transparan 20px di tiap sisi (gambar 220px,
+   isi gambar cuma 180px di tengah). Kotak tombol dibuat seukuran isi
+   gambar saja, lalu <img> dilebarkan keluar pakai margin negatif --
+   tampilan tetap sama persis, tapi area tap tidak lagi tumpang tindih
+   antar tombol (dulu bagian bawah kiri/kanan malah men-trigger turun). */
+.btn-ctl {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.btn-ctl img { width: 220px; height: 220px; margin: -20px; display: block; }
+.btn-ctl:active img { transform: scale(0.9); }
+
+/* koordinat = posisi isi gambar tombol (sudah termasuk offset di atas);
+   digeser +10px dari versi 200px supaya titik tengah tombol tidak pindah */
+#ctl-left   { left: 145px; top: 1655px; }
+#ctl-right  { left: 365px; top: 1655px; }
+#ctl-down   { left: 255px; top: 1850px; }
+#ctl-rotate { left: 770px; top: 1655px; }
+#ctl-drop   { left: 610px; top: 1850px; }
+
+.swoosh {
+  position: absolute;
+  bottom: 145px;
+  left: 0;
+  width: 1080px;
+  pointer-events: none;
+}
+.screen.red::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 160px;
+  background: #fff;
+  z-index: 0;
+  display: none;
+}
+.copyright {
+  position: absolute;
+  left: 60px;
+  bottom: 55px;
+  width: 460px;
+}
+
+/* Background terbaru sudah memuat swoosh/copyright, dan background result
+   juga sudah memuat deco serta botol. Sembunyikan layer lama agar tidak
+   terduplikasi di atas artwork final. */
+#screen-game > .swoosh,
+#screen-game > .copyright,
+#screen-result > .deco,
+#screen-result > .swoosh,
+#screen-result > .copyright,
+#screen-result .bottle { display: none; }
+
+/* ---------------- screen 3: your score / scoreboard ---------------- */
+.result-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 240px;
+  color: #fff;
+  z-index: 2;
+}
+.result-content .line { width: 430px; height: 5px; }
+.your-score {
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 96px;
+  letter-spacing: 4px;
+  margin-top: 45px;
+}
+#final-score {
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
+  font-weight: 600;
+  font-size: 150px;
+  line-height: 1.05;
+  margin-bottom: 55px;
+}
+.result-content h2 {
+  margin-top: 30px;
+  font-size: 58px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+/* 38px (bukan 42): dgn font brand TCCC, baris "Kumpulkan…" di 42px = 93% lebar
+   layar -> mepet ke tepi di iOS/desktop. 38px = ~84% -> margin aman ~87px tiap
+   sisi, tetap 2 baris. max-width = jaring pengaman kalau font platform lain
+   lebih lebar. */
+.result-content p {
+  margin-top: 16px;
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.45;
+  max-width: 960px;
+  box-sizing: border-box;
+}
+.btn-pill {
+  margin-top: 60px;
+  z-index: 3;
+  padding: 24px 90px;
+  background: var(--coke-red);
+  border: 4px solid #fff;
+  border-radius: 70px;
+  color: #fff;
+  font-family: 'TCCC Unity Head', 'Montserrat', sans-serif;
+  font-size: 42px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(0,0,0,.3);
+}
+.btn-pill:active { transform: scale(0.96); }
+
+/* Scoreboard Panel */
+#session-results {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 860px;
+  padding: 24px 24px;
+  background: rgba(45, 5, 10, 0.75);
+  border: 3px solid #ffffff;
+  border-radius: 28px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.4);
+}
+.result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 24px;
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
+  font-size: 52px;
+  font-weight: 600;
+  color: #fff;
+}
+.result-row .rank {
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
+  font-weight: 600;
+  width: 70px;
+  text-align: left;
+  color: inherit;
+}
+.result-row .name {
+  flex: 1;
+  text-align: left;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.result-row .score {
+  font-family: 'TCCC Unity Cond', 'Oswald', sans-serif;
+  font-weight: 600;
+  width: 180px;
+  text-align: right;
+  color: inherit;
+}
+.result-row.me {
+  background: #ffffff;
+  color: var(--coke-red);
+}
+.result-row.me .rank,
+.result-row.me .name,
+.result-row.me .score {
+  color: var(--coke-red);
+}
+/* pemain yang belum selesai: baris diredupkan + skor "bermain…" (italic,
+   berkedip halus) supaya jelas skornya masih menyusul, bukan skor 0 */
+.result-row.pending { opacity: .7; }
+.result-row.pending .score {
+  font-family: inherit;
+  font-size: 32px;
+  font-style: italic;
+  font-weight: 600;
+  animation: pending-blink 1.2s ease-in-out infinite;
+}
+@keyframes pending-blink { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+
+/* Pemain yang putus di tengah game / tidak menyelesaikan -> diskualifikasi
+   (Kiosk Vendor Feedback Q5). Dibedakan dari "bermain…": tidak berkedip,
+   tidak punya nomor peringkat, dan lebih redup. */
+.result-row.dq { opacity: .45; }
+.result-row.dq .score {
+  font-family: inherit;
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+/* ---- TY page multiplayer: SCOREBOARD ---- */
+#screen-result.multi #final-score,
+#screen-result.multi .line { display: none; }
+#screen-result.multi .your-score {          /* jadi judul SCOREBOARD */
+  font-size: 90px;
+  letter-spacing: 3px;
+  margin-top: 0;
+}
+
+/* feedback 07 Jul: botol tidak terhalang tulisan & tidak ngambang —
+   lebih besar, menempel dasar, bagian bawah boleh terpotong */
+.bottle {
+  /* rasio PNG 305x972 -> tinggi = width*3.19; teks berakhir ~1070px,
+     puncak botol harus di bawahnya (desain): 2340+110-420*3.19 = 1110 */
+  position: absolute;
+  bottom: -110px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 395px;
+  z-index: 1;
+  pointer-events: none;
+}
+#screen-result .swoosh { z-index: 0; }
+#screen-result .copyright { z-index: 2; }
+#confetti {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  z-index: 4;
+  pointer-events: none;
+  display: none;
+}
+#confetti.active { display: block; }
