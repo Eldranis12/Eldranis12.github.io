@@ -1925,9 +1925,17 @@ body {
     Lose's lockup is a layer now, so it rides up with the CTAs and the block takes the
     same lift as Win instead of the old clamp that kept it off the baked-in artwork.
   */
-  #screen-lose .result-actions,
   #screen-lose .lose-logo-suzzanna {
     transform: translateY(calc(var(--fit-over, 0px) * -0.39));
+  }
+
+  /*
+    The CTAs take nearly double the logo's share: at 0.39 they cleared the legal line by
+    only 9px while sitting 57px below the lockup, i.e. everything piled into the bottom
+    band. The wider share spends that slack and leaves both gaps in the same range.
+  */
+  #screen-lose .result-actions {
+    transform: translateY(calc(var(--fit-over, 0px) * -0.72));
   }
 
   /* Mobile paints the clean plate for every Lose state, so the layer shows on all. */
