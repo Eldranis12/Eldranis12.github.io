@@ -310,7 +310,7 @@ body {
     inset: calc(-1 * var(--fit-crop)) 0 auto 0;
     height: var(--fit-h);
     z-index: 0;
-    background-image: url('assets/bg_lose.jpg?v=20260822-bgbaru');
+    background-image: url('assets/bg_lose_clean.jpg?v=20260916-nologo');
     background-size: auto var(--fit-h);
     background-position: center top;
     /* Sampled from this plate's own edge columns. */
@@ -1107,7 +1107,27 @@ body {
 
 /* BG Baru: LP and the normal Lose state share one clean 1390x2340 plate. */
 #screen-lose {
-  background-image: url('assets/bg_lose.jpg?v=20260822-bgbaru');
+  background-image: url('assets/bg_lose_clean.jpg?v=20260916-nologo');
+}
+
+/*
+  Same lockup the plate used to carry, now the LP's asset as a layer: matched to the
+  baked geometry (25.926% x 3.846%) but lifted clear of the SHARE row at 66.898%.
+*/
+#screen-lose .lose-logo-suzzanna {
+  position: absolute;
+  left: 64.398%;
+  top: 61.400%;
+  width: 25.926%;
+  height: 3.846%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* The sold-out Lose composites paint their own lockup. */
+#screen-lose.coupon-out .lose-logo-suzzanna,
+#screen-lose.voucher-out .lose-logo-suzzanna {
+  display: none;
 }
 
 /*
@@ -1897,9 +1917,23 @@ body {
     transform: translateY(calc(var(--fit-over, 0px) * -0.21));
   }
 
-  #screen-win .result-actions,
-  #screen-lose .result-actions {
+  #screen-win .result-actions {
     transform: translateY(calc(var(--fit-over, 0px) * -0.39));
+  }
+
+  /*
+    Lose's lockup is a layer now, so it rides up with the CTAs and the block takes the
+    same lift as Win instead of the old clamp that kept it off the baked-in artwork.
+  */
+  #screen-lose .result-actions,
+  #screen-lose .lose-logo-suzzanna {
+    transform: translateY(calc(var(--fit-over, 0px) * -0.39));
+  }
+
+  /* Mobile paints the clean plate for every Lose state, so the layer shows on all. */
+  #screen-lose.coupon-out .lose-logo-suzzanna,
+  #screen-lose.voucher-out .lose-logo-suzzanna {
+    display: block;
   }
 }
 
