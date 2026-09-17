@@ -1525,15 +1525,8 @@ body {
   background-position: center;
 }
 
-/* The winner artwork paints no CTA either, so the greyed state is an overlay here too. */
-#screen-win.voucher-out .btn-ambil-voucher {
-  opacity: 1;
-  pointer-events: none;
-  cursor: default;
-}
-
-#screen-win.voucher-out .btn-ambil-voucher > img.normal-result-art { display: none; }
-#screen-win.voucher-out .btn-ambil-voucher > img.voucher-out-art { display: block; }
+/* Client: a winner with the Fanta voucher gone gets no CTA at all, not a greyed YAKALI. */
+#screen-win.voucher-out .btn-ambil-voucher { display: none !important; }
 
 /* The PSD's second artboard is the two-button Voucher-habis state. */
 #screen-lose.voucher-out {
