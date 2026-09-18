@@ -15,7 +15,7 @@ const url = new URLSearchParams(location.search);
 const IS_LOCALHOST = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname);
 const MP_URL_DEFAULT = IS_LOCALHOST
   ? 'http://localhost:8787'
-  : 'https://lightgrey-gerbil-393119.hostingersite.com/coke-api';
+  : 'https://rabbots.online/coke-api';
 
 // Parameter URL dari Grivy. Nama resmi mengikuti "Kiosk Vendor Feedback"
 // (Q1): wa_session_id, user_uid, nickname, nickname_entered. Nama lama tetap
