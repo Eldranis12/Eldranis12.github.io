@@ -24,3 +24,8 @@ yarn-error.log*
 # Temporary / Zip archives
 *.zip
 *.log
+
+# Backend (dikelola & di-deploy terpisah di Hostinger, TIDAK boleh ikut
+# ke-publish lewat GitHub Pages -- source code sempat public via repo ini)
+server-php/
+server/
