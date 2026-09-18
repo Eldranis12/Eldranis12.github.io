@@ -98,7 +98,7 @@ class RemoteSession {
   get sessionId() { return this._sessionId; }
 
   async join() {
-    const r = await jpost(this.base + '/session/join', this._q);
+    const r = await jpost(this.base + '/round/connect', this._q);
     this._sessionId = r.session_id;
     this._joinState = r; // join sudah menjalankan Game Connect pertama
     return r;
@@ -111,8 +111,9 @@ class RemoteSession {
     this._joinState = null;
     for (;;) {
       if (!st) {
-        st = await jget(`${this.base}/session/state?session_id=${encodeURIComponent(this._sessionId)}`
-          + `&user_uid=${encodeURIComponent(this._q.user_uid)}`);
+        // Tidak ada endpoint state terpisah -- /round/connect aman dipanggil
+        // berulang (idempoten) dan itu jadi mekanisme polling kita.
+        st = await jpost(this.base + '/round/connect', this._q);
       }
       onTick && onTick(st);
       if (st.round_locked) {
@@ -140,7 +141,7 @@ class RemoteSession {
       score: score ?? 0,
       live: true,
     });
-    fetch(this.base + '/session/score', {
+    fetch(this.base + '/round/score', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
@@ -161,7 +162,7 @@ class RemoteSession {
     if (isExit) {
       if (typeof fetch === 'function') {
         try {
-          fetch(this.base + '/session/score', {
+          fetch(this.base + '/round/score', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: json,
@@ -172,20 +173,20 @@ class RemoteSession {
       if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
         try {
           const blob = new Blob([json], { type: 'text/plain;charset=UTF-8' });
-          navigator.sendBeacon(this.base + '/session/score', blob);
+          navigator.sendBeacon(this.base + '/round/score', blob);
         } catch (e) {}
       }
       return;
     }
 
-    return jpost(this.base + '/session/score', data).catch(() => {});
+    return jpost(this.base + '/round/score', data).catch(() => {});
   }
 
   // Ambil data ranking terkini dari server
   async fetchResults() {
     if (!this._sessionId) return null;
     try {
-      const data = await jget(`${this.base}/session/results?session_id=${encodeURIComponent(this._sessionId)}`);
+      const data = await jget(`${this.base}/round/results?session_id=${encodeURIComponent(this._sessionId)}`);
       if (data && data.results) {
         const rows = data.results.map(r => ({
           nickname: r.nickname_entered || r.nickname,
