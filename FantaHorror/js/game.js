@@ -121,10 +121,9 @@ const GRIVY_EVENT_NAMES = {
 const GTM_EVENT_NAMES = {
     game_loaded: 'game_loaded',
     game_started: 'game_start',
-    game_completed: 'game_complete',
-    // ponytail: the claim itself completes on Grivy's page; the tap that sends the
-    // player there is the last point this game can see.
-    get_voucher: 'voucher_claimed'
+    game_completed: 'game_complete'
+    // voucher_claimed is pushed by the Ambil Voucher handler itself: it has to hold the
+    // redirect until GTM has fired, which a fire-and-forget push here cannot do.
 };
 
 function pushDataLayer(event, extra = {}) {
@@ -598,7 +597,22 @@ class FantaHorrorGame {
             btn.addEventListener('click', () => {
                 window.soundManager.playSfx('buttonClick');
                 emitGameEvent('get_voucher', { campaignCode: GRIVY.fantaMain });
-                triggerGrivyAction('getPrize', GRIVY.fantaMain);
+
+                // The claim completes on Grivy's page, so this tap is the last point the
+                // game can report. Leaving immediately can kill the pixel requests, so the
+                // redirect waits for GTM's callback -- capped, in case GTM never loads.
+                let left = false;
+                const leave = () => {
+                    if (left) return;
+                    left = true;
+                    triggerGrivyAction('getPrize', GRIVY.fantaMain);
+                };
+                pushDataLayer('voucher_claimed', {
+                    campaignCode: GRIVY.fantaMain,
+                    eventCallback: leave,
+                    eventTimeout: 1000
+                });
+                setTimeout(leave, 1200);
             });
         });
     }
