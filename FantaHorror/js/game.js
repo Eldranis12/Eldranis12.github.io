@@ -116,10 +116,28 @@ const GRIVY_EVENT_NAMES = {
  * pure notifications: they never redirect, because they fire during normal play rather
  * than in response to a CTA.
  */
+// Client Ads team: Meta/TikTok pixels fire from GTM (GTM-P8BZ8NJ) off these dataLayer
+// events. Keys are our Grivy event names, values the names their GTM triggers expect.
+const GTM_EVENT_NAMES = {
+    game_loaded: 'game_loaded',
+    game_started: 'game_start',
+    game_completed: 'game_complete',
+    // ponytail: the claim itself completes on Grivy's page; the tap that sends the
+    // player there is the last point this game can see.
+    get_voucher: 'voucher_claimed'
+};
+
+function pushDataLayer(event, extra = {}) {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event, source: 'fanta-horror-game', ...extra });
+}
+
 function emitGameEvent(eventName, extra = {}) {
     const payload = { eventName, source: 'fanta-horror-game', ...extra };
 
     logGrivyDebug(`Event Sent: ${eventName}`, payload);
+
+    if (GTM_EVENT_NAMES[eventName]) pushDataLayer(GTM_EVENT_NAMES[eventName], extra);
 
     window.dispatchEvent(new CustomEvent(`fanta-horror:${eventName}`, { detail: payload }));
 
@@ -1055,11 +1073,14 @@ class FantaHorrorGame {
             this.hideLifeNotif();
             if (isWin && this.health > 0) {
                 emitGameEvent('game_completed', {
+                    result: 'win',
                     livesLeft: this.health,
                     selectedVoucher: this.selectedVoucher
                 });
                 this.switchScreen('WIN');
             } else {
+                // Grivy only listens for wins; GTM wants every round end.
+                pushDataLayer('game_complete', { result: 'lose', livesLeft: this.health });
                 this.switchScreen('LOSE');
             }
         }, 500);
