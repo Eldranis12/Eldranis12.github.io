@@ -13,9 +13,18 @@ const url = new URLSearchParams(location.search);
 // CATATAN: kalau nanti domain asli dipasang di hPanel, ganti URL di bawah —
 // dan tambahkan domain game ke 'cors_origin' di config.php server.
 const IS_LOCALHOST = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname);
+
+// Stage vs Production dipilih dari PATH tempat game di-host, bukan dari config
+// server bersama: path yang memuat "-stage" (mis. /coke-rom-26-tetris-stage/)
+// memakai backend Stage yang terpisah total (config, kiosk/Grivy endpoint, dan
+// database sendiri); selain itu Production. Satu build yang sama dipakai di
+// kedua path, jadi tidak ada lagi risiko callback Stage nyasar ke Production.
+const IS_STAGE = /-stage(\/|$)/i.test(location.pathname);
 const MP_URL_DEFAULT = IS_LOCALHOST
   ? 'http://localhost:8787'
-  : 'https://rabbots.online/coke-api';
+  : IS_STAGE
+    ? 'https://rabbots.online/coke-api-stage'
+    : 'https://rabbots.online/coke-api';
 
 // Parameter URL dari Grivy. Nama resmi mengikuti "Kiosk Vendor Feedback"
 // (Q1): wa_session_id, user_uid, nickname, nickname_entered. Nama lama tetap
