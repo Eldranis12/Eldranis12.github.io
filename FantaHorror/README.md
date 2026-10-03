@@ -79,10 +79,10 @@ FantaHorror/
 Diatur di bagian atas [`js/game.js`](js/game.js):
 
 ```js
-const DEFAULT_CHANNEL = 0;   // 0 = Staging/Testing, 1 = Live
+const DEFAULT_CHANNEL = 1;   // 0 = Staging/Testing, 1 = Live
 ```
 
-Channel 0 mengarah ke `stage.grivy.app`, channel 1 ke `fun.fanta.id`. Kode kampanye
+Channel 0 mengarah ke `stage.fun.fanta.id`, channel 1 ke `fun.fanta.id`. Kode kampanye
 per channel ada di array `CHANNELS`.
 
 Bisa juga di-override tanpa mengubah file, dengan mendefinisikan
